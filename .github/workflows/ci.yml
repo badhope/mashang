@@ -212,6 +212,7 @@ jobs:
       # 从仓库 Secrets 还原签名密钥库（4 个 secret 缺一不可，缺失则此步失败，
       # 避免悄悄产出未签名包被当成正式版发布）
       - name: 校验 tag 与 versionName/versionCode
+        if: startsWith(github.ref, 'refs/tags/v')
         run: python scripts/ci/check_release_version.py
 
       # 凭据只在本步 env 内可见，不写入 $GITHUB_ENV —— 否则后续所有 step
