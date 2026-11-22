@@ -12,13 +12,13 @@ CodeLearning（码上）是一台「课程 + 判题 + 运行环境」打包在�
 
 **Q：只学 Python 吗？**
 
-内置四个离线运行时：Python（CPython 3.13）、JavaScript（Rhino）、Lua（LuaJ）和 SQL（SQLite）。Python 主线 38 讲内置；语言中心可按需下载 JavaScript / Lua / SQL 各 6 讲，以及 DSA 算法包（10 讲）与彩蛋课（1 讲）。Java / C++ / Go / Rust 需要编译器或原生工具链，语言中心明确标注「暂不支持」且不提供下载。架构上 `LanguageRuntime` 已抽象，新增可解释语言只需再实现一个「说同一套 JSON」的后端。
+内置六个离线运行时：Python（CPython 3.13）、JavaScript（Rhino）、TypeScript（类型擦除）、C（Kotlin 教学子集）、Lua（LuaJ）和 SQL（SQLite）。Python 主线 39 讲（含综合项目 1 讲）内置；语言中心可按需下载 JavaScript / TypeScript / C / Lua / SQL 课程包，以及 DSA 算法包（10 讲）与彩蛋课（1 讲）。Java / C++ / Go / Rust 需要编译器或原生工具链，语言中心明确标注「暂不支持」且不提供下载。架构上 `LanguageRuntime` 已抽象，新增可解释语言只需再实现一个「说同一套 JSON」的后端。
 
 ## 离线与网络
 
 **Q：真的完全离线？联网权限干什么用？**
 
-学习、写码、运行、判题 100% 本地。 `INTERNET` 权限只用于「我的 → 语言中心」手动检查/下载课程包（GitHub Pages → GitHub raw → GitCode 三级源，SHA-256 校验，零个人数据）。另外「系统设置 → 检查更新」只读取 GitHub Releases 的公开版本号。
+学习、写码、运行、判题 100% 本地。 `INTERNET` 权限只用于「我的 → 语言中心」手动检查/下载课程包（GitCode → GitHub raw → GitHub Pages 三级源，SHA-256 校验，零个人数据）。另外「系统设置 → 检查更新」只读取 GitHub Releases 的公开版本号。
 
 **Q：网页版也要联网吗？**
 
@@ -32,7 +32,7 @@ CodeLearning（码上）是一台「课程 + 判题 + 运行环境」打包在�
 
 **Q：换手机怎么迁移？**
 
-「我的 → 备份/恢复 → 导出备份」生成 JSON 到 Downloads/Mashang（目录名为兼容旧版保留）；新机用同一入口导入。备份含 XP、通关、连击、错题本与复习卡。
+「我的 → 备份/恢复 → 导出备份」生成 JSON 到 Downloads/CodeLearning；新机用同一入口导入。备份含 XP、通关、连击、错题本与复习卡。
 
 **Q：可以商用吗？**
 
@@ -67,8 +67,8 @@ CodeLearning（码上）是一台「课程 + 判题 + 运行环境」打包在�
 ```bash
 ./gradlew :app:assembleDebug          # Debug APK
 ./gradlew :app:assembleRelease        # 需 KEYSTORE_PATH 等 4 个环境变量
-python -m unittest discover -s tests  # 242 条测试
-python tests/validate_content.py      # 55 个 Python 判题项 / 201 用例
+python -m unittest discover -s tests  # 247 条测试
+python tests/validate_content.py      # 57 个 Python 判题项 / 229 用例
 ```
 
 **Q：怎么加一门新语言？**

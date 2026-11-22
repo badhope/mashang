@@ -145,6 +145,13 @@ class LanguageCenterTests(unittest.TestCase):
         text = _read(JAVA, "data", "ContentCenter.kt")
         self.assertIn("val lang: String", text, "内容包必须携带语言字段")
         self.assertIn("optString(\"lang\"", text, "必须从 catalog 解析 lang")
+        # 2026-11：国内网络下 GitHub 最坏要等 20 秒才回落 GitCode，目录源必须国内优先。
+        self.assertIn("CATALOG_TIMEOUT_MS = 4000", text, "目录源应有独立的 4 秒超时")
+        gitcode = text.find("api.gitcode.com")
+        github_raw = text.find("raw.githubusercontent.com")
+        self.assertGreaterEqual(gitcode, 0, "GitCode 目录源缺失")
+        self.assertGreaterEqual(github_raw, 0, "GitHub raw 目录源缺失")
+        self.assertLess(gitcode, github_raw, "GitCode 必须排在 GitHub raw 之前")
 
 
 class NavigationRouteTests(unittest.TestCase):
@@ -225,10 +232,16 @@ class VisualRegressionTests(unittest.TestCase):
         self.assertIn('removePrefix("${e.type}: ")', text)
 
     def test_secondary_pages_have_top_back(self):
-        """帮助/隐私/关于原先只能滚到底部点返回。"""
+        """帮助/隐私/关于原先只能滚到底部点返回。
+
+        2026-11 去重后，顶部返回由 ui/components/ScreenHeader.kt 统一提供；
+        页面本身只需使用 ScreenHeader，不再各自 import ArrowBack。
+        """
+        header = _read(JAVA, "ui", "components", "ScreenHeader.kt")
+        self.assertIn("ArrowBack", header, "ScreenHeader 必须提供顶部返回图标")
         for name in ("HelpScreen.kt", "PrivacyPolicyScreen.kt", "AboutScreen.kt"):
             text = _read(JAVA, "screens", name)
-            self.assertIn("ArrowBack", text, f"{name} 缺少顶部返回")
+            self.assertIn("ScreenHeader(", text, f"{name} 缺少统一顶部返回")
 
     def test_home_challenge_button_uses_fire_icon(self):
         text = _read(JAVA, "screens", "HomeScreen.kt")

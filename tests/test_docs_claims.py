@@ -42,36 +42,31 @@ def _test_method_count() -> int:
 
 
 def _judge_counts():
-    """返回 (Python 项, Python 用例, JS 项, JS 用例)。
+    """返回六门语言的判题项与用例数。
 
     注意：Lua / SQL 课程包的判题项不计入「Python 判题项」——它们由
     LuaJ 与 sqlite3 执行，Python 侧的 validate_content.py 不覆盖。
-    总数这两个数字仍用于断言软著说明书的汇总行。
+    C / TypeScript 由 Kotlin 侧的 CCoursePacksTest / TypeScriptCoursePacksTest
+    执行；旧版这里漏计了这两门，导致软著「合计」少算 76 项 / 311 用例。
+    总数这两个数字用于断言软著说明书的汇总行。
     """
     items = []
     for f in sorted(ASSETS.glob("lessons_*.json")) + sorted(PACKS.glob("*.json")):
         items.extend(json.loads(_read(f)))
     items.extend(json.loads(_read(ASSETS / "challenges.json")))
-    py_items = py_cases = js_items = js_cases = 0
-    lua_items = lua_cases = sql_items = sql_cases = 0
+    counters = {
+        name: {"items": 0, "cases": 0}
+        for name in ("python", "javascript", "typescript", "c", "lua", "sql")
+    }
     for item in items:
         tests = (item.get("exercise") or {}).get("tests") or item.get("tests") or []
         if not tests:
             continue
         lang = item.get("lang", "python")
-        if lang == "javascript":
-            js_items += 1
-            js_cases += len(tests)
-        elif lang == "lua":
-            lua_items += 1
-            lua_cases += len(tests)
-        elif lang == "sql":
-            sql_items += 1
-            sql_cases += len(tests)
-        elif lang == "python":
-            py_items += 1
-            py_cases += len(tests)
-    return py_items, py_cases, js_items, js_cases, lua_items, lua_cases, sql_items, sql_cases
+        if lang in counters:
+            counters[lang]["items"] += 1
+            counters[lang]["cases"] += len(tests)
+    return counters
 
 
 def _source_scale():
@@ -98,20 +93,24 @@ class TestCountClaims(unittest.TestCase):
         )
 
     def test_softcopy_judge_counts_match_assets(self):
-        py_items, py_cases, js_items, js_cases, lua_items, lua_cases, sql_items, sql_cases = _judge_counts()
+        counts = _judge_counts()
         text = _read(ROOT / "docs" / "softcopy" / "软件说明书.md")
-        for snippet in (
-            f"{py_items} 个 Python 判题项",
-            f"{py_cases} 条 Python 用例",
-            f"{js_items} 个 JavaScript",
-            f"{js_cases} 条 JavaScript",
-            f"{lua_items} 个 Lua 判题项",
-            f"{lua_cases} 条 Lua 用例",
-            f"{sql_items} 个 SQL 判题项",
-            f"{sql_cases} 条 SQL 用例",
-            f"{py_items + js_items + lua_items + sql_items} 个判题项",
-            f"{py_cases + js_cases + lua_cases + sql_cases} 条用例",
-        ):
+        labels = {
+            "python": "Python",
+            "javascript": "JavaScript",
+            "typescript": "TypeScript",
+            "c": "C",
+            "lua": "Lua",
+            "sql": "SQL",
+        }
+        for lang, label in labels.items():
+            c = counts[lang]
+            for snippet in (f"{c['items']} 个 {label}", f"{c['cases']} 条 {label}"):
+                with self.subTest(snippet=snippet):
+                    self.assertIn(snippet, text, f"软著说明书缺少或写错：{snippet}")
+        total_items = sum(c["items"] for c in counts.values())
+        total_cases = sum(c["cases"] for c in counts.values())
+        for snippet in (f"{total_items} 个判题项", f"{total_cases} 条用例"):
             with self.subTest(snippet=snippet):
                 self.assertIn(snippet, text, f"软著说明书缺少或写错：{snippet}")
 

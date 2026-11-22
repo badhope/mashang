@@ -286,6 +286,12 @@ class JsChallengeBehaviorTests(unittest.TestCase):
     def test_js_challenge_c2_brackets(self):
         self._assert_challenge_ok("js-c2")
 
+    def test_all_js_challenges(self):
+        for c in self.challenges:
+            if c.get("lang") == "javascript":
+                with self.subTest(challenge=c["id"]):
+                    self._assert_challenge_ok(c["id"])
+
     def _assert_challenge_ok(self, cid):
         challenge = next(c for c in self.challenges if c["id"] == cid)
         result = self._judge(challenge)

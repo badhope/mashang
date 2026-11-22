@@ -4,7 +4,7 @@ import android.content.Context
 import com.pyneon.academy.lang.LanguageIds
 import com.pyneon.academy.lang.LanguageRuntime
 import com.pyneon.academy.lang.RunResult
-import com.pyneon.academy.lang.VarInfo
+import com.pyneon.academy.lang.parseRunResultJson
 import com.pyneon.academy.py.PyBridge
 import org.json.JSONArray
 import org.json.JSONObject
@@ -100,19 +100,5 @@ object SqlBridge : LanguageRuntime {
         return false to text
     }
 
-    private fun parse(raw: String): RunResult {
-        val obj = JSONObject(raw)
-        val errorObj = obj.optJSONObject("error")
-        return RunResult(
-            ok = obj.getBoolean("ok"),
-            stdout = obj.optString("stdout"),
-            stderr = obj.optString("stderr"),
-            errorType = errorObj?.optString("type")?.ifEmpty { null },
-            errorMessage = errorObj?.optString("message")?.ifEmpty { null },
-            traceback = errorObj?.optString("traceback")?.ifEmpty { null },
-            durationMs = obj.optLong("duration_ms"),
-            variables = emptyList<VarInfo>(),
-            passed = if (obj.has("passed") && !obj.isNull("passed")) obj.getBoolean("passed") else null
-        )
-    }
+    private fun parse(raw: String): RunResult = parseRunResultJson(raw)
 }

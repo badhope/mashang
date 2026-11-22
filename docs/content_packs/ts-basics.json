@@ -78,6 +78,13 @@
       {
         "type": "task",
         "text": "把代码里的 name 和 level 换成你自己的代号与等级，运行看看输出。再试着把 level 的值改成字符串，观察程序是否仍然能跑。"
+      },
+      {
+        "type": "practice",
+        "title": "类型擦除对照",
+        "code": "var level: number = 66;\nvar title: string = \"V\";\nconsole.log(title + \":\" + level);",
+        "output": "V:66",
+        "hint": "类型标注不会进入输出，只留下变量和值。"
       }
     ],
     "exercise": {
@@ -180,6 +187,13 @@
       {
         "type": "task",
         "text": "分别声明一个 string、一个 number、一个 boolean，用 typeof 打印它们的运行时类型，观察结果是否和标注一致。"
+      },
+      {
+        "type": "practice",
+        "title": "画一张英雄形状",
+        "code": "interface Hero { name: string; level: number; }\nvar h: Hero = { name: \"Judy\", level: 30 };\nconsole.log(h.name + \"/\" + h.level);",
+        "output": "Judy/30",
+        "hint": "interface 只约束写法，运行时对象仍是普通字面量。"
       }
     ],
     "exercise": {
@@ -361,6 +375,13 @@
       {
         "type": "task",
         "text": "给 practice 里的函数加一个参数，再修改返回值类型标注，观察运行时输出是否变化。"
+      },
+      {
+        "type": "practice",
+        "title": "函数契约跑一遍",
+        "code": "function add(a: number, b: number): number { return a + b; }\nconsole.log(add(2, 3), add(-1, 4));",
+        "output": "5 3",
+        "hint": "参数和返回值标注在转译后消失，加法照常执行。"
       }
     ],
     "exercise": {
@@ -441,6 +462,13 @@
       {
         "type": "task",
         "text": "给 Hero 增加一个可选字段 title，再创建两个对象：一个有 title，一个没有，分别打印。"
+      },
+      {
+        "type": "practice",
+        "title": "对象形状校验",
+        "code": "interface Point { x: number; y: number; }\nvar p: Point = { x: 3, y: 4 };\nconsole.log(p.x * p.x + p.y * p.y);",
+        "output": "25",
+        "hint": "接口描述字段，运行时只读对象属性。"
       }
     ],
     "exercise": {
@@ -735,6 +763,13 @@
       {
         "type": "task",
         "text": "把 Level 的 Mid 改成 100，重新运行，观察 High 的值如何跟着变化。"
+      },
+      {
+        "type": "practice",
+        "title": "枚举的真实值",
+        "code": "enum Color { Red, Green, Blue }\nvar c: Color = Color.Green;\nconsole.log(c);",
+        "output": "1",
+        "hint": "数字枚举默认从 0 开始，Green 是 1；它是少数会留下运行时对象的类型。"
       }
     ],
     "exercise": {

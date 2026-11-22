@@ -74,7 +74,9 @@ data class RunResult(
  *
  * 设计约定：
  * 1. 一个实现类 = 一门语言的一个运行时后端。
- *    （Python → Chaquopy 内嵌 CPython；JavaScript → QuickJS / WASM）
+ *    （Python → Chaquopy 内嵌 CPython；JavaScript → Rhino 1.7.15；
+ *      TypeScript → 类型擦除后复用 Rhino；C → 纯 Kotlin 教学子集解释器；
+ *      Lua → LuaJ 3.0.1；SQL → SQLite 内存库）
  * 2. 跨语言通信统一走 JSON 字符串，字段结构与 Python 侧
  *    `runner.run_code_json` / `check_exercise_json` / `repl.*` 保持一致，
  *    这样新增语言时只需另起一个"说同一种 JSON"的后端，UI 与判题逻辑零改动。

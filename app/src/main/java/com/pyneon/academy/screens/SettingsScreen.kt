@@ -17,14 +17,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,7 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.pyneon.academy.data.ProgressStore
 import com.pyneon.academy.ui.components.NeonButton
-import com.pyneon.academy.ui.effects.GlitchText
+import com.pyneon.academy.ui.components.ScreenHeader
 import com.pyneon.academy.ui.effects.NeonCard
 import com.pyneon.academy.ui.effects.SectionHeader
 import com.pyneon.academy.ui.theme.Bg0
@@ -83,22 +81,12 @@ fun SettingsScreen(
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "返回",
-                tint = TextMid,
-                modifier = Modifier
-                    // 触摸目标 48dp（无障碍最小值）：视觉 28dp + 四周 10dp padding
-                    .padding(10.dp)
-                    .size(28.dp)
-                    .clickable { onBack() }
-            )
-            Column(Modifier.padding(start = 12.dp)) {
-                GlitchText("系统设置", style = MaterialTheme.typography.headlineSmall, color = NeonGreen)
-                Text("外观 · 数据 · 更新 · 关于", style = MaterialTheme.typography.labelSmall, color = TextDim)
-            }
-        }
+        ScreenHeader(
+            title = "系统设置",
+            subtitle = "外观 · 数据 · 更新 · 关于",
+            accent = NeonGreen,
+            onBack = onBack
+        )
 
         ThemePickerSection()
 

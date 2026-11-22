@@ -252,7 +252,13 @@ internal fun Modifier.androidxBackground(color: androidx.compose.ui.graphics.Col
     this.background(color, shape)
 
 @Composable
-internal fun PracticeCard(practice: Block.Practice, lang: String = "python") {
+internal fun PracticeCard(
+    practice: Block.Practice,
+    lang: String = "python",
+    result: RunResult? = null,
+    running: Boolean = false,
+    onRun: (() -> Unit)? = null
+) {
     NeonCard(accent = NeonCyan, filled = true) {
         Text("PRACTICE · 跟做练习", style = MaterialTheme.typography.labelSmall, color = NeonCyan)
         Spacer(Modifier.height(4.dp))
@@ -277,6 +283,16 @@ internal fun PracticeCard(practice: Block.Practice, lang: String = "python") {
         Spacer(Modifier.height(4.dp))
         OutputPreview(practice.output)
         Spacer(Modifier.height(8.dp))
+        if (onRun != null) {
+            NeonButton(
+                label = if (running) "运行中…" else "▶ 运行这段示例",
+                accent = NeonGreen,
+                enabled = !running,
+                onClick = onRun
+            )
+            Spacer(Modifier.height(8.dp))
+            ConsoleResult(result = result, running = running)
+        }
         TipBox(practice.hint, NeonCyan, "提示")
     }
 }

@@ -2,10 +2,10 @@
 
 <img src="docs/banner.png" alt="CodeLearning · 码上" width="830"/>
 
-**CodeLearning · 码上 —— スマホでコードを書く。6 言語、230+ レッスン、すべてオフライン。**
+**CodeLearning · 码上 —— スマホでコードを書く。6 言語、245 レッスン、すべてオフライン。**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-00E5FF.svg)](LICENSE)
-[![Android](https://img.shields.io/badge/Android-7.0%2B-00E5FF.svg)]()
+[![Android](https://img.shields.io/badge/Android-10.0%2B-00E5FF.svg)]()
 [![Languages](https://img.shields.io/badge/Languages-6-00FF9C.svg)]()
 [![Lessons](https://img.shields.io/badge/Lessons-230%2B-F7FF00.svg)]()
 [![Download](https://img.shields.io/badge/Download-APK-FF2D78.svg)](https://github.com/badhope/mashang/releases/latest)
@@ -32,22 +32,27 @@
 
 | 言語 | ランタイム | レッスン |
 |---|---|---|
-| **Python** | CPython 3.13 | 38（内蔵メインライン）+ DSA + 組み込み関数 |
+| **Python** | CPython 3.13 | 39（内蔵メインライン）+ 総合プロジェクト + DSA + 組み込み関数 |
 | **JavaScript** | Rhino 1.7.15 | 38（基礎 / コア / 上級 / 専門パック） |
 | **TypeScript** | 型消去 → Rhino | 38（基礎 / コア / 上級 / 専門パック） |
 | **C** | 内蔵インタプリタ | 38（基礎 / コア / 上級 / 専門パック） |
 | **Lua** | LuaJ 3.0.1 | 38（基礎 / コア / 上級 / 専門パック） |
-| **SQL** | SQLite | 38（基礎 / コア / 上級 / 専門パック） |
+| **SQL** | SQLite | 43（38 メインライン + 5 境界トピック） |
 
 Python メインラインは APK に内蔵。残り 5 言語は「言語センター」からオンデマンドでダウンロード。初回インストール約 39 MB。
 
 C と TypeScript は学習用サブセットです（C はプリプロセッサ・goto・関数ポインタなし、TypeScript はデコレータ・名前空間なし）。非対応時は明示します。
 
+カバレッジ：6 言語で 245 レッスン、471 個の実行可能例、1,097 件の採点ケース。全レッスンに採点付き演習があります。入門から中級の演習コースであり、職業課程ではありません。詳細は [docs/LANGUAGE_COVERAGE.md](docs/LANGUAGE_COVERAGE.md)。
+
 ---
 
 ## インストール
 
-- **すぐ使う**：[GitHub Releases](https://github.com/badhope/mashang/releases/latest) から `mashang-*.apk` を取得
+- **GitHub**：[Releases](https://github.com/badhope/mashang/releases/latest)
+- **GitCode**：[Releases](https://gitcode.com/badhope/mashang/releases)
+- **Gitee**：[Releases](https://gitee.com/badhope/mashang/releases)
+- はじめての方は [ユーザーガイド](docs/USER_GUIDE.md) を先にお読みください。
 - Android 10（API 29）以上、arm64-v8a
 
 ソースからビルド：

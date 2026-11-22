@@ -149,7 +149,7 @@ fun ProfileScreen(
         }
 
         SectionHeader("毕业认证", accent = NeonYellow)
-        // 毕业口径 = 内置主线课程（Python 38 讲）；扩展包不计入，
+        // 毕业口径 = 内置主线课程（Python 39 讲）；扩展包不计入，
         // 否则通关主线后仍显示未毕业（实测显示 "0/44"）。
         val coreDone = remember(progress, coreLessons) {
             coreLessons.count { it.id in progress.completedLessons }

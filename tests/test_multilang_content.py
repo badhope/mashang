@@ -10,7 +10,8 @@
   - LessonRepository.parseLesson:  obj.optString("lang", "python")
   - LessonRepository.parseChallenge: obj.optString("lang", "python")
   - Block.CodeBlock.lang:          b.optString("lang", "")   // 空串 = 继承本讲语言
-  - LanguageIds:                   python / javascript 为已实现，其余为规划中
+  - LanguageIds:                   python / javascript / typescript / c / lua / sql 已实现，
+                                  java / cpp / go / rust 为规划中
 """
 
 import json
@@ -79,7 +80,7 @@ class LangFieldContractTests(unittest.TestCase):
     def test_no_lesson_runs_unimplemented_language(self):
         """
         R1：不允许出现"有内容但没有运行时"的语言。
-        规划中的语言（java/cpp/go/rust/sql）一旦出现在课程里，必须先落地运行时。
+        规划中的语言（java/cpp/go/rust）一旦出现在课程里，必须先落地运行时。
         """
         offenders = [
             (item.get("id"), item.get("lang"))

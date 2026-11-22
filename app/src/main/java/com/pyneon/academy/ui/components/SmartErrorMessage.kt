@@ -38,8 +38,8 @@ import com.pyneon.academy.ui.theme.TextDim
 @Composable
 fun SmartErrorMessage(
     errorText: String,
-    suggestion: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    suggestion: String? = null
 ) {
     val (friendlyMessage, hint) = parseError(errorText)
     

@@ -25,11 +25,11 @@ class SqlPackTests(unittest.TestCase):
 
     def test_pack_exists_and_has_lessons(self):
         self.assertEqual(
-            ["sql-advanced.json", "sql-basics.json", "sql-core.json", "sql-expert.json"],
+            ["sql-advanced.json", "sql-basics.json", "sql-core.json", "sql-edge.json", "sql-expert.json"],
             [p.name for p in self.pack_paths],
-            "SQL 课程应为 基础/核心/进阶/专业 四包",
+            "SQL 课程应为 基础/核心/进阶/专业/边界 五包",
         )
-        self.assertEqual(38, len(self.lessons), "SQL 课程合计 38 讲")
+        self.assertEqual(43, len(self.lessons), "SQL 课程合计 43 讲（38 主线 + 5 边界）")
         self.assertTrue(all(l["lang"] == "sql" for l in self.lessons))
 
     def test_every_solution_passes_its_tests(self):
@@ -85,6 +85,23 @@ class SqlPackTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class SqlChallengeTests(unittest.TestCase):
+    """挑战页 SQL 题也要真实判题，不能只验证课程 exercise。"""
+
+    def test_all_sql_challenges_pass(self):
+        challenges = json.loads(
+            (ROOT / "app" / "src" / "main" / "assets" / "challenges.json").read_text(encoding="utf-8")
+        )
+        sql_challenges = [c for c in challenges if c.get("lang") == "sql"]
+        self.assertGreaterEqual(len(sql_challenges), 2, "至少两道 SQL 挑战")
+        for c in sql_challenges:
+            with self.subTest(challenge=c["id"]):
+                result = sql_runner.check_sql(c["solution"], c["tests"])
+                self.assertTrue(result["passed"], f'{c["id"]} 未通过：{result["error"]}')
+                starter = sql_runner.check_sql(c["starterCode"], c["tests"])
+                self.assertFalse(starter["passed"], f'{c["id"]} 起始代码不应通过')
 
 
 class SqlTimeoutTests(unittest.TestCase):

@@ -175,7 +175,7 @@ fun TypewriterText(
 }
 
 @Composable
-fun BlinkingCursor(color: Color = NeonCyan, modifier: Modifier = Modifier) {
+fun BlinkingCursor(modifier: Modifier = Modifier, color: Color = NeonCyan) {
     val transition = rememberInfiniteTransition(label = "cursor")
     val alpha by transition.animateFloat(
         initialValue = 1f,
@@ -289,7 +289,7 @@ fun ProgressRing(
 }
 
 @Composable
-fun SectionHeader(title: String, accent: Color = NeonCyan, modifier: Modifier = Modifier) {
+fun SectionHeader(title: String, modifier: Modifier = Modifier, accent: Color = NeonCyan) {
     Text(
         "▍ $title",
         style = MaterialTheme.typography.titleMedium,

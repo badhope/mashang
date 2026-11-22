@@ -104,12 +104,16 @@ def repl_reset_json(payload_json=""):
     newline="\n",
 )
 
-js_challenges = sum(1 for c in challenges if c.get("lang", "python") == "javascript")
+_ch_by_lang = {}
+for _c in challenges:
+    _l = _c.get("lang", "python")
+    _ch_by_lang[_l] = _ch_by_lang.get(_l, 0) + 1
+js_challenges = _ch_by_lang.get("javascript", 0)
 print("OK generated web/data.js + web/engine.js")
 print("  lessons      :", len(lessons), f"(内置 + 语言包 {len(pack_lessons)})")
 _by_lang = {}
 for _l in lessons:
     _by_lang[_l.get("lang", "python")] = _by_lang.get(_l.get("lang", "python"), 0) + 1
 print("  by language  :", ", ".join(f"{k} {v}" for k, v in sorted(_by_lang.items())))
-print("  challenges   :", len(challenges), f"(python {len(challenges) - js_challenges} + javascript {js_challenges}，JS 挑战仅 App 内可运行)")
+print("  challenges   :", len(challenges), "(" + ", ".join(f"{k} {v}" for k, v in sorted(_ch_by_lang.items())) + ")")
 print("  engine.py len:", len(runner_src), "chars")

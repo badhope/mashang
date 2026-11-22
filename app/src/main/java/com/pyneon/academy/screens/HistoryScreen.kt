@@ -1,7 +1,6 @@
 package com.pyneon.academy.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Terminal
@@ -36,18 +34,15 @@ import com.pyneon.academy.data.ActivityType
 import com.pyneon.academy.data.LessonRepository
 import com.pyneon.academy.data.Progress
 import com.pyneon.academy.data.ProgressStore
-import com.pyneon.academy.ui.effects.GlitchText
+import com.pyneon.academy.ui.components.ScreenHeader
 import com.pyneon.academy.ui.effects.NeonCard
 import com.pyneon.academy.ui.effects.SectionHeader
 import com.pyneon.academy.ui.theme.Bg0
 import com.pyneon.academy.ui.theme.DarkTokens
 import com.pyneon.academy.ui.theme.NeonCyan
-import com.pyneon.academy.ui.theme.NeonGreen
-import com.pyneon.academy.ui.theme.NeonMagenta
 import com.pyneon.academy.ui.theme.NeonYellow
 import com.pyneon.academy.ui.theme.TextDim
 import com.pyneon.academy.ui.theme.TextHi
-import com.pyneon.academy.ui.theme.TextMid
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -72,22 +67,12 @@ fun HistoryScreen(onBack: () -> Unit) {
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "返回",
-                tint = TextMid,
-                modifier = Modifier
-                    // 触摸目标 48dp（无障碍最小值）：视觉 28dp + 四周 10dp padding
-                    .padding(10.dp)
-                    .size(28.dp)
-                    .clickable { onBack() }
-            )
-            Column(Modifier.padding(start = 12.dp)) {
-                GlitchText("学习历史", style = MaterialTheme.typography.headlineSmall, color = NeonCyan)
-                Text("最近 ${progress.recentActivities.size} 条活动记录", style = MaterialTheme.typography.labelSmall, color = TextDim)
-            }
-        }
+        ScreenHeader(
+            title = "学习历史",
+            subtitle = "最近 ${progress.recentActivities.size} 条活动记录",
+            accent = NeonCyan,
+            onBack = onBack
+        )
 
         if (progress.recentActivities.isEmpty()) {
             NeonCard(accent = NeonCyan) {

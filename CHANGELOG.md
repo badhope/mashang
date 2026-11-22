@@ -2,7 +2,37 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。完整发布说明见 [GitHub Releases](https://github.com/badhope/mashang/releases)。
 
+## [0.7.1] - 2026-11-23
+
+> 质量与发布收口版本：不改变课程结构，补齐对外文档、应用内开源入口与发布门禁。
+> 版本 0.7.0 → **0.7.1**（versionCode 19 → 20）。
+
+### Added
+- 应用内「关于」页新增开源社区入口：GitCode / GitHub / Gitee 仓库直达，明确提示可点 Star。
+- 新增 `docs/USER_GUIDE.md` 完整用户手册：安装、首次启动、课程与判题、语言包、备份、权限、排障、卸载与反馈。
+- 帮助中心新增「完整用户手册」入口，并把六门运行时说明修正为 Python / JavaScript / TypeScript / C / Lua / SQL。
+
+### Fixed
+- 文件读写课判题与参考答案改用临时目录，不再往仓库根目录写 `note.txt` / `empty.txt` / `unicode.txt`。
+- 备份导出显式关闭输出流；写入失败删除 MediaStore pending 半成品，避免遗留坏文件。
+- 启动图标去重：删除未使用的 legacy drawable、重复 `mipmap-anydpi` 与未引用颜色资源。
+- 三处 Compose 组件按规范把 `Modifier` 调整为第一个可选参数。
+- Robolectric 统一走阿里云镜像，修复国内网络下 `android-all` 拉取超时。
+
+### Verification
+- `testDebugUnitTest`：275 项通过，0 失败。
+- `lintDebug`：0 Error。
+- `pytest`：247 通过，551 subtests 通过；内容校验结构问题 0、判题失败 0。
+
 ## [0.7.0] - 2026-11-07
+
+> 2026-11 复核：本节下方的 2,402 块 / 351 可运行 / 803 判题用例是发布时旧口径。
+> 当前仓库实测为 **3,016 个内容块、471 个可运行代码块、1,097 条判题用例**
+> （Python 230 / JavaScript 188 / TypeScript 186 / C 161 / Lua 180 / SQL 152，含 22 道挑战 131 例）。
+>
+> 2026-11-23 质量复核：全量单测 275 项通过（Robolectric 改走国内镜像），
+> `lintDebug` 0 Error；备份写入失败会清理 pending 半成品，重复启动图标资源已合并；
+> 文件读写课判题改用临时目录，测试不再污染仓库根目录。
 
 ### Added
 - **六门语言统一 38 讲**：JavaScript / TypeScript / C / Lua / SQL 各拆 4 包
@@ -39,6 +69,22 @@
 - 课程口径统一为「六门语言 · 每门 38 讲 · 共 230+ 讲」
 
 ## [Unreleased]
+
+> 注：下方 Added 为 0.6.0 底稿，已并入 0.7.0；本节当前用于记录 0.7.x 之后的改动。
+
+### Changed
+- **2026-11 去重与合并（前端 / 数据层 / 后端契约）**：
+  新增 `ui/components/ScreenHeader.kt` 与 `NeonTopBar.kt`，备份 / 历史 / 路线 / 复习 / 诊断 /
+  设置 / 许可 / 关于 / 帮助 / 隐私 10 个二级页 + 错题本 / 连击台 2 个 Scaffold 页统一顶栏，
+  返回热区与标题层级不再各写一份；
+  新增 `lang/RunResultJson.kt`，PyBridge 与 SqlBridge 共用同一 JSON 结果解析；
+  新增 `data/JsonListFile.kt` 与统一 `UserDataJson`，错题本 / 复习卡 / 备份共用同一序列化与
+  原子写入（tmp + rename），移除 BackupUtil 里第二套手写字段映射；
+  新增 `utils/HttpText.kt`，ContentCenter 与 UpdateChecker 共用超时、UA 与流式体积上限；
+  合并 C 解释器 `looksLikePrototype` / `looksLikeFunctionDef` 为 `looksLikeFunctionDecl`；
+  主题亮/暗两套 ColorScheme 改为基底 + `copy`，消除 19 行重复槽位。
+- 软著说明书同步源程序规模：80 个源文件、16,683 行（Kotlin 77 + Python 3），并更新模块计数。
+- 静态测试同步新结构：二级页顶部返回改为断言 `ScreenHeader` 使用，不再要求页面各自 import `ArrowBack`。
 
 ### Added
 - **C 运行时**（`c/CInterpreter.kt` + `c/CBridge.kt`，纯 Kotlin 教学子集解释器，无 NDK）：支持 int/double/char、一维数组、函数与递归、printf/puts/putchar、assert/assertOutput；不支持指针/结构体/预处理/switch，遇到即明确报错而非静默错答

@@ -4,24 +4,20 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -31,14 +27,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.pyneon.academy.data.BackupUtil
 import com.pyneon.academy.data.LessonRepository
 import com.pyneon.academy.ui.components.NeonButton
-import com.pyneon.academy.ui.effects.GlitchText
+import com.pyneon.academy.ui.components.ScreenHeader
 import com.pyneon.academy.ui.effects.NeonCard
 import com.pyneon.academy.ui.theme.Bg0
 import com.pyneon.academy.ui.theme.NeonCyan
@@ -46,7 +41,6 @@ import com.pyneon.academy.ui.theme.NeonGreen
 import com.pyneon.academy.ui.theme.NeonMagenta
 import com.pyneon.academy.ui.theme.NeonYellow
 import com.pyneon.academy.ui.theme.SurfaceDark
-import com.pyneon.academy.ui.theme.TextDim
 import com.pyneon.academy.ui.theme.TextMid
 import kotlinx.coroutines.launch
 
@@ -99,22 +93,12 @@ fun BackupScreen(onBack: () -> Unit) {
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "返回",
-                tint = TextMid,
-                modifier = Modifier
-                    // 触摸目标 48dp（无障碍最小值）：视觉 28dp + 四周 10dp padding
-                    .padding(10.dp)
-                    .size(28.dp)
-                    .clickable { onBack() }
-            )
-            Column(Modifier.padding(start = 12.dp)) {
-                GlitchText("备份中心 // BACKUP", style = MaterialTheme.typography.headlineSmall, color = NeonCyan)
-                Text("本地进度导出与恢复", style = MaterialTheme.typography.labelSmall, color = TextDim)
-            }
-        }
+        ScreenHeader(
+            title = "备份中心 // BACKUP",
+            subtitle = "本地进度导出与恢复",
+            accent = NeonCyan,
+            onBack = onBack
+        )
 
         NeonCard(accent = NeonCyan) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

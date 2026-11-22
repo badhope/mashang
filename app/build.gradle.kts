@@ -21,8 +21,8 @@ android {
         // 提升后备份/海报统一走 MediaStore（API 29+ 唯一路径），代码与测试都更简单。
         minSdk = 29
         targetSdk = 35
-        versionCode = 19
-        versionName = "0.7.0"
+        versionCode = 20
+        versionName = "0.7.1"
         // 版本号单一来源：BuildConfig.VERSION_NAME / VERSION_CODE
         buildConfigField("String", "VERSION_NAME", "\"$versionName\"")
         buildConfigField("int", "VERSION_CODE", "$versionCode")
@@ -122,6 +122,14 @@ android {
         unitTests {
             // Robolectric 需要访问 android 资源与 manifest 才能渲染真实 UI
             isIncludeAndroidResources = true
+            all {
+                // Robolectric 默认从 repo1.maven.org 拉 android-all 镜像，国内常超时。
+                // 统一走项目已在用的阿里云镜像，保证单测可重复执行。
+                it.systemProperty(
+                    "robolectric.dependency.repo.url",
+                    "https://maven.aliyun.com/repository/public",
+                )
+            }
         }
     }
 }

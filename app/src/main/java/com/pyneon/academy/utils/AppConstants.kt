@@ -21,7 +21,9 @@ object AppConstants {
     // 会让「查看源码 / 隐私政策」等按钮直接失败。
     const val REPO_URL = "https://gitcode.com/badhope/mashang"
     const val REPO_URL_GITHUB = "https://github.com/badhope/mashang"
+    const val REPO_URL_GITEE = "https://gitee.com/badhope/mashang"
     const val SITE_URL = "https://badhope.github.io/mashang/"
+    const val USER_GUIDE_URL = "$REPO_URL/blob/main/docs/USER_GUIDE.md"
 
     // 分享标签（2026-11 品牌升级：CodeLearning · 码上）
     const val SHARE_HASHTAG = "#CodeLearning #码上 #编程学习"

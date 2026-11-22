@@ -1110,11 +1110,14 @@
     "exercise": {
       "title": "加密笔记写入",
       "brief": "实现 write_note(path, text)：用 'w' 模式把 text 写入文件（utf-8），返回写入的字符数。",
-      "starterCode": "def write_note(path, text):\n    ____\n\nprint(write_note('note.txt', 'hello'))\nprint(open('note.txt', encoding='utf-8').read())",
+      "starterCode": "import os, tempfile\n\ndef write_note(path, text):\n    ____\n\np = os.path.join(tempfile.gettempdir(), 'note.txt')\nprint(write_note(p, 'hello'))\nprint(open(p, encoding='utf-8').read())",
       "hint": "with open(path, 'w', encoding='utf-8') as f: f.write(text)，然后 return len(text)。",
       "tests": [
-        "assert write_note('note.txt', 'hello') == 5",
-        "assert open('note.txt', encoding='utf-8').read() == 'hello'"
+        "import tempfile, os\nwith tempfile.TemporaryDirectory() as d:\n    p = os.path.join(d, 'note.txt')\n    assert write_note(p, 'hello') == 5\n    assert open(p, encoding='utf-8').read() == 'hello'",
+        "import tempfile, os\nwith tempfile.TemporaryDirectory() as d:\n    p = os.path.join(d, 'empty.txt')\n    assert write_note(p, '') == 0\n    assert open(p, encoding='utf-8').read() == ''",
+        "import tempfile, os\nwith tempfile.TemporaryDirectory() as d:\n    p = os.path.join(d, 'unicode.txt')\n    assert write_note(p, '霓虹') == 2",
+        "import tempfile, os\nwith tempfile.TemporaryDirectory() as d:\n    p = os.path.join(d, 'overwrite.txt')\n    write_note(p, 'first')\n    assert write_note(p, 'second') == 6",
+        "import tempfile, os\nwith tempfile.TemporaryDirectory() as d:\n    p = os.path.join(d, 'multi.txt')\n    assert write_note(p, 'a\\nb') == 3\n    assert open(p, encoding='utf-8').read() == 'a\\nb'"
       ],
       "stdin": [],
       "xp": 130
@@ -1294,7 +1297,9 @@
       "hint": "面积公式 π·r²：round(math.pi * r * r, 2)。",
       "tests": [
         "import math\nassert abs(area_circle(1) - math.pi) < 0.01",
-        "assert area_circle(2) == 12.57"
+        "assert area_circle(2) == 12.57",
+        "assert area_circle(0) == 0.0",
+        "assert area_circle(3) == 28.27"
       ],
       "stdin": [],
       "xp": 140

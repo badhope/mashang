@@ -1,6 +1,6 @@
 {
   "updated_at": "2026-11-06",
-  "sha256": "97e0449e106f65365787a1ed07ad7d38f4577a91c2dc6f5a688bf7f14aa2bfe5",
+  "sha256": "8a33d8e2201a9b37ef858397eaa4a24d6cd949eaee2ed778a75702311ddcc183",
   "packs": [
     {
       "id": "bonus-builtin",
@@ -216,6 +216,18 @@
       "tier": "core"
     },
     {
+      "id": "sql-edge",
+      "name": "SQL · 边界专题",
+      "version": 2,
+      "description": "4 讲：NULL 分组 / 重复行去重 / 排序并列 / 事务与 SAVEPOINT，全部真实 sqlite3 判题。",
+      "sha256": "7259acc9cc61c9f4be4766d1ba9be1d14ea2ed3cc512671498d9de4e39ec019b",
+      "kind": "course",
+      "lang": "sql",
+      "lessons": 5,
+      "bytes": 32738,
+      "tier": "expert"
+    },
+    {
       "id": "sql-expert",
       "name": "SQL · 专业篇",
       "version": 2,
@@ -244,11 +256,11 @@
       "name": "TypeScript · 基础篇",
       "version": 2,
       "description": "10 讲：类型擦除 / 基础类型 / 数组元组 / 函数签名 / interface / 联合类型。",
-      "sha256": "550ff4171cdb094a74f912671f0124054093a589194a1234515d7da59b631f3d",
+      "sha256": "a1983a3ee7958860608a21a7f96f38cba85b8305c4e53e6ebe665f04d9d40505",
       "kind": "course",
       "lang": "typescript",
       "lessons": 10,
-      "bytes": 76886,
+      "bytes": 78475,
       "tier": "basics"
     },
     {
@@ -268,11 +280,11 @@
       "name": "TypeScript · 专业篇",
       "version": 2,
       "description": "8 讲：高级泛型 / 类型级编程 / 模块增强 / 类型安全数据层 / 领域建模 / 迁移 / 工程化 / 项目。",
-      "sha256": "de648217a7f4d8f2edc7a80a690aa47873f7b5dbef5bb11bd2f4c8d09cd79d69",
+      "sha256": "dbe664e703167ebac83d707e46fad4e4ca745cad35e469103a716528667287c4",
       "kind": "course",
       "lang": "typescript",
       "lessons": 8,
-      "bytes": 94481,
+      "bytes": 95446,
       "tier": "expert"
     }
   ]

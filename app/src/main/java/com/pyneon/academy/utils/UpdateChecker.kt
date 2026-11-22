@@ -3,8 +3,6 @@ package com.pyneon.academy.utils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 
 /**
  * 手动检查更新。
@@ -33,33 +31,23 @@ object UpdateChecker {
         var lastError: Exception? = null
         for (api in SOURCES) {
             try {
-                val conn = (URL(api).openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 6000
-                    readTimeout = 6000
-                    requestMethod = "GET"
-                    setRequestProperty("Accept", "application/json")
-                    setRequestProperty("User-Agent", "CodeLearning-Android")
+                val body = HttpText.getText(
+                    url = api,
+                    timeoutMs = 6000,
+                    maxBytes = 2 * 1024 * 1024,
+                    accept = "application/json"
+                )
+                val json = JSONObject(body)
+                val tag = json.optString("tag_name").trim().removePrefix("v")
+                // GitCode 与 GitHub 的详情页字段名不同，两者都兼容
+                val url = json.optString("html_url").ifBlank { json.optString("web_url") }
+                if (tag.isBlank() || url.isBlank()) {
+                    lastError = IllegalStateException("返回内容缺少版本信息")
+                    continue
                 }
-                try {
-                    if (conn.responseCode != 200) {
-                        lastError = IllegalStateException("HTTP ${conn.responseCode}")
-                        continue
-                    }
-                    val body = conn.inputStream.bufferedReader().use { it.readText() }
-                    val json = JSONObject(body)
-                    val tag = json.optString("tag_name").trim().removePrefix("v")
-                    // GitCode 与 GitHub 的详情页字段名不同，两者都兼容
-                    val url = json.optString("html_url").ifBlank { json.optString("web_url") }
-                    if (tag.isBlank() || url.isBlank()) {
-                        lastError = IllegalStateException("返回内容缺少版本信息")
-                        continue
-                    }
-                    return@withContext Result.success(
-                        ReleaseInfo(tag, url, json.optString("published_at"))
-                    )
-                } finally {
-                    conn.disconnect()
-                }
+                return@withContext Result.success(
+                    ReleaseInfo(tag, url, json.optString("published_at"))
+                )
             } catch (e: Exception) {
                 lastError = e
             }

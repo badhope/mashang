@@ -1,7 +1,6 @@
 package com.pyneon.academy.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,7 +33,7 @@ import com.pyneon.academy.data.LessonRepository
 import com.pyneon.academy.data.ReviewCard
 import com.pyneon.academy.data.ReviewViewModel
 import com.pyneon.academy.ui.components.NeonButton
-import com.pyneon.academy.ui.effects.GlitchText
+import com.pyneon.academy.ui.components.ScreenHeader
 import com.pyneon.academy.ui.effects.NeonCard
 import com.pyneon.academy.ui.effects.SectionHeader
 import com.pyneon.academy.ui.theme.Bg0
@@ -46,8 +44,6 @@ import com.pyneon.academy.ui.theme.NeonYellow
 import com.pyneon.academy.ui.theme.TextDim
 import com.pyneon.academy.ui.theme.TextHi
 import com.pyneon.academy.ui.theme.TextMid
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 private const val TAG = "ReviewScreen"
 
@@ -75,22 +71,12 @@ fun ReviewScreen(
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "返回",
-                tint = TextMid,
-                modifier = Modifier
-                    // 触摸目标 48dp（无障碍最小值）：视觉 28dp + 四周 10dp padding
-                    .padding(10.dp)
-                    .size(28.dp)
-                    .clickable { onBack() }
-            )
-            Column(Modifier.padding(start = 12.dp)) {
-                GlitchText("复习台 // REVIEW", style = MaterialTheme.typography.headlineSmall, color = NeonGreen)
-                Text("间隔记忆 · 今日到期 ${dueCards.size} 张", style = MaterialTheme.typography.labelSmall, color = TextDim)
-            }
-        }
+        ScreenHeader(
+            title = "复习台 // REVIEW",
+            subtitle = "间隔记忆 · 今日到期 ${dueCards.size} 张",
+            accent = NeonGreen,
+            onBack = onBack
+        )
 
         if (dueCards.isEmpty()) {
             NeutraEmptyState()

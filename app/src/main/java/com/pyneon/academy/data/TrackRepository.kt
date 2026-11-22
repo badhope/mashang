@@ -69,9 +69,9 @@ object TrackRepository {
 
     private val specs = listOf(
         Spec(
-            "python", "Python 主线", "38 讲：print 到异步协程，内置判题实战",
+            "python", "Python 主线", "39 讲：print 到异步协程，内置判题与综合记账本项目",
             "编程语言", CYAN, null, LanguageIds.PYTHON,
-            (1..38).map { "l%02d".format(it) }.toSet(),
+            (1..39).map { "l%02d".format(it) }.toSet(),
             packIds = emptyList()
         ),
         Spec(

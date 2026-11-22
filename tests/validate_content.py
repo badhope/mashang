@@ -319,13 +319,15 @@ SOLUTIONS = {
         "print(safe_len(42))"
     ),
     "l28": (
+        "import os, tempfile\n"
         "def write_note(path, text):\n"
         "    with open(path, 'w', encoding='utf-8') as f:\n"
         "        f.write(text)\n"
         "    return len(text)\n"
         "\n"
-        "print(write_note('note.txt', 'hello'))\n"
-        "print(open('note.txt', encoding='utf-8').read())"
+        "p = os.path.join(tempfile.gettempdir(), 'note.txt')\n"
+        "print(write_note(p, 'hello'))\n"
+        "print(open(p, encoding='utf-8').read())"
     ),
     "l29": (
         "class HackError(Exception):\n"
@@ -590,6 +592,44 @@ SOLUTIONS = {
 VALID_LANGS = {"python", "javascript", "typescript", "c", "lua", "sql"}
 
 
+# 2026-11-22 综合项目课与综合挑战的参考答案
+SOLUTIONS.update({
+    "l39": """def add_expense(book, category, amount):
+    if amount <= 0:
+        raise ValueError("金额必须为正数")
+    book.setdefault(category, []).append(amount)
+    return book
+
+
+def total_by_category(book):
+    return {name: sum(items) for name, items in book.items()}
+
+
+def top_category(book):
+    totals = total_by_category(book)
+    if not totals:
+        return None
+    return max(totals, key=lambda name: (totals[name], name))
+""",
+    "py-cap": """def summarize(records):
+    total = 0
+    by_category = {}
+    for category, amount in records:
+        if amount <= 0:
+            raise ValueError("金额必须为正数")
+        total += amount
+        by_category[category] = by_category.get(category, 0) + amount
+    top = max(by_category, key=lambda k: (by_category[k], k)) if by_category else None
+    return {"total": total, "by_category": by_category, "top": top}
+
+
+def top_n(records, n):
+    totals = summarize(records)["by_category"]
+    ordered = sorted(totals, key=lambda k: (-totals[k], k))
+    return ordered[:max(0, n)]
+""",
+})
+
 def structural_checks(lessons):
     problems = []
     for lesson in lessons:
@@ -823,11 +863,11 @@ def main():
                     SOLUTIONS[lesson["id"]],
                 )
             )
-    for ch in challenges:
-        if ch.get("lang", "python") == "javascript":
-            continue  # JS 挑战由 tests/test_js_lessons.py 用 node 判题
+    # 只有 Python 挑战能交给 CPython 跑；JS 走 node，C/Lua/TS 走各自
+    # Kotlin 单测，SQL 走 sqlite3，避免把非 Python 代码误当 Python 执行。
+    py_challenges = [c for c in challenges if c.get("lang", "python") == "python"]
+    for ch in py_challenges:
         items.append((ch["id"], ch["tests"], [], SOLUTIONS[ch["id"]]))
-    py_challenges = [c for c in challenges if c.get("lang", "python") != "javascript"]
 
     failures = []
     checked = 0
@@ -850,7 +890,7 @@ def main():
         f" + TypeScript {len(ts_lessons)} + C {len(c_lessons)} + Lua {len(lua_lessons)} + SQL {len(sql_lessons)}；"
         f"JS / TS / C / Lua / SQL 判题分别由 test_js_lessons / TypeScriptCoursePacksTest / CCoursePacksTest"
         f" / LuaCoursePacksTest / test_sql_lessons 执行）"
-        f" 挑战数={len(challenges)}（JS {len(challenges) - len(py_challenges)} 道）"
+        f" 挑战数={len(challenges)}（Python {len(py_challenges)} 道，其余语言由各自测试覆盖）"
         f" 判题项={checked} 用例总数={total_cases}"
     )
     print(f"结构问题={len(problems)} 判题失败={len(failures)}")

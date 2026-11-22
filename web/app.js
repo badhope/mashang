@@ -11,7 +11,7 @@
 
   var STORAGE_KEY = "mashang.web.v1";
   var THEME_KEY = "mashang.web.theme";
-  var APP_VERSION = "0.7.0";
+  var APP_VERSION = "0.7.1";
   var PYODIDE_VERSION = "0.29.5";
   var PYODIDE_SOURCES = [
     { js: "https://cdn.jsdelivr.net/pyodide/v" + PYODIDE_VERSION + "/full/pyodide.js", index: "https://cdn.jsdelivr.net/pyodide/v" + PYODIDE_VERSION + "/full/" },
@@ -733,7 +733,7 @@
     var titleWrap = el("div", "hero-copy");
     titleWrap.appendChild(el("div", "eyebrow", "CODELEARNING · WEB TERMINAL"));
     titleWrap.appendChild(el("h1", "hero-title", "码上，就是马上。"));
-    titleWrap.appendChild(el("p", "hero-sub", "六门语言、共 230+ 讲，assert 自动判题、变量快照。与手机端同源，打开浏览器就能写。"));
+    titleWrap.appendChild(el("p", "hero-sub", "六门语言、共 244 讲，assert 自动判题、变量快照。与手机端同源，打开浏览器就能写。"));
     var actions = el("div", "hero-actions");
     var startBtn = el("a", "btn-primary", next.lesson ? (done === 0 ? "开始第 1 讲" : "继续第 " + next.lesson.order + " 讲") : "回顾课程");
     startBtn.href = next.lesson ? "#/lesson/" + next.lesson.id : "#/lessons";

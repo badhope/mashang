@@ -3,7 +3,18 @@
 图例：`[x]` 已完成并发布 · `[~]` 已落地待完善 · `[ ]` 计划中。
 版本节奏：修 Bug 升补丁位，新功能升次版本；具体日期不承诺，以 GitHub Releases 为准。
 
-## v0.4.x（当前）
+## v0.7.x（当前）
+
+- [x] v0.7.0 — 六门语言统一 38 讲（基础 / 核心 / 进阶 / 专业四包），C 解释器扩展到指针、结构体、switch
+- [x] v0.7.0 — 语言中心按需加载、单包下载与整门装齐，catalog 增加 lessons / bytes / tier
+- [x] v0.7.0 — 品牌升级 CodeLearning · 码上，三语 README、证书、终端、官网同步
+- [x] v0.7.0 — 前后端去重：ScreenHeader / NeonTopBar、JsonListFile、RunResultJson、HttpText
+- [ ] v0.7.x — 平板 / 横屏自适应布局
+- [ ] v0.7.x — 网页端离线缓存（Service Worker，二次打开不再下载 WASM）
+- [ ] v0.7.x — 内容中心增量包与版本回滚
+- [ ] v0.7.x — 语言课程深度补齐：SQL / C 增加边界用例，TypeScript 增加可运行示例
+
+## v0.4.x（历史）
 
 - [x] v0.4.0 — 多语言运行时抽象（`LanguageRuntime`）+ JavaScript 启程 6 讲（Rhino 1.7.15）
 - [x] v0.4.0 — 网页版（Pyodide 0.29.5 / CPython 3.13.2），与 App 共用课程 JSON 与 `runner.py`
@@ -15,9 +26,6 @@
 - [x] v0.4.0 — 全量事实校准：课程幕次（27-30 归第四幕、31-38 归第五幕）、统计口径、三语 README、CI 文档
 - [x] v0.4.1 — 发布口径复查：测试/用例数字、双运行时声明、语言包承诺全部对齐仓库事实（`tests/test_docs_claims.py`）
 - [x] v0.5.0 — 多语言扩容：Lua 运行时（LuaJ）+ SQL 运行时（sqlite3）+ 各 6 讲课程包 + 语言中心 + 按需下载门禁
-- [ ] v0.4.x — 平板/横屏自适应布局
-- [ ] v0.4.x — 网页端离线缓存（Service Worker，二次打开不再下载 WASM）
-- [ ] v0.4.x — 内容中心增量包与版本回滚
 
 ## v0.5
 

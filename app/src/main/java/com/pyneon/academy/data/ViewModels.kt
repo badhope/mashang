@@ -12,9 +12,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.json.Json
-import java.io.File
 
 // --- Mistake data model ---
 @Serializable
@@ -49,7 +46,6 @@ data class ReviewCard(
 )
 
 private const val TAG = "ViewModels"
-private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
 class StreakViewModel(app: Application) : AndroidViewModel(app) {
     private val _streak = MutableStateFlow(StreakData())
@@ -282,27 +278,15 @@ class MistakeViewModel(app: Application) : AndroidViewModel(app) {
 }
 
 // --- JSON file I/O helpers ---
-private fun mistakesFile(context: Application): File =
-    File(context.filesDir, UserDataFiles.MISTAKES)
-
-private fun reviewCardsFile(context: Application): File =
-    File(context.filesDir, UserDataFiles.REVIEW_CARDS)
-
-private fun loadMistakesInternal(context: Application? = null): List<MistakeRecord> {
-    return try {
-        val file = context?.let { mistakesFile(it) } ?: return emptyList()
-        if (!file.exists()) return emptyList()
-        json.decodeFromString<List<MistakeRecord>>(file.readText())
-    } catch (e: Exception) {
-        Log.e(TAG, "Failed to load mistakes", e)
-        emptyList()
-    }
-}
+// 2026-11 去重：读/写/原子替换统一收敛到 UserDataFiles + JsonListFile，
+// 错题本、复习卡、备份三条链路共用同一套字段映射，避免各自维护一份。
+private fun loadMistakesInternal(context: Application? = null): List<MistakeRecord> =
+    context?.let { UserDataFiles.mistakesStore(it).read() } ?: emptyList()
 
 private fun saveMistakesInternal(mistakes: List<MistakeRecord>, context: Application? = null) {
+    if (context == null) return
     try {
-        val file = context?.let { mistakesFile(it) } ?: return
-        file.writeText(json.encodeToString(ListSerializer(MistakeRecord.serializer()), mistakes))
+        UserDataFiles.mistakesStore(context).write(mistakes)
     } catch (e: Exception) {
         Log.e(TAG, "Failed to save mistakes", e)
     }
@@ -314,21 +298,13 @@ fun MistakeViewModel.loadMistakesInternal(): List<MistakeRecord> =
 fun MistakeViewModel.saveMistakesInternal(mistakes: List<MistakeRecord>) =
     saveMistakesInternal(mistakes, getApplication())
 
-private fun loadReviewCards(context: Application? = null): List<ReviewCard> {
-    return try {
-        val file = context?.let { reviewCardsFile(it) } ?: return emptyList()
-        if (!file.exists()) return emptyList()
-        json.decodeFromString<List<ReviewCard>>(file.readText())
-    } catch (e: Exception) {
-        Log.e(TAG, "Failed to load review cards", e)
-        emptyList()
-    }
-}
+private fun loadReviewCards(context: Application? = null): List<ReviewCard> =
+    context?.let { UserDataFiles.reviewCardsStore(it).read() } ?: emptyList()
 
 private fun saveReviewCards(cards: List<ReviewCard>, context: Application? = null) {
+    if (context == null) return
     try {
-        val file = context?.let { reviewCardsFile(it) } ?: return
-        file.writeText(json.encodeToString(ListSerializer(ReviewCard.serializer()), cards))
+        UserDataFiles.reviewCardsStore(context).write(cards)
     } catch (e: Exception) {
         Log.e(TAG, "Failed to save review cards", e)
     }

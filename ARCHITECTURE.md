@@ -8,7 +8,7 @@
 ```mermaid
 flowchart TB
     subgraph Clients["客户端"]
-        A["Android App<br/>Kotlin + Jetpack Compose<br/>minSdk 24 / targetSdk 35"]
+        A["Android App<br/>Kotlin + Jetpack Compose<br/>minSdk 29 / targetSdk 35"]
         W["Web Client<br/>原生 JS + Pyodide 0.29.5<br/>CPython 3.13.2 WASM"]
     end
     subgraph Engine["执行引擎（两端同源）"]

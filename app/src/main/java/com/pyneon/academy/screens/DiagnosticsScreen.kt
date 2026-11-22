@@ -3,7 +3,6 @@ package com.pyneon.academy.screens
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,9 +16,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,7 +34,7 @@ import com.pyneon.academy.debug.CrashHandler
 import com.pyneon.academy.debug.DebugLog
 import com.pyneon.academy.lang.LanguageRegistry
 import com.pyneon.academy.ui.components.NeonButton
-import com.pyneon.academy.ui.effects.GlitchText
+import com.pyneon.academy.ui.components.ScreenHeader
 import com.pyneon.academy.ui.effects.NeonCard
 import com.pyneon.academy.ui.effects.SectionHeader
 import com.pyneon.academy.ui.theme.Bg0
@@ -93,22 +89,12 @@ fun DiagnosticsScreen(onBack: () -> Unit) {
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "返回",
-                tint = TextMid,
-                modifier = Modifier
-                    // 触摸目标 48dp（无障碍最小值）：视觉 28dp + 四周 10dp padding
-                    .padding(10.dp)
-                    .size(28.dp)
-                    .clickable { onBack() }
-            )
-            Column(Modifier.padding(start = 12.dp)) {
-                GlitchText("开发者诊断", style = MaterialTheme.typography.headlineSmall, color = NeonCyan)
-                Text("环境 · 运行时 · 内容 · 日志", style = MaterialTheme.typography.labelSmall, color = TextDim)
-            }
-        }
+        ScreenHeader(
+            title = "开发者诊断",
+            subtitle = "环境 · 运行时 · 内容 · 日志",
+            accent = NeonCyan,
+            onBack = onBack
+        )
 
         // ===== 运行环境 =====
         SectionHeader("运行环境", accent = NeonCyan)

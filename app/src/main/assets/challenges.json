@@ -75,7 +75,8 @@
       "assert encode_rle('AAABBC') == 'A3B2C1'",
       "assert encode_rle('') == ''",
       "assert encode_rle('abc') == 'a1b1c1'",
-      "assert encode_rle('aaaa') == 'a4'"
+      "assert encode_rle('aaaa') == 'a4'",
+      "assert encode_rle('AABBA') == 'A2B2A1'"
     ]
   },
   {
@@ -110,7 +111,8 @@
       "assert(neonFb(1).length === 1 && neonFb(1)[0] === '1', 'n=1 应为 [\"1\"]')",
       "assert(neonFb(3)[2] === 'NEON', '3 应替换为 NEON')",
       "assert(neonFb(5)[4] === 'CITY', '5 应替换为 CITY')",
-      "assert(neonFb(15)[14] === 'NEONCITY', '15 应替换为 NEONCITY')"
+      "assert(neonFb(15)[14] === 'NEONCITY', '15 应替换为 NEONCITY')",
+      "assert(neonFb(0).length === 0, 'n=0 应返回空数组')"
     ],
     "solution": "function neonFb(n) {\n  var result = [];\n  for (var i = 1; i <= n; i++) {\n    if (i % 15 === 0) result.push('NEONCITY');\n    else if (i % 3 === 0) result.push('NEON');\n    else if (i % 5 === 0) result.push('CITY');\n    else result.push(String(i));\n  }\n  return result;\n}\n\nconsole.log(neonFb(5));"
   },
@@ -131,5 +133,275 @@
       "assert(isBalanced('}{') === false, '右括号先出现应拒绝')"
     ],
     "solution": "function isBalanced(s) {\n  var stack = [];\n  var pairs = { ')': '(', ']': '[', '}': '{' };\n  for (var i = 0; i < s.length; i++) {\n    var ch = s[i];\n    if (ch === '(' || ch === '[' || ch === '{') {\n      stack.push(ch);\n    } else if (ch === ')' || ch === ']' || ch === '}') {\n      if (stack.pop() !== pairs[ch]) return false;\n    }\n  }\n  return stack.length === 0;\n}\n\nconsole.log(isBalanced('({[]})'));\nconsole.log(isBalanced('([)]'));"
+  },
+  {
+    "id": "c-c1",
+    "lang": "c",
+    "title": "滑动窗口最大和",
+    "difficulty": "中",
+    "xp": 180,
+    "brief": "实现 max_window_sum(int *a, int n, int k)：返回数组中长度为 k 的连续子数组的最大和；k <= 0 或 k > n 时返回 0。",
+    "starterCode": "int max_window_sum(int *a, int n, int k) {\n    // 先算第一个窗口，再滑动\n    return 0;\n}\n\nint main() {\n    int a[5] = {1, 2, 3, 4, 5};\n    printf(\"%d\\n\", max_window_sum(a, 5, 2));\n    return 0;\n}",
+    "hint": "先求前 k 项和；之后每右移一格，加上新元素、减掉最左元素，边走边记最大值。",
+    "tests": [
+      "int main() { int a[5] = {1, 2, 3, 4, 5}; assert(max_window_sum(a, 5, 2) == 9, \"窗口 [4,5] 应为 9\"); return 0; }",
+      "int main() { int a[6] = {-5, -2, -1, -8, -3, -4}; assert(max_window_sum(a, 6, 3) == -8, \"全负数应取最大窗口\"); return 0; }",
+      "int main() { int a[4] = {2, 2, 2, 2}; assert(max_window_sum(a, 4, 4) == 8, \"k=n 时应返回总和\"); return 0; }",
+      "int main() { int a[3] = {1}; assert(max_window_sum(a, 3, 0) == 0, \"k=0 应返回 0\"); return 0; }",
+      "int main() { int a[2] = {1, 2}; assert(max_window_sum(a, 2, 5) == 0, \"k>n 应返回 0\"); return 0; }"
+    ],
+    "solution": "int max_window_sum(int *a, int n, int k) {\n    if (k <= 0 || k > n) return 0;\n    int sum = 0;\n    for (int i = 0; i < k; i++) sum += a[i];\n    int best = sum;\n    for (int i = k; i < n; i++) {\n        sum += a[i] - a[i - k];\n        if (sum > best) best = sum;\n    }\n    return best;\n}\n\nint main() {\n    int a[5] = {1, 2, 3, 4, 5};\n    printf(\"%d\\n\", max_window_sum(a, 5, 2));\n    return 0;\n}"
+  },
+  {
+    "id": "c-c2",
+    "lang": "c",
+    "title": "原地去重",
+    "difficulty": "中",
+    "xp": 180,
+    "brief": "实现 dedupe(int *a, int n)：把数组中第一次出现的元素按原顺序留在前半段，返回去重后的长度。不要分配新数组。",
+    "starterCode": "int dedupe(int *a, int n) {\n    // 用已写区长度 w 记录结果\n    return n;\n}\n\nint main() {\n    int a[6] = {1, 1, 2, 3, 3, 3};\n    printf(\"%d\\n\", dedupe(a, 6));\n    return 0;\n}",
+    "hint": "w 从 0 开始；对每个 a[i]，在 a[0..w) 里查重，没出现就写到 a[w] 再 w++。",
+    "tests": [
+      "int main() { int a[6] = {1, 1, 2, 3, 3, 3}; int n = dedupe(a, 6); assert(n == 3, \"去重后长度应为 3\"); assert(a[0] == 1 && a[1] == 2 && a[2] == 3, \"顺序应保持\"); return 0; }",
+      "int main() { int a[1] = {0}; assert(dedupe(a, 0) == 0, \"空数组应返回 0\"); return 0; }",
+      "int main() { int a[4] = {-1, -1, -2, -1}; int n = dedupe(a, 4); assert(n == 2, \"负数也要去重\"); assert(a[0] == -1 && a[1] == -2, \"结果错误\"); return 0; }",
+      "int main() { int a[4] = {7, 8, 9, 10}; assert(dedupe(a, 4) == 4, \"全不同应原样保留\"); return 0; }",
+      "int main() { int a[3] = {5,5,5}; int n = dedupe(a, 3); assert(n == 1 && a[0] == 5, \"全相同应只留一个\"); return 0; }"
+    ],
+    "solution": "int dedupe(int *a, int n) {\n    int w = 0;\n    for (int i = 0; i < n; i++) {\n        int seen = 0;\n        for (int j = 0; j < w; j++) {\n            if (a[j] == a[i]) seen = 1;\n        }\n        if (!seen) {\n            a[w] = a[i];\n            w++;\n        }\n    }\n    return w;\n}\n\nint main() {\n    int a[6] = {1, 1, 2, 3, 3, 3};\n    printf(\"%d\\n\", dedupe(a, 6));\n    return 0;\n}"
+  },
+  {
+    "id": "lua-c1",
+    "lang": "lua",
+    "title": "词频统计",
+    "difficulty": "中",
+    "xp": 160,
+    "brief": "实现 count_words(text)：按空白切分文本，返回「单词 -> 出现次数」的表；大小写不转换，空串返回空表。",
+    "starterCode": "function count_words(text)\n  local counts = {}\n  \n  return counts\nend\n\nlocal c = count_words('neon city neon')\nprint(c.neon, c.city)",
+    "hint": "用 text:gmatch('%S+') 逐个取词，counts[w] = (counts[w] or 0) + 1。",
+    "tests": [
+      "local c = count_words('neon city neon'); assert(c.neon == 2, 'neon 应出现 2 次'); assert(c.city == 1, 'city 应出现 1 次')",
+      "local c = count_words(''); assert(next(c) == nil, '空串应返回空表')",
+      "local c = count_words('  a\\tb\\na  '); assert(c.a == 2 and c.b == 1, '空白符都应作为分隔')",
+      "local c = count_words('Neon neon'); assert(c.Neon == 1 and c.neon == 1, '不应擅自转换大小写')",
+      "local c = count_words('x'); assert(c.x == 1, '单个词也应计数')"
+    ],
+    "solution": "function count_words(text)\n  local counts = {}\n  for w in text:gmatch('%S+') do\n    counts[w] = (counts[w] or 0) + 1\n  end\n  return counts\nend\n\nlocal c = count_words('neon city neon')\nprint(c.neon, c.city)"
+  },
+  {
+    "id": "lua-c2",
+    "lang": "lua",
+    "title": "括号栈",
+    "difficulty": "中",
+    "xp": 180,
+    "brief": "实现 is_balanced(s)：只含 ()[]{} 的字符串，判断括号是否按正确顺序闭合；空串视为平衡。",
+    "starterCode": "function is_balanced(s)\n  local stack = {}\n  \n  return #stack == 0\nend\n\nprint(is_balanced('({[]})'))\nprint(is_balanced('([)]'))",
+    "hint": "左括号入栈；右括号必须与栈顶配对再弹出；扫完栈必须为空。",
+    "tests": [
+      "assert(is_balanced('') == true, '空串应平衡')",
+      "assert(is_balanced('({[]})') == true, '嵌套配对')",
+      "assert(is_balanced('([)]') == false, '交叉嵌套应拒绝')",
+      "assert(is_balanced('((') == false, '未闭合应拒绝')",
+      "assert(is_balanced('}{') == false, '右括号先出现应拒绝')"
+    ],
+    "solution": "function is_balanced(s)\n  local stack = {}\n  local pairs = { [')'] = '(', [']'] = '[', ['}'] = '{' }\n  for i = 1, #s do\n    local ch = s:sub(i, i)\n    if ch == '(' or ch == '[' or ch == '{' then\n      table.insert(stack, ch)\n    elseif ch == ')' or ch == ']' or ch == '}' then\n      if #stack == 0 or table.remove(stack) ~= pairs[ch] then\n        return false\n      end\n    end\n  end\n  return #stack == 0\nend\n\nprint(is_balanced('({[]})'))\nprint(is_balanced('([)]'))"
+  },
+  {
+    "id": "sql-c1",
+    "lang": "sql",
+    "title": "并列排名",
+    "difficulty": "中",
+    "xp": 180,
+    "brief": "创建 scores 表并插入数据，用窗口函数输出 player、points、rnk：按 points 降序做 DENSE_RANK，同分同名次；按 rnk、player 升序。",
+    "starterCode": "CREATE TABLE scores (player TEXT, points INTEGER);\nINSERT INTO scores VALUES ('V', 90), ('Judy', 90), ('Jackie', 80), ('Rogue', 70), ('Echo', 70);\n\n-- 在这里写窗口查询\n",
+    "hint": "DENSE_RANK() OVER (ORDER BY points DESC) AS rnk；外层再 ORDER BY rnk, player。",
+    "tests": [
+      "assert columns == ['player','points','rnk'], columns",
+      "assert rows == [['Judy',90,1],['V',90,1],['Jackie',80,2],['Echo',70,3],['Rogue',70,3]], rows",
+      "assert rows[0][2] == 1 and rows[-1][2] == 3, rows",
+      "assert len(rows) == 5, '应有五行'",
+      "assert rows[1][2] == 1 and rows[2][2] == 2, '并列名次不应跳号'"
+    ],
+    "solution": "CREATE TABLE scores (player TEXT, points INTEGER);\nINSERT INTO scores VALUES ('V', 90), ('Judy', 90), ('Jackie', 80), ('Rogue', 70), ('Echo', 70);\nSELECT player, points, DENSE_RANK() OVER (ORDER BY points DESC) AS rnk\nFROM scores\nORDER BY rnk, player;"
+  },
+  {
+    "id": "sql-c2",
+    "lang": "sql",
+    "title": "NULL 也要分组",
+    "difficulty": "高",
+    "xp": 200,
+    "brief": "创建 visits 表并插入数据，按城市统计去重用户数；city 为 NULL 时归为「未知」。输出 city、users，按 users 降序、city 升序。",
+    "starterCode": "CREATE TABLE visits (user TEXT, city TEXT);\nINSERT INTO visits VALUES ('V','Neon'), ('Judy',NULL), ('Rogue','Neon'), ('Echo',NULL), ('V',NULL);\n\n-- 在这里写分组查询\n",
+    "hint": "COALESCE(city, '未知') 处理 NULL；COUNT(DISTINCT user) 去重；ORDER BY users DESC, city。",
+    "tests": [
+      "assert columns == ['city','users'], columns",
+      "assert rows == [['未知',3],['Neon',2]], rows",
+      "assert rows[0][1] == 3, 'NULL 城市应聚合三个去重用户'",
+      "assert len(rows) == 2, '只应有两个城市分组'",
+      "assert rows[1][0] == 'Neon', '第二组应为 Neon'"
+    ],
+    "solution": "CREATE TABLE visits (user TEXT, city TEXT);\nINSERT INTO visits VALUES ('V','Neon'), ('Judy',NULL), ('Rogue','Neon'), ('Echo',NULL), ('V',NULL);\nSELECT COALESCE(city, '未知') AS city, COUNT(DISTINCT user) AS users\nFROM visits\nGROUP BY COALESCE(city, '未知')\nORDER BY users DESC, city;"
+  },
+  {
+    "id": "ts-c1",
+    "lang": "typescript",
+    "title": "类型化库存合并",
+    "difficulty": "中",
+    "xp": 160,
+    "brief": "实现 mergeStock(a, b)：合并两张「商品 -> 数量」表，同名商品数量相加；返回新表，不能修改入参。",
+    "starterCode": "type Stock = Record<string, number>;\n\nfunction mergeStock(a: Stock, b: Stock): Stock {\n  // 返回新表\n  return {};\n}\n\nconsole.log(mergeStock({apple: 2}, {apple: 3, pear: 1}));",
+    "hint": "先复制 a 的所有键值，再遍历 b 累加；不要直接改 a。",
+    "tests": [
+      "assert(JSON.stringify(mergeStock({apple:2}, {apple:3, pear:1})) === JSON.stringify({apple:5, pear:1}), '同名相加')",
+      "assert(JSON.stringify(mergeStock({}, {x:1})) === JSON.stringify({x:1}), '空表合并')",
+      "assert(JSON.stringify(mergeStock({a:1}, {})) === JSON.stringify({a:1}), '第二张为空')",
+      "var a = {apple: 2}; mergeStock(a, {apple: 3}); assert(a.apple === 2, '不得修改入参')",
+      "assert(JSON.stringify(mergeStock({a:0}, {a:0})) === JSON.stringify({a:0}), '零值也要合并')"
+    ],
+    "solution": "type Stock = Record<string, number>;\n\nfunction mergeStock(a: Stock, b: Stock): Stock {\n  var out: Stock = {};\n  for (var k in a) out[k] = a[k];\n  for (var k in b) out[k] = (out[k] || 0) + b[k];\n  return out;\n}\n\nconsole.log(mergeStock({apple: 2}, {apple: 3, pear: 1}));"
+  },
+  {
+    "id": "ts-c2",
+    "lang": "typescript",
+    "title": "可辨识联合求面积",
+    "difficulty": "高",
+    "xp": 200,
+    "brief": "实现 area(s)：s 是 {kind:'circle', r} 或 {kind:'rect', w, h} 的可辨识联合；圆面积保留两位小数，矩形直接返回 w*h。",
+    "starterCode": "type Shape =\n  | { kind: 'circle'; r: number }\n  | { kind: 'rect'; w: number; h: number };\n\nfunction area(s: Shape): number {\n  // 按 kind 分支\n  return 0;\n}\n\nconsole.log(area({kind: 'circle', r: 1}));",
+    "hint": "switch (s.kind) 两个分支；圆用 Math.round(Math.PI * s.r * s.r * 100) / 100。",
+    "tests": [
+      "assert(area({kind:'circle', r:1}) === 3.14, '半径 1 的圆')",
+      "assert(area({kind:'circle', r:3}) === 28.27, '半径 3 的圆')",
+      "assert(area({kind:'rect', w:2, h:3}) === 6, '矩形面积')",
+      "assert(area({kind:'rect', w:0, h:9}) === 0, '零宽矩形')",
+      "assert(area({kind:'circle', r:0}) === 0, '半径 0 的圆')"
+    ],
+    "solution": "function area(s: any): number {\n  switch (s.kind) {\n    case \"circle\":\n      return Math.round(Math.PI * s.r * s.r * 100) / 100;\n    case \"rect\":\n      return s.w * s.h;\n  }\n}\n\nconsole.log(area({ kind: \"circle\", r: 1 }));\n"
+  },
+  {
+    "id": "py-cap",
+    "lang": "python",
+    "title": "记账本汇总",
+    "difficulty": "中",
+    "xp": 260,
+    "brief": "实现 summarize(records) 与 top_n(records, n)：records 是 [(分类, 金额), ...]。summarize 返回 {'total','by_category','top'}，金额必须为正；top_n 按分类总额降序、分类名升序返回前 n 个分类名，n 超过分类数时返回全部。",
+    "starterCode": "def summarize(records):\n    return {'total': 0, 'by_category': {}, 'top': None}\n\n\ndef top_n(records, n):\n    return []\n\n\nprint(summarize([('food', 35), ('transport', 12), ('food', 18)]))\nprint(top_n([('food', 35), ('transport', 12), ('food', 18)], 1))",
+    "hint": "summarize 先校验金额并累加；top_n 复用 by_category，用 sorted(key=lambda k: (-total[k], k)) 后切片。",
+    "tests": [
+      "assert summarize([('food',35),('transport',12),('food',18)]) == {'total':65,'by_category':{'food':53,'transport':12},'top':'food'}",
+      "assert summarize([]) == {'total':0,'by_category':{},'top':None}",
+      "assert summarize([('a',10),('b',10)])['top'] == 'b'",
+      "assert summarize([('x',5)])['total'] == 5",
+      "try:\n    summarize([('bad',0)])\n    assert False, '金额 0 应抛 ValueError'\nexcept ValueError:\n    pass",
+      "assert top_n([('food',35),('transport',12),('food',18)], 2) == ['food','transport']",
+      "assert top_n([], 3) == []",
+      "assert top_n([('a',10),('b',10),('c',30)], 99) == ['c','a','b']"
+    ],
+    "solution": "def summarize(records):\n    total = 0\n    by_category = {}\n    for category, amount in records:\n        if amount <= 0:\n            raise ValueError('金额必须为正数')\n        total += amount\n        by_category[category] = by_category.get(category, 0) + amount\n    top = max(by_category, key=lambda k: (by_category[k], k)) if by_category else None\n    return {'total': total, 'by_category': by_category, 'top': top}\n\n\ndef top_n(records, n):\n    totals = summarize(records)['by_category']\n    ordered = sorted(totals, key=lambda k: (-totals[k], k))\n    return ordered[:max(0, n)]\n"
+  },
+  {
+    "id": "js-cap",
+    "lang": "javascript",
+    "title": "战队积分汇总",
+    "difficulty": "中",
+    "xp": 260,
+    "brief": "实现 groupByTeam(items) 与 topTeam(items)：items 是 [{team, points}, ...]。groupByTeam 返回每队总分对象，分数必须非负；topTeam 返回总分最高的队名，并列时取字典序更小者，空数组返回 null。",
+    "starterCode": "function groupByTeam(items) {\n  var out = {};\n  return out;\n}\n\nfunction topTeam(items) {\n  return null;\n}\n\nconsole.log(groupByTeam([{team:'A',points:3},{team:'B',points:2},{team:'A',points:4}]));\nconsole.log(topTeam([{team:'A',points:3},{team:'B',points:5}]));",
+    "hint": "groupByTeam 用 out[team] = (out[team] || 0) + points；topTeam 先汇总，再按分数降序、队名升序排序取第一个。",
+    "tests": [
+      "assert(JSON.stringify(groupByTeam([{team:'A',points:3},{team:'B',points:2},{team:'A',points:4}])) === JSON.stringify({A:7,B:2}), 'A 应为 7')",
+      "assert(JSON.stringify(groupByTeam([])) === '{}', '空数组应返回空对象')",
+      "assert(groupByTeam([{team:'X',points:0}]).X === 0, '0 分合法')",
+      "var threw=false; try { groupByTeam([{team:'X',points:-1}]); } catch(e) { threw=true; } assert(threw, '负分应抛错')",
+      "assert(topTeam([{team:'A',points:3},{team:'B',points:5}]) === 'B', '最高分应 B')",
+      "assert(topTeam([]) === null, '空数组 topTeam 应为 null')",
+      "assert(topTeam([{team:'A',points:5},{team:'B',points:5}]) === 'A', '并列取字典序更小')",
+      "assert(topTeam([{team:'B',points:1},{team:'B',points:9},{team:'A',points:10}]) === 'A', 'A 总分 10 应胜出')"
+    ],
+    "solution": "function groupByTeam(items) {\n  var out = {};\n  for (var i = 0; i < items.length; i++) {\n    var it = items[i];\n    if (it.points < 0) { throw new Error('points 不能为负'); }\n    out[it.team] = (out[it.team] || 0) + it.points;\n  }\n  return out;\n}\n\nfunction topTeam(items) {\n  var totals = groupByTeam(items);\n  var names = Object.keys(totals);\n  if (names.length === 0) { return null; }\n  names.sort(function (a, b) {\n    if (totals[b] !== totals[a]) { return totals[b] - totals[a]; }\n    return a < b ? -1 : (a > b ? 1 : 0);\n  });\n  return names[0];\n}\n"
+  },
+  {
+    "id": "c-cap",
+    "lang": "c",
+    "title": "阈值统计",
+    "difficulty": "中",
+    "xp": 260,
+    "brief": "实现 count_above 与 sum_above：遍历数组，count_above 返回严格大于 threshold 的元素个数，sum_above 返回这些元素的和；空数组都返回 0。",
+    "starterCode": "int count_above(int *a, int n, int threshold) {\n    return 0;\n}\n\nint sum_above(int *a, int n, int threshold) {\n    return 0;\n}\n",
+    "hint": "两个函数都要遍历 0..n-1；sum_above 在 a[i] > threshold 时累加 a[i]。",
+    "tests": [
+      "int main() { int a[4] = {1,5,3,9}; assert(count_above(a,4,3)==2, \"大于 3 的有 2 个\"); return 0; }",
+      "int main() { int b[3] = {1,2,3}; assert(count_above(b,3,3)==0, \"严格大于\"); return 0; }",
+      "int main() { int e[1] = {0}; assert(count_above(e,0,5)==0, \"空数组\"); return 0; }",
+      "int main() { int c[3] = {-5,-1,0}; assert(count_above(c,3,-2)==2, \"负数阈值\"); return 0; }",
+      "int main() { int a[4] = {1,5,3,9}; assert(sum_above(a,4,3)==14, \"5+9=14\"); return 0; }",
+      "int main() { int b[3] = {1,2,3}; assert(sum_above(b,3,3)==0, \"没有元素命中\"); return 0; }",
+      "int main() { int e[1] = {0}; assert(sum_above(e,0,5)==0, \"空数组求和\"); return 0; }",
+      "int main() { int d[3] = {7,7,7}; assert(sum_above(d,3,6)==21, \"全部命中求和\"); return 0; }"
+    ],
+    "solution": "int count_above(int *a, int n, int threshold) {\n    int count = 0;\n    for (int i = 0; i < n; i++) {\n        if (a[i] > threshold) count++;\n    }\n    return count;\n}\n\nint sum_above(int *a, int n, int threshold) {\n    int sum = 0;\n    for (int i = 0; i < n; i++) {\n        if (a[i] > threshold) sum += a[i];\n    }\n    return sum;\n}\n"
+  },
+  {
+    "id": "lua-cap",
+    "lang": "lua",
+    "title": "偶数求和",
+    "difficulty": "中",
+    "xp": 260,
+    "brief": "实现 sum_even(t) 与 max_even(t)：sum_even 返回偶数和，max_even 返回最大偶数；空表或没有偶数时 max_even 返回 nil，sum_even 返回 0。",
+    "starterCode": "function sum_even(t)\n  local total = 0\n  return total\nend\n\nfunction max_even(t)\n  return nil\nend\n\nprint(sum_even({1,2,3,4}))\nprint(max_even({1,2,3,4}))",
+    "hint": "用 ipairs 遍历；max_even 维护 best，初始 nil，遇到偶数时比较并更新。",
+    "tests": [
+      "assert(sum_even({1,2,3,4}) == 6)",
+      "assert(sum_even({}) == 0)",
+      "assert(sum_even({2,2,2}) == 6)",
+      "assert(sum_even({1,3,5}) == 0)",
+      "assert(max_even({1,2,3,4}) == 4)",
+      "assert(max_even({}) == nil)",
+      "assert(max_even({1,3,5}) == nil)",
+      "assert(max_even({-2,-4,3}) == -2)"
+    ],
+    "solution": "function sum_even(t)\n  local total = 0\n  for _, n in ipairs(t) do\n    if n % 2 == 0 then total = total + n end\n  end\n  return total\nend\n\nfunction max_even(t)\n  local best = nil\n  for _, n in ipairs(t) do\n    if n % 2 == 0 and (best == nil or n > best) then best = n end\n  end\n  return best\nend\n"
+  },
+  {
+    "id": "ts-cap",
+    "lang": "typescript",
+    "title": "类型化统计",
+    "difficulty": "中",
+    "xp": 260,
+    "brief": "实现 summarize(items) 与 topValue(items)：items 是 {value:number} 数组。summarize 返回 {count,total,average}，average 保留两位小数；topValue 返回最大 value，空数组返回 null。",
+    "starterCode": "function summarize(items: any[]): any {\n  return { count: 0, total: 0, average: 0 };\n}\n\nfunction topValue(items: any[]): any {\n  return null;\n}\n",
+    "hint": "summarize 先累加；topValue 遍历取最大值，空数组直接 null。",
+    "tests": [
+      "assert(JSON.stringify(summarize([{value:2},{value:4}])) === JSON.stringify({count:2,total:6,average:3}))",
+      "assert(JSON.stringify(summarize([])) === JSON.stringify({count:0,total:0,average:0}))",
+      "assert(summarize([{value:1},{value:2},{value:3}]).average === 2)",
+      "assert(summarize([{value:0}]).count === 1)",
+      "assert(summarize([{value:10},{value:0}]).total === 10)",
+      "assert(topValue([{value:2},{value:9},{value:4}]) === 9)",
+      "assert(topValue([]) === null)",
+      "assert(topValue([{value:-1},{value:-5}]) === -1)"
+    ],
+    "solution": "function summarize(items: any[]): any {\n  var count = items.length;\n  var total = 0;\n  for (var i = 0; i < count; i++) { total += items[i].value; }\n  var average = count === 0 ? 0 : Math.round(total / count * 100) / 100;\n  return {count: count, total: total, average: average};\n}\n\nfunction topValue(items: any[]): any {\n  if (items.length === 0) { return null; }\n  var best = items[0].value;\n  for (var i = 1; i < items.length; i++) {\n    if (items[i].value > best) { best = items[i].value; }\n  }\n  return best;\n}\n"
+  },
+  {
+    "id": "sql-cap",
+    "lang": "sql",
+    "title": "区域销售占比",
+    "difficulty": "中",
+    "xp": 260,
+    "brief": "sales(region, amount) 与 targets(region, target) 两张表。返回每个 region 的 total、target 与达成率 pct（total/target*100，保留一位小数），按 pct 降序、region 升序。",
+    "starterCode": "CREATE TABLE sales (region TEXT, amount INTEGER);\nINSERT INTO sales VALUES ('A',10),('A',20),('B',30),('C',40);\nCREATE TABLE targets (region TEXT, target INTEGER);\nINSERT INTO targets VALUES ('A',50),('B',20),('C',30);\n\n-- 在这里写多表查询\n",
+    "hint": "先按 region 聚合 sales，再 JOIN targets；达成率用 ROUND(SUM(amount) * 100.0 / target, 1)。",
+    "tests": [
+      "assert columns == ['region','total','target','pct'], columns",
+      "assert rows == [['B',30,20,150.0],['C',40,30,133.3],['A',30,50,60.0]], rows",
+      "assert len(rows) == 3, '三个区域'",
+      "assert rows[0][0] == 'B' and rows[0][3] == 150.0, 'B 达成率最高'",
+      "assert rows[1][0] == 'C' and rows[1][3] == 133.3, 'C 第二'",
+      "assert rows[2][0] == 'A' and rows[2][3] == 60.0, 'A 第三'",
+      "assert rows[0][1] == 30 and rows[0][2] == 20, 'B 总额/目标'",
+      "assert rows[2][1] == 30 and rows[2][2] == 50, 'A 总额/目标'"
+    ],
+    "solution": "CREATE TABLE sales (region TEXT, amount INTEGER);\nINSERT INTO sales VALUES ('A',10),('A',20),('B',30),('C',40);\nCREATE TABLE targets (region TEXT, target INTEGER);\nINSERT INTO targets VALUES ('A',50),('B',20),('C',30);\n\nSELECT s.region,\n       SUM(s.amount) AS total,\n       t.target AS target,\n       ROUND(SUM(s.amount) * 100.0 / t.target, 1) AS pct\nFROM sales s\nJOIN targets t ON t.region = s.region\nGROUP BY s.region, t.target\nORDER BY pct DESC, s.region;"
   }
 ]

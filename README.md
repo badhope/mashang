@@ -2,10 +2,10 @@
 
 <img src="docs/banner.png" alt="CodeLearning" width="830"/>
 
-**CodeLearning · 码上 — write code on your phone. Six languages, 230+ lessons, all offline.**
+**CodeLearning · 码上 — write code on your phone. Six languages, 245 lessons, all offline.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-00E5FF.svg)](LICENSE)
-[![Android](https://img.shields.io/badge/Android-7.0%2B-00E5FF.svg)]()
+[![Android](https://img.shields.io/badge/Android-10.0%2B-00E5FF.svg)]()
 [![Languages](https://img.shields.io/badge/Languages-6-00FF9C.svg)]()
 [![Lessons](https://img.shields.io/badge/Lessons-230%2B-F7FF00.svg)]()
 [![Download](https://img.shields.io/badge/Download-APK-FF2D78.svg)](https://github.com/badhope/mashang/releases/latest)
@@ -32,22 +32,27 @@
 
 | Language | Runtime | Lessons |
 |---|---|---|
-| **Python** | CPython 3.13 | 38 built-in mainline + DSA + builtins |
+| **Python** | CPython 3.13 | 39 built-in mainline + capstone + DSA + builtins |
 | **JavaScript** | Rhino 1.7.15 | 38 (basic / core / advanced / expert packs) |
 | **TypeScript** | type erasure to Rhino | 38 (basic / core / advanced / expert packs) |
 | **C** | built-in interpreter | 38 (basic / core / advanced / expert packs) |
 | **Lua** | LuaJ 3.0.1 | 38 (basic / core / advanced / expert packs) |
-| **SQL** | SQLite | 38 (basic / core / advanced / expert packs) |
+| **SQL** | SQLite | 43 (38 mainline + 5 edge topics) |
 
 The Python mainline ships inside the APK. The other five download on demand from the Language Center. First install ~39 MB.
 
 C and TypeScript are teaching subsets (C has no preprocessor, `goto` or function pointers; TypeScript has no decorators or namespaces) and say so explicitly when you hit a gap.
 
+Coverage: 245 lessons, 471 runnable examples and 1,097 judge cases across six tracks; every lesson has a graded exercise. This is introductory-to-intermediate practice, not a complete professional curriculum. Details: [docs/LANGUAGE_COVERAGE.md](docs/LANGUAGE_COVERAGE.md).
+
 ---
 
 ## Install
 
-- **Just install**: grab `mashang-*.apk` from [GitHub Releases](https://github.com/badhope/mashang/releases/latest)
+- **GitHub**: [Releases](https://github.com/badhope/mashang/releases/latest)
+- **GitCode**: [Releases](https://gitcode.com/badhope/mashang/releases)
+- **Gitee**: [Releases](https://gitee.com/badhope/mashang/releases)
+- New here? Read the [User Guide](docs/USER_GUIDE.md) first.
 - Android 10 (API 29)+, arm64-v8a
 
 Build from source:

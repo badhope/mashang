@@ -140,7 +140,7 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
 
         SectionHeader("课程包（按需下载）", accent = NeonYellow)
         Text(
-            "每门语言 38 讲，拆成基础 / 核心 / 进阶 / 专业四包。点哪包下哪包，也可以整门一次装齐。",
+            "每门语言至少 38 讲；SQL 另有 4 讲边界专题。课程拆成基础 / 核心 / 进阶 / 专业四包。点哪包下哪包，也可以整门一次装齐。",
             style = MaterialTheme.typography.bodySmall,
             color = TextDim
         )

@@ -5,15 +5,13 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import androidx.annotation.RequiresApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.builtins.ListSerializer
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.OutputStream
 
 object BackupUtil {
     private const val BACKUP_VERSION = 2
@@ -153,72 +151,26 @@ object BackupUtil {
         val badges = setFromJson(o.getJSONArray("badges"))
     }
 
-    private fun reviewCardToJson(c: ReviewCard) = JSONObject().apply {
-        put("id", c.id)
-        put("lessonId", c.lessonId)
-        put("blockType", c.blockType)
-        put("blockIndex", c.blockIndex)
-        put("question", c.question)
-        put("answer", c.answer)
-        put("difficulty", c.difficulty)
-        put("interval", c.interval)
-        put("repetitions", c.repetitions)
-        put("nextReviewDate", c.nextReviewDate)
-        put("lastReviewDate", c.lastReviewDate)
-        put("lapses", c.lapses)
-    }
+    // 2026-11 去重：卡片/错题不再手写字段映射，统一走 kotlinx.serialization；
+    // 与 ViewModels、JsonListFile 共用同一份 @Serializable 定义。
+    private fun reviewCardsToJson(cards: List<ReviewCard>): JSONArray =
+        JSONArray(UserDataJson.encodeToString(ListSerializer(ReviewCard.serializer()), cards))
 
-    private fun reviewCardFromJson(o: JSONObject) = ReviewCard(
-        id = o.optString("id"),
-        lessonId = o.optString("lessonId"),
-        blockType = o.optString("blockType"),
-        blockIndex = o.optInt("blockIndex"),
-        question = o.optString("question"),
-        answer = o.optString("answer"),
-        difficulty = o.optDouble("difficulty", 2.5).toFloat(),
-        interval = o.optInt("interval"),
-        repetitions = o.optInt("repetitions"),
-        nextReviewDate = o.optLong("nextReviewDate"),
-        lastReviewDate = o.optLong("lastReviewDate"),
-        lapses = o.optInt("lapses")
-    )
+    private fun reviewCardsFromJson(arr: JSONArray): List<ReviewCard> =
+        UserDataJson.decodeFromString(ListSerializer(ReviewCard.serializer()), arr.toString())
 
-    private fun mistakeToJson(m: MistakeRecord) = JSONObject().apply {
-        put("id", m.id)
-        put("lessonId", m.lessonId)
-        put("blockType", m.blockType)
-        put("blockIndex", m.blockIndex)
-        put("userCode", m.userCode)
-        put("expectedOutput", m.expectedOutput)
-        put("actualOutput", m.actualOutput)
-        put("errorMessage", m.errorMessage)
-        put("timestamp", m.timestamp)
-        put("conceptTags", setToJson(m.conceptTags.toSet()))
-    }
+    private fun mistakesToJson(mistakes: List<MistakeRecord>): JSONArray =
+        JSONArray(UserDataJson.encodeToString(ListSerializer(MistakeRecord.serializer()), mistakes))
 
-    private fun mistakeFromJson(o: JSONObject) = MistakeRecord(
-        id = o.optInt("id", 0),
-        lessonId = o.optString("lessonId"),
-        blockType = o.optString("blockType"),
-        blockIndex = o.optInt("blockIndex"),
-        userCode = o.optString("userCode"),
-        expectedOutput = o.optString("expectedOutput"),
-        actualOutput = o.optString("actualOutput"),
-        errorMessage = o.optString("errorMessage"),
-        timestamp = o.optLong("timestamp"),
-        conceptTags = setFromJson(o.getJSONArray("conceptTags")).toList()
-    )
+    private fun mistakesFromJson(arr: JSONArray): List<MistakeRecord> =
+        UserDataJson.decodeFromString(ListSerializer(MistakeRecord.serializer()), arr.toString())
 
     private fun backupToJson(b: BackupData) = JSONObject().apply {
         put("version", b.version)
         put("timestamp", b.timestamp)
         put("progress", progressToJson(b))
-        val cards = JSONArray()
-        for (c in b.reviewCards) cards.put(reviewCardToJson(c))
-        put("reviewCards", cards)
-        val ms = JSONArray()
-        for (m in b.mistakes) ms.put(mistakeToJson(m))
-        put("mistakes", ms)
+        put("reviewCards", reviewCardsToJson(b.reviewCards))
+        put("mistakes", mistakesToJson(b.mistakes))
     }
 
     private fun backupFromJson(o: JSONObject): BackupData {
@@ -239,57 +191,29 @@ object BackupUtil {
             nightOwl = p.nightOwl,
             terminalHead = p.terminalHead,
             badges = p.badges,
-            reviewCards = (0 until o.getJSONArray("reviewCards").length())
-                .map { reviewCardFromJson(o.getJSONArray("reviewCards").getJSONObject(it)) },
-            mistakes = (0 until o.getJSONArray("mistakes").length())
-                .map { mistakeFromJson(o.getJSONArray("mistakes").getJSONObject(it)) }
+            reviewCards = reviewCardsFromJson(o.getJSONArray("reviewCards")),
+            mistakes = mistakesFromJson(o.getJSONArray("mistakes"))
         )
     }
 
-    // File I/O helpers for review cards and mistakes
-    private fun reviewCardsFile(context: Context) = java.io.File(context.filesDir, UserDataFiles.REVIEW_CARDS)
-    private fun mistakesFile(context: Context) = java.io.File(context.filesDir, UserDataFiles.MISTAKES)
+    // File I/O helpers：与 ViewModels 共用 UserDataFiles 的 store，别再各写一套。
+    private fun loadReviewCardsFromFile(context: Context): List<ReviewCard> =
+        UserDataFiles.reviewCardsStore(context).read()
 
-    private fun loadReviewCardsFromFile(context: Context): List<ReviewCard> {
-        val file = reviewCardsFile(context)
-        if (!file.exists()) return emptyList()
-        return try {
-            val json = JSONArray(file.readText())
-            (0 until json.length()).map { reviewCardFromJson(json.getJSONObject(it)) }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    private fun loadMistakesFromFile(context: Context): List<MistakeRecord> {
-        val file = mistakesFile(context)
-        if (!file.exists()) return emptyList()
-        return try {
-            val json = JSONArray(file.readText())
-            (0 until json.length()).map { mistakeFromJson(json.getJSONObject(it)) }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
+    private fun loadMistakesFromFile(context: Context): List<MistakeRecord> =
+        UserDataFiles.mistakesStore(context).read()
 
     private fun saveReviewCardsToFile(context: Context, cards: List<ReviewCard>) {
-        val file = reviewCardsFile(context)
-        val json = JSONArray()
-        for (c in cards) json.put(reviewCardToJson(c))
-        file.writeText(json.toString())
+        UserDataFiles.reviewCardsStore(context).write(cards)
     }
 
     private fun saveMistakesToFile(context: Context, mistakes: List<MistakeRecord>) {
-        val file = mistakesFile(context)
-        val json = JSONArray()
-        for (m in mistakes) json.put(mistakeToJson(m))
-        file.writeText(json.toString())
+        UserDataFiles.mistakesStore(context).write(mistakes)
     }
 
     private fun saveToStorage(context: Context, jsonString: String, fileName: String): Uri =
         saveToMediaStoreQ(context, jsonString, fileName)
 
-    @RequiresApi(Build.VERSION_CODES.Q)
     private fun saveToMediaStoreQ(context: Context, jsonString: String, fileName: String): Uri {
         val resolver = context.contentResolver
         val values = ContentValues().apply {
@@ -302,8 +226,18 @@ object BackupUtil {
         val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
             ?: throw IllegalStateException("创建文件失败")
 
-        resolver.openOutputStream(uri).use { outputStream ->
-            outputStream?.write(jsonString.toByteArray())
+        try {
+            val outputStream = resolver.openOutputStream(uri)
+                ?: throw IllegalStateException("无法打开输出流")
+            try {
+                outputStream.write(jsonString.toByteArray())
+            } finally {
+                outputStream.close()
+            }
+        } catch (e: Exception) {
+            // 写入失败时删除半成品，避免 MediaStore 里留下 pending 的空文件
+            runCatching { resolver.delete(uri, null, null) }
+            throw e
         }
 
         values.clear()

@@ -20,12 +20,12 @@ import org.robolectric.annotation.Config
 class PackagedContentTest {
 
     @Test
-    fun mainlineHas38Lessons() {
+    fun mainlineHas39Lessons() {
         val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
         val mainline = LessonRepository.mainline(ctx)
-        assertEquals("内置 Python 主线应为 38 讲", 38, mainline.size)
+        assertEquals("内置 Python 主线应为 39 讲", 39, mainline.size)
         assertEquals("l01", mainline.first().id)
-        assertEquals("l38", mainline.last().id)
+        assertEquals("l39", mainline.last().id)
     }
 
     @Test

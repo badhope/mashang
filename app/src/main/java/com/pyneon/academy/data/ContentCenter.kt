@@ -2,13 +2,10 @@ package com.pyneon.academy.data
 
 import android.content.Context
 import android.util.Log
+import com.pyneon.academy.utils.HttpText
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.InputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
@@ -39,17 +36,21 @@ class ContentCenter {
 
     companion object {
         private const val TIMEOUT_MS = 10000
+        // 目录只用来决定“去哪儿下载”，单个源不值得等 10 秒。
+        // 国内网络下 GitHub 可能先卡满 10 秒再失败，三个源最坏 20 秒才回落 GitCode。
+        // 2026-11：改为 GitCode 优先，目录源 4 秒超时，最坏 8 秒内拿到目录。
+        private const val CATALOG_TIMEOUT_MS = 4000
         private const val MAX_RESPONSE_BYTES = 5 * 1024 * 1024 // C5: HTTP 响应体积上限 5MB
         private const val TAG = "ContentCenter"
         // C3: 包 id 白名单，仅允许安全文件名字符，杜绝路径穿越
         private val SAFE_ID_REGEX = Regex("""^[a-zA-Z0-9_-]+$""")
 
-        // 三级回退：GitHub Pages（CDN，最快）→ GitHub raw（主仓）→ GitCode OpenAPI。
+        // 国内优先：GitCode OpenAPI → GitHub raw（主仓）→ GitHub Pages（CDN）。
         // 三个源都指向同一份 catalog.json（Pages 的副本由 tools/sync_pages_assets.py 生成并校验）。
         private val CATALOG_URLS = listOf(
-            "https://badhope.github.io/mashang/catalog.json",
+            "https://api.gitcode.com/api/v5/repos/badhope/mashang/raw/catalog.json",
             "https://raw.githubusercontent.com/badhope/mashang/main/catalog.json",
-            "https://api.gitcode.com/api/v5/repos/badhope/mashang/raw/catalog.json"
+            "https://badhope.github.io/mashang/catalog.json"
         )
     }
 
@@ -72,7 +73,7 @@ class ContentCenter {
         var lastError: Exception? = null
         for (url in CATALOG_URLS) {
             try {
-                val text = httpGet(url)
+                val text = httpGet(url, CATALOG_TIMEOUT_MS)
                 val obj = JSONObject(text)
                 // C1: catalog 强制 sha256 校验（必须提供，缺失即拒绝）
                 val catalogSha = obj.optString("sha256").takeIf { it.isNotBlank() }
@@ -149,65 +150,11 @@ class ContentCenter {
         }
     }
 
-    private fun httpGet(url: String): String {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = TIMEOUT_MS
-        conn.readTimeout = TIMEOUT_MS
-        conn.setRequestProperty("Accept", "application/json")
-        try {
-            if (conn.responseCode !in 200..299) {
-                throw IllegalStateException("HTTP ${conn.responseCode} ($url)")
-            }
-            // C5: 按字节流式读取并设 5MB 上限，超限断开并报错，避免 OOM
-            return readStreamCapped(conn.inputStream)
-        } finally {
-            conn.disconnect()
-        }
-    }
+    private fun httpGet(url: String, timeoutMs: Int = TIMEOUT_MS): String =
+        HttpText.getText(url, timeoutMs, MAX_RESPONSE_BYTES, accept = "application/json")
 
-    private fun httpGetBytes(url: String, maxBytes: Int): ByteArray {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = TIMEOUT_MS
-        conn.readTimeout = TIMEOUT_MS
-        conn.setRequestProperty("Accept", "application/octet-stream")
-        try {
-            if (conn.responseCode !in 200..299) {
-                throw IllegalStateException("HTTP ${conn.responseCode} ($url)")
-            }
-            val buf = ByteArray(64 * 1024)
-            var total = 0
-            val out = ByteArrayOutputStream(256 * 1024)
-            while (true) {
-                val n = conn.inputStream.read(buf)
-                if (n < 0) break
-                total += n
-                if (total > maxBytes) {
-                    throw IllegalStateException("下载超过 ${maxBytes / (1024 * 1024)}MB 上限，已中断")
-                }
-                out.write(buf, 0, n)
-            }
-            return out.toByteArray()
-        } finally {
-            conn.disconnect()
-        }
-    }
-
-    private fun readStreamCapped(stream: InputStream): String {
-        val buf = ByteArray(8192)
-        var total = 0
-        val out = ByteArrayOutputStream(32 * 1024)
-        while (true) {
-            val n = stream.read(buf)
-            if (n < 0) break
-            total += n
-            if (total > MAX_RESPONSE_BYTES) {
-                throw IllegalStateException("HTTP 响应超过 ${MAX_RESPONSE_BYTES} 字节上限，已断开以防 OOM")
-            }
-            out.write(buf, 0, n)
-        }
-        // ByteArrayOutputStream.toString(Charset) 需 API 33；用 toString(String) 兼容 minSdk 24
-        return out.toString("UTF-8")
-    }
+    private fun httpGetBytes(url: String, maxBytes: Int): ByteArray =
+        HttpText.getBytes(url, TIMEOUT_MS, maxBytes, accept = "application/octet-stream")
 
     private fun sha256Hex(input: String): String {
         val digest = MessageDigest.getInstance("SHA-256")

@@ -1,5 +1,6 @@
 package com.pyneon.academy.data
 
+import android.content.Context
 import java.io.File
 
 /**
@@ -14,6 +15,14 @@ object UserDataFiles {
     const val REVIEW_CARDS = "pyneon_review_cards.json"
 
     val names: List<String> = listOf(MISTAKES, REVIEW_CARDS)
+
+    /** 错题本文件；ViewModels 与 BackupUtil 共用同一读写实现。 */
+    fun mistakesStore(context: Context): JsonListFile<MistakeRecord> =
+        JsonListFile(File(context.filesDir, MISTAKES), MistakeRecord.serializer(), "Mistakes")
+
+    /** 复习卡文件；ViewModels 与 BackupUtil 共用同一读写实现。 */
+    fun reviewCardsStore(context: Context): JsonListFile<ReviewCard> =
+        JsonListFile(File(context.filesDir, REVIEW_CARDS), ReviewCard.serializer(), "ReviewCards")
 
     /**
      * 删除 [filesDir] 下的全部用户数据文件。

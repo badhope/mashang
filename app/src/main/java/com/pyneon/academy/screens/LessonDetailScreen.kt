@@ -113,6 +113,37 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
         return
     }
 
+    // 课程里的代码块和「跟做示例」共用同一条运行链路：统一超时兜底、
+    // 错误日志与 side effects 记录，避免两处各写一遍后行为漂移。
+    fun runBlock(index: Int, code: String, lang: String, stdin: List<String>) {
+        scope.launch {
+            runningKey = index
+            val r = try {
+                withContext(Dispatchers.Default) {
+                    LanguageRegistry.get(lang).runCode(code, stdin)
+                }
+            } catch (t: Throwable) {
+                DebugLog.e("Run", "运行时异常 lesson=${lesson.id}", t)
+                RunResult(
+                    ok = false, stdout = "", stderr = "",
+                    errorType = "RuntimeCrash",
+                    errorMessage = "运行时异常：${t.javaClass.simpleName}",
+                    traceback = null, durationMs = 0L,
+                    variables = emptyList(), passed = null
+                )
+            }
+            runResults[index] = r
+            runningKey = null
+            if (!r.ok) {
+                DebugLog.w(
+                    "Run",
+                    "代码块执行失败 lesson=${lesson.id} lang=$lang type=${r.errorType} msg=${r.errorMessage?.take(120)}"
+                )
+            }
+            recordSideEffects(context, r)
+        }
+    }
+
     // U4: 提升到函数级作用域，供顶部进度条与完成弹窗的「下一课」入口共用。
     //
     // 进度口径按【当前课程所属的章节（=课程包）】统计，而不是按语言：
@@ -213,7 +244,17 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
                     is Block.Diagram -> DiagramBox(block.text)
                     is Block.Task -> TipBox(block.text, NeonYellow, "TASK · 跟着做")
                     is Block.Steps -> StepsCard(block.items)
-                    is Block.Practice -> PracticeCard(block, lang = lesson.lang)
+                    is Block.Practice -> PracticeCard(
+                        practice = block,
+                        lang = lesson.lang,
+                        result = runResults[index],
+                        running = runningKey == index,
+                        // practice 里的代码默认是「只读跟做」；TypeScript 课程已逐条
+                        // 用真实转译器验证过，才开放运行按钮，避免别的语言点半成品报错。
+                        onRun = if (lesson.lang == "typescript") {
+                            { runBlock(index, block.code, lesson.lang, emptyList()) }
+                        } else null
+                    )
                     is Block.Fill -> FillCard(block, lang = lesson.lang)
                     is Block.Order -> OrderPuzzleCard(block)
                     is Block.Quiz -> QuizCard(block)
@@ -241,37 +282,8 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
                         result = runResults[index],
                         running = runningKey == index,
                         onRun = {
-                            scope.launch {
-                                runningKey = index
-                                // 兜底：运行时若抛未捕获异常（如底层 JNI 崩溃），
-                                // 不能让整个界面跟着挂掉——转成可读错误显示。
-                                val r = try {
-                                    withContext(Dispatchers.Default) {
-                                        // 代码块可自带 lang 覆盖（对比教学）；否则沿用本讲语言
-                                        LanguageRegistry.get(block.lang.ifBlank { lesson.lang })
-                                            .runCode(block.code, block.stdin)
-                                    }
-                                } catch (t: Throwable) {
-                                    DebugLog.e("Run", "运行时异常 lesson=${lesson.id}", t)
-                                    RunResult(
-                                        ok = false, stdout = "", stderr = "",
-                                        errorType = "RuntimeCrash",
-                                        errorMessage = "运行时异常：${t.javaClass.simpleName}",
-                                        traceback = null, durationMs = 0L,
-                                        variables = emptyList(), passed = null
-                                    )
-                                }
-                                runResults[index] = r
-                                runningKey = null
-                                if (!r.ok) {
-                                    DebugLog.w(
-                                        "Run",
-                                        "代码块执行失败 lesson=${lesson.id} lang=${block.lang.ifBlank { lesson.lang }}" +
-                                            " type=${r.errorType} msg=${r.errorMessage?.take(120)}"
-                                    )
-                                }
-                                recordSideEffects(context, r)
-                            }
+                            // 代码块可自带 lang 覆盖（对比教学）；否则沿用本讲语言
+                            runBlock(index, block.code, block.lang.ifBlank { lesson.lang }, block.stdin)
                         }
                     )
                 }

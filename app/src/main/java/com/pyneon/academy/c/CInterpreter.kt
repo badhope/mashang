@@ -354,7 +354,7 @@ object CInterpreter {
             while (!atEnd()) {
                 when {
                     checkKeyword("typedef") -> parseTypedef()
-                    isTypeStart() && (looksLikeFunctionDef() || looksLikePrototype()) -> parseSessionFunction()
+                    isTypeStart() && looksLikeFunctionDecl() -> parseSessionFunction()
                     isTypeStart() -> stmts.add(parseDecl())
                     else -> stmts.add(parseStmt())
                 }
@@ -362,8 +362,13 @@ object CInterpreter {
             return SessionParse(funcs.toMap(), stmts)
         }
 
-        /** 前瞻判断「类型 名字 ( ... );」是否为函数原型（会话里也要能声明） */
-        private fun looksLikePrototype(): Boolean {
+        /**
+         * 前瞻判断「类型 名字 ( ... ) {」或「类型 名字 ( ... );」是否为函数声明。
+         *
+         * 2026-11 去重：原型与定义的两份扫描逻辑曾经逐行重复，只差最后是 `;` 还是 `{`；
+         * 合并为一个声明扫描器，避免以后加存储类/限定符时只改一份、另一份漂移。
+         */
+        private fun looksLikeFunctionDecl(): Boolean {
             var i = p
             var sawType = false
             while (i < tokens.size) {
@@ -399,47 +404,7 @@ object CInterpreter {
                 }
                 i++
             }
-            return i < tokens.size && tokens[i].text == ";"
-        }
-
-        /** 前瞻判断「类型 名字 ( ... ) {」是否为函数定义 */
-        private fun looksLikeFunctionDef(): Boolean {
-            var i = p
-            var sawType = false
-            while (i < tokens.size) {
-                val t = tokens[i]
-                if (t.type == T.KEYWORD) {
-                    when (t.text) {
-                        "const", "static", "unsigned", "signed", "short", "long",
-                        "extern", "register", "volatile" -> { i++; continue }
-                        "struct" -> {
-                            i++; sawType = true
-                            if (i < tokens.size && tokens[i].type == T.IDENT) i++
-                            continue
-                        }
-                        "int", "double", "float", "char", "void" -> { i++; sawType = true; continue }
-                        else -> break
-                    }
-                } else if (t.type == T.IDENT && typedefs.containsKey(t.text)) {
-                    i++; sawType = true; continue
-                }
-                break
-            }
-            if (!sawType) return false
-            while (i < tokens.size && tokens[i].text == "*") i++
-            if (i >= tokens.size || tokens[i].type != T.IDENT) return false
-            i++
-            if (i >= tokens.size || tokens[i].text != "(") return false
-            var depth = 0
-            while (i < tokens.size) {
-                if (tokens[i].text == "(") depth++
-                if (tokens[i].text == ")") {
-                    depth--
-                    if (depth == 0) { i++; break }
-                }
-                i++
-            }
-            return i < tokens.size && tokens[i].text == "{"
+            return i < tokens.size && (tokens[i].text == "{" || tokens[i].text == ";")
         }
 
         private fun parseExternal() {

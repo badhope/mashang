@@ -1,28 +1,22 @@
 package com.pyneon.academy.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.pyneon.academy.ui.components.NeonButton
+import com.pyneon.academy.ui.components.ScreenHeader
 import com.pyneon.academy.ui.theme.Bg0
 import com.pyneon.academy.ui.theme.NeonCyan
 import com.pyneon.academy.ui.theme.TextMid
@@ -41,20 +35,12 @@ fun PrivacyPolicyScreen(onBack: () -> Unit) {
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "返回",
-                tint = TextMid,
-                modifier = Modifier.padding(10.dp).size(28.dp).clickable { onBack() }
-            )
-            Text(
-                "隐私政策",
-                style = MaterialTheme.typography.headlineSmall,
-                color = NeonCyan,
-                modifier = Modifier.padding(start = 12.dp)
-            )
-        }
+        ScreenHeader(
+            title = "隐私政策",
+            accent = NeonCyan,
+            useGlitch = false,
+            onBack = onBack
+        )
         Text(
             "开发者/运营者：${AppConstants.DEV_NAME}\n隐私联系：${AppConstants.CONTACT_EMAIL}",
             style = MaterialTheme.typography.bodySmall,

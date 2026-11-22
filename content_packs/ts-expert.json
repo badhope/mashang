@@ -219,6 +219,13 @@
           "用条件类型判断并返回捕获结果，例如 T extends Array<infer U> ? U : never。",
           "用几个具体类型展开验证：number[] 应得到 number，string 应得到 never。"
         ]
+      },
+      {
+        "type": "practice",
+        "title": "类型别名被擦掉",
+        "code": "type Id = string | number;\nvar id: Id = 42;\nconsole.log(typeof id, id);",
+        "output": "number 42",
+        "hint": "联合类型只存在于编写阶段，运行时看到的是数字。"
       }
     ],
     "exercise": {
@@ -722,6 +729,13 @@
           "为无类型的第三方库写最小 .d.ts，只声明实际用到的部分。",
           "统计剩余 any 与已校验边界，跑回归测试，确认行为未变。"
         ]
+      },
+      {
+        "type": "practice",
+        "title": "给 any 一个出口",
+        "code": "function legacy(v: any): number { return Number(v) + 1; }\nconsole.log(legacy(\"41\"));",
+        "output": "42",
+        "hint": "迁移时 any 先兜底，再用 Number 把输入收成数字。"
       }
     ],
     "exercise": {
@@ -852,6 +866,13 @@
           "接入 typescript-eslint，先开 no-explicit-any 与 switch-exhaustiveness-check。",
           "CI 固定顺序：tsc --noEmit → lint --max-warnings=0 → test → build。"
         ]
+      },
+      {
+        "type": "practice",
+        "title": "严格项也是配置",
+        "code": "var strict = { noImplicitAny: true, strictNullChecks: true };\nconsole.log(strict.noImplicitAny && strict.strictNullChecks);",
+        "output": "true",
+        "hint": "严格项是编译器配置，不是运行时代码；这里只演示配置对象本身。"
       }
     ],
     "exercise": {

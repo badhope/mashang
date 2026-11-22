@@ -347,7 +347,9 @@
       "starterCode": "base = 'CYBER'\n\nfull_id = base + '-' + ____ \nprint(full_id)",
       "hint": "切片 base[2:] 得到 'BER'，再与 base 和 '-' 拼接。",
       "tests": [
-        "assert full_id == 'CYBER-BER'"
+        "assert full_id == 'CYBER-BER'",
+        "assert base == 'CYBER'",
+        "assert len(full_id) == 9"
       ],
       "stdin": [],
       "xp": 90
@@ -585,7 +587,9 @@
       "hint": "band.upper() 转大写，再用 f-string 拼 'BAND:{...}'。",
       "tests": [
         "assert echo_band('neon') == 'BAND:NEON'",
-        "assert echo_band('Ghost') == 'BAND:GHOST'"
+        "assert echo_band('Ghost') == 'BAND:GHOST'",
+        "assert echo_band('') == 'BAND:'",
+        "assert echo_band('Neon') == 'BAND:NEON'"
       ],
       "stdin": [],
       "xp": 100
