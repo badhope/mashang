@@ -1,6 +1,6 @@
 # 华为应用市场（AppGallery）上架指南
 
-> 本文件为 CodeLearning · 码上 提交华为应用市场的材料清单与文案模板。
+> 本文件为 CodeLearning（码上） 提交华为应用市场的材料清单与文案模板。
 > 开发者信息已填写：**bigbad** / **bigbad338@outlook.com**（与 `AppConstants.kt` 一致）。仅「生效日期」留待你设定发布日。
 
 ## 一、基础信息

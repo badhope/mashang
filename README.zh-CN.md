@@ -32,7 +32,7 @@
 
 | 语言 | 运行时 | 课程 |
 |---|---|---|
-| **Python** | CPython 3.13 | 39 讲主线，另有综合项目、DSA 和内置函数 |
+| **Python** | CPython 3.13 | 39 讲主线（含 1 讲综合项目），另有 DSA 10 讲和彩蛋 1 讲 |
 | **JavaScript** | Rhino 1.7.15 | 38 讲（基础、核心、进阶、专业四包） |
 | **TypeScript** | 类型擦除后交给 Rhino | 38 讲（基础、核心、进阶、专业四包） |
 | **C** | 内置解释器 | 38 讲（基础、核心、进阶、专业四包） |
@@ -43,7 +43,17 @@ Python 主线随 APK 内置；其余五门从「语言中心」按需下载。�
 
 C 和 TypeScript 是教学子集（C 不支持预处理指令、goto 与函数指针，TS 不支持装饰器与命名空间），遇到会明确提示。
 
-覆盖度：六门共 245 讲、471 个可运行示例、1,097 条判题用例，每讲都有判题。定位是入门到进阶的练习型课程，不是职业级完整课纲。明细见 [docs/LANGUAGE_COVERAGE.md](docs/LANGUAGE_COVERAGE.md)。
+覆盖度：六门共 245 讲、448 个课程代码块（434 个可直接运行）、1,097 条判题用例，每讲都有判题。定位是入门到进阶的练习型课程，不是职业级完整课纲。明细见 [docs/LANGUAGE_COVERAGE.md](docs/LANGUAGE_COVERAGE.md)。
+
+---
+
+## 项目资料
+
+- [产品定位与竞品对比](docs/PRODUCT_POSITIONING.md)
+- [课程样例](docs/COURSE_SAMPLES.md)
+- [质量报告](docs/QUALITY_REPORT.md)
+- [离线演示步骤](docs/OFFLINE_DEMO.md)
+- [语言覆盖与题量体检](docs/LANGUAGE_COVERAGE.md)
 
 ---
 

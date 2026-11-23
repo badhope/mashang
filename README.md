@@ -43,7 +43,17 @@ The Python mainline ships inside the APK. The other five download on demand from
 
 C and TypeScript are teaching subsets (C has no preprocessor, `goto` or function pointers; TypeScript has no decorators or namespaces) and say so explicitly when you hit a gap.
 
-Coverage: 245 lessons, 471 runnable examples and 1,097 judge cases across six tracks; every lesson has a graded exercise. This is introductory-to-intermediate practice, not a complete professional curriculum. Details: [docs/LANGUAGE_COVERAGE.md](docs/LANGUAGE_COVERAGE.md).
+Coverage: 245 lessons, 448 course code blocks (434 directly runnable) and 1,097 judge cases across six tracks; every lesson has a graded exercise. This is introductory-to-intermediate practice, not a complete professional curriculum. Details: [docs/LANGUAGE_COVERAGE.md](docs/LANGUAGE_COVERAGE.md).
+
+---
+
+## Project docs
+
+- [Positioning and competitor comparison](docs/PRODUCT_POSITIONING.md)
+- [Course samples](docs/COURSE_SAMPLES.md)
+- [Quality report](docs/QUALITY_REPORT.md)
+- [Offline demo steps](docs/OFFLINE_DEMO.md)
+- [Language coverage and exercise volume](docs/LANGUAGE_COVERAGE.md)
 
 ---
 

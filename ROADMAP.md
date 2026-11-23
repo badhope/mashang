@@ -5,14 +5,16 @@
 
 ## v0.7.x（当前）
 
+- [x] v0.7.2 — 风格重构后重新打包，补产品定位、质量报告、离线演示和第三方清单
+
 - [x] v0.7.0 — 六门语言统一 38 讲（基础 / 核心 / 进阶 / 专业四包），C 解释器扩展到指针、结构体、switch
 - [x] v0.7.0 — 语言中心按需加载、单包下载与整门装齐，catalog 增加 lessons / bytes / tier
-- [x] v0.7.0 — 品牌升级 CodeLearning · 码上，三语 README、证书、终端、官网同步
+- [x] v0.7.0 — 品牌升级 CodeLearning（码上），三语 README、证书、终端、官网同步
 - [x] v0.7.0 — 前后端去重：ScreenHeader / NeonTopBar、JsonListFile、RunResultJson、HttpText
 - [ ] v0.7.x — 平板 / 横屏自适应布局
 - [ ] v0.7.x — 网页端离线缓存（Service Worker，二次打开不再下载 WASM）
 - [ ] v0.7.x — 内容中心增量包与版本回滚
-- [ ] v0.7.x — 语言课程深度补齐：SQL / C 增加边界用例，TypeScript 增加可运行示例
+- [x] v0.7.x — 语言课程深度补齐：SQL 增加 5 讲边界专题，C 补到 71 个可运行示例，TypeScript 补到 39 个
 
 ## v0.4.x（历史）
 

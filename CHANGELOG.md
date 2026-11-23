@@ -2,6 +2,29 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。完整发布说明见 [GitHub Releases](https://github.com/badhope/mashang/releases)。
 
+## [0.7.2] - 2026-11-24
+
+> 风格重构后的重新打包版本。课程结构和运行逻辑不变，主要改注释、对外文档和发布材料。
+> 版本 0.7.1 → **0.7.2**（versionCode 20 → 21）。
+
+### Changed
+- Kotlin、Python 运行时、网页端和工具脚本的注释改成正常口语，去掉装饰符号、历史说明和重复包装。
+- 三语 README、FAQ、用户手册统一品牌和课程口径：245 讲、448 个课程代码块（434 个可直接运行）、1,097 条判题用例。
+- 官网同步新版文案，修掉多余的标签和统计条重复逗号。
+- 修正 Rhino 许可证说明（MPL-2.0），补 `THIRD_PARTY_NOTICES.md`。
+
+### Added
+- `docs/PRODUCT_POSITIONING.md`：产品定位、目标用户、竞品对比和六门语言边界。
+- `docs/QUALITY_REPORT.md`：测试结果、课程规模、已知边界和发布门禁。
+- `docs/OFFLINE_DEMO.md`：飞行模式下的离线验证步骤。
+- `docs/COURSE_SAMPLES.md`：Python 和 SQL 两节真实课程样例。
+
+### Verification
+- `testDebugUnitTest`：275 项通过，0 失败，1 跳过。
+- `pytest`：247 通过，551 subtests 通过。
+- `lintDebug`：0 Error，47 Warning，5 Hint。
+- 内容校验：245 讲、22 道挑战、267 个判题项、1,097 条用例，结构问题 0。
+
 ## [0.7.1] - 2026-11-23
 
 > 质量与发布收口版本：不改变课程结构，补齐对外文档、应用内开源入口与发布门禁。
