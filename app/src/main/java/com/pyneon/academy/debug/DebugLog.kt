@@ -47,7 +47,7 @@ object DebugLog {
 
     // 异常只留类型和消息，堆栈太长不记。
     fun e(tag: String, message: String, t: Throwable?) {
-        val detail = t?.let { "${it.javaClass.simpleName}: ${it.message}" } ?: "unknown"
+        val detail = t?.let { "${it.javaClass.simpleName}: ${it.message}" } ?: "未知"
         log(Level.ERROR, tag, "$message | $detail")
     }
 
@@ -66,8 +66,8 @@ object DebugLog {
 
 
     fun export(): String = buildString {
-        appendLine("# CodeLearning debug log")
-        appendLine("# entries: ${buffer.size}")
+        appendLine("CodeLearning 诊断日志")
+        appendLine("共 ${buffer.size} 条")
         appendLine()
         buffer.forEach { appendLine(it.format()) }
     }

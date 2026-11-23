@@ -71,6 +71,18 @@
 
 验证：`node --check web/app.js` 通过，`node --check docs/web/app.js` 通过。
 
+## 第五批：工具脚本和对外材料
+
+已完成：
+
+- `tools/softcopy_source.py` 的文档头、分页标题和打印提示去掉装饰符号。
+- `tools/make_brand_assets.py` 的课程数、挑战数和 Android 版本对齐到 245 讲、22 题、Android 10。
+- `tools/build_catalog.py` 的设计说明压缩成普通流程说明。
+- `DebugLog` 导出头改成中文，隐私政策里的日志上限改成“约 25 万字符”，跟实际按字符截断一致。
+- 测试里过期的字符串断言同步到新文案。
+
+验证：`pytest` 247 项通过，软著源程序册实际生成 321 页。
+
 ## 还没做的
 
 - `tools/` 里的内容生成脚本只清理了明显的横幅注释，课程正文里的 `·`、箭头属于课程排版，不按代码符号处理。

@@ -1,28 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-软著申请 · 源程序册生成器
-=========================
+"""生成软著申请的源程序册。
 
-按中国版权保护中心《计算机软件著作权登记办法》的受理要求，生成本项目源程序册：
+按中国版权保护中心的受理要求：交前 30 页和后 30 页，共 60 页；不足 60 页就全交。
+每页至少 50 行，页眉写软件名称和版本号。
 
-  * 源程序需提交**前 30 页 + 后 30 页**，共 60 页；总页数不足 60 页时全部提交
-  * 每页**不少于 50 行**
-  * 页眉须标注**软件名称 + 版本号**
+默认写到 dist/softcopy/：
+源程序.html，浏览器打开后打印成 PDF
+源程序.txt，分页符分隔的纯文本
+源程序清单.csv，文件名、行数和所在页区间
 
-产出（默认 dist/softcopy/）：
-  * ``源程序.html``      —— 浏览器打开 → 打印 → 另存为 PDF 即为送审件（A4、等宽、自动分页）
-  * ``源程序.txt``       —— 纯文本备份，页与页之间用分页符 \\f 分隔
-  * ``源程序清单.csv``   —— 提交文件清单（文件名 / 行数 / 所在页区间），便于自查与补件
-
-用法::
+用法：
 
     python tools/softcopy_source.py
     python tools/softcopy_source.py --name "码上多语言编程学习软件" --version "V1.0" --out dist/softcopy
 
-注意：
-  1. 只收录本项目**原创**源程序；第三方依赖（Gradle 依赖、sora-editor 等）不进册。
-  2. 文件顺序需固定且可复现（此处按包名字典序），否则前/后 30 页内容每次都不同。
+只收项目自己的源码，Gradle 依赖和 sora-editor 这些第三方不进册。
+文件按路径字典序排，保证每次生成的前后 30 页都一样。
 """
 
 from __future__ import annotations
@@ -44,7 +38,7 @@ TAIL_PAGES = 30
 DEFAULT_NAME = "码上多语言编程学习软件"
 DEFAULT_VERSION = "V1.0"
 
-# 需要收录的源文件根目录（顺序固定：主程序 → 引擎 → 数据）
+# 需要收录的源文件根目录，顺序固定：主程序、引擎、数据
 SOURCE_ROOTS: Tuple[str, ...] = (
     "app/src/main/java",
     "app/src/main/python",
@@ -152,7 +146,7 @@ def build_html(
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>{html.escape(header)} · 源程序</title>
+<title>{html.escape(header)} 源程序</title>
 <style>
   @page {{ size: A4; margin: 14mm 12mm; }}
   * {{ box-sizing: border-box; }}
@@ -190,7 +184,7 @@ def build_txt(
     header = f"{name} {version}"
     out: List[str] = []
     for idx, (rel, start, lines) in enumerate(pages, start=1):
-        out.append(f"===== {header} — 第 {idx} 页 [{rel} 自第 {start} 行起] =====")
+        out.append(f"{header} 第 {idx} 页 [{rel} 自第 {start} 行起]")
         out.extend(lines)
         out.append("\f")
     return "\n".join(out)
@@ -258,7 +252,7 @@ def main() -> int:
     for n in ("源程序.html", "源程序.txt", "源程序清单.csv"):
         p = out_dir / n
         print(f"     - {n}  ({p.stat().st_size / 1024:.1f} KB)")
-    print("\n[提示] 用 Chrome/Edge 打开 源程序.html → Ctrl+P → 目标另存为 PDF，"
+    print("\n[提示] 用 Chrome/Edge 打开 源程序.html，按 Ctrl+P，目标另存为 PDF，"
           "纸张 A4、边距「默认」、勾选「背景图形」关闭，即得送审 PDF。")
     return 0
 
