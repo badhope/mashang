@@ -65,7 +65,7 @@ Build from source:
 
 ## License
 
-MIT. Third-party licenses are listed in the app under About, in the Open Source Licenses section.
+MIT. Third-party components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); full license texts are in the app under About, in the Open Source Licenses section.
 
 [Privacy](PRIVACY_POLICY.md), [Terms](TERMS_OF_SERVICE.md)
 

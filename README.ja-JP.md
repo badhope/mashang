@@ -65,7 +65,7 @@ C と TypeScript は学習用サブセットです（C はプリプロセッサ�
 
 ## ライセンス
 
-MIT。サードパーティのライセンスはアプリ内「About のオープンソースライセンス」に記載。
+MIT。サードパーティの構成は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) に記載。ライセンス全文はアプリ内「About のオープンソースライセンス」にあります。
 
 [プライバシー](PRIVACY_POLICY.md)、[利用規約](TERMS_OF_SERVICE.md)
 

@@ -179,7 +179,7 @@ dependencies {
     implementation("io.github.rosemoe:editor")
     implementation("io.github.rosemoe:language-textmate")
 
-    // 多语言：JavaScript 运行时后端（Rhino，纯 Java 解释模式，无 NDK；Apache-2.0）
+    // 多语言：JavaScript 运行时后端（Rhino，纯 Java 解释模式，无 NDK；MPL-2.0）
     implementation("org.mozilla:rhino:1.7.15")
     // 多语言：Lua 运行时后端（LuaJ 3.0.1，Lua 5.2 语义，纯 JVM 354 KB，无 NDK；MIT）
     implementation("org.luaj:luaj-jse:3.0.1")

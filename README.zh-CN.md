@@ -65,7 +65,7 @@ C 和 TypeScript 是教学子集（C 不支持预处理指令、goto 与函数�
 
 ## 许可
 
-MIT。第三方组件许可见应用内「关于」里的开源许可。
+MIT。第三方组件清单见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，应用内「关于」里的开源许可页有完整许可文本。
 
 [隐私政策](PRIVACY_POLICY.md)、[用户协议](TERMS_OF_SERVICE.md)
 
