@@ -1,0 +1,3072 @@
+CodeLearning（码上）多语言编程学习软件 V1.0 第 1 页 [app/src/main/java/com/pyneon/academy/MainActivity.kt 自第 1 行起]
+package com.pyneon.academy
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.pyneon.academy.nav.AppRoot
+import com.pyneon.academy.ui.theme.PyNeonTheme
+import com.pyneon.academy.utils.ThemePreference
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            var currentTheme by remember { mutableStateOf(ThemePreference.getCurrentTheme(this)) }
+            var visualStyle by remember { mutableStateOf(ThemePreference.getVisualStyle(this)) }
+            var fontScale by remember { mutableStateOf(ThemePreference.getFontScale(this)) }
+            // 主题 / 风格偏好变更即时生效（SharedPreferences 监听，无需重启应用）
+            DisposableEffect(Unit) {
+                val listener =
+                    android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                        when (key) {
+                            ThemePreference.KEY_THEME_ID ->
+                                currentTheme = ThemePreference.getCurrentTheme(this@MainActivity)
+                            ThemePreference.KEY_VISUAL_STYLE ->
+                                visualStyle = ThemePreference.getVisualStyle(this@MainActivity)
+                            ThemePreference.KEY_FONT_SCALE ->
+                                fontScale = ThemePreference.getFontScale(this@MainActivity)
+                        }
+                    }
+                ThemePreference.registerListener(this@MainActivity, listener)
+                onDispose { ThemePreference.unregisterListener(this@MainActivity, listener) }
+            }
+            PyNeonTheme(appTheme = currentTheme, visualStyle = visualStyle, fontScale = fontScale) {
+                AppRoot()
+            }
+        }
+    }
+}
+package com.pyneon.academy
+
+import android.app.Application
+import com.pyneon.academy.c.CBridge
+import com.pyneon.academy.debug.CrashHandler
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 2 页 [app/src/main/java/com/pyneon/academy/PyNeonApp.kt 自第 6 行起]
+import com.pyneon.academy.debug.DebugLog
+import com.pyneon.academy.js.JsBridge
+import com.pyneon.academy.lang.LanguageRegistry
+import com.pyneon.academy.lua.LuaBridge
+import com.pyneon.academy.py.PyBridge
+import com.pyneon.academy.sql.SqlBridge
+import com.pyneon.academy.ts.TsBridge
+
+class PyNeonApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        // 最先安装崩溃处理器：后续任何初始化失败都能留下可导出的诊断信息
+        CrashHandler.install(this)
+        // 注册所有可用语言运行时（新增语言在此处补一行 register 即可）
+        LanguageRegistry.register(PyBridge)
+        LanguageRegistry.register(JsBridge)
+        LanguageRegistry.register(TsBridge)
+        LanguageRegistry.register(CBridge)
+        LanguageRegistry.register(LuaBridge)
+        LanguageRegistry.register(SqlBridge)
+        DebugLog.i("App", "启动 v" + com.pyneon.academy.utils.AppConstants.VERSION_NAME +
+            "，已注册运行时 " + LanguageRegistry.ids().joinToString(","))
+        // 不在 Application.onCreate 里启动 CPython。
+        //
+        // 原因：Python.start() 是同步的，会在这里阻塞主线程加载 5.4MB 的
+        // libpython3.13.so + 4MB 标准库，直接把冷启动时间拉长 1-2 秒，
+        // 且此时还没有界面，用户看到的是白屏。
+        // 现在交给 BootScreen 的 LaunchedEffect：那里已经在后台线程执行，
+        // 并有启动动画作为视觉缓冲（PyBridge.ensureStarted 内部有幂等保护）。
+        DebugLog.i("App", "运行时就绪（延迟到 BootScreen 初始化）")
+    }
+}
+package com.pyneon.academy.ai
+
+/**
+ * 离线规则教练。不联网也不用模型，只看错误类型和消息，
+ * 给出问题判断、几步提示和一小段示例。
+ *
+ * 原则是只提示不代写：语言报错给通用修法，判题不过只给检查清单，不直接给答案。
+ */
+data class CoachTip(
+    val title: String,
+    val summary: String,
+    val steps: List<String>,
+    val example: String?,
+    val lineRef: Int?
+)
+
+object CoachEngine {
+
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 3 页 [app/src/main/java/com/pyneon/academy/ai/CoachEngine.kt 自第 19 行起]
+    private val LINE_PATTERN = Regex("""[Ll]ine (\d+)""")
+
+    fun analyze(
+        errorType: String?,
+        errorMessage: String?,
+        traceback: String?,
+        code: String
+    ): CoachTip {
+        val type = (errorType ?: "").trim()
+        val message = (errorMessage ?: "").trim()
+        // 抓第一个 Line N，通常就是用户代码那一帧。取最后一个容易抓到库内部。
+        val lineRef = LINE_PATTERN.findAll(traceback ?: "").firstOrNull()
+            ?.groupValues?.get(1)?.toIntOrNull()
+        // 行号只在这里算一次，下面统一由 tip 带上。
+        fun tip(title: String, summary: String, steps: List<String>, example: String?): CoachTip =
+            CoachTip(title, summary, steps, example, lineRef)
+
+        // 判题不过就列自查项，不给答案。
+        if (type == "TestFailed" || message.contains("用例未通过") || type == "AssertionError") {
+            return tip(
+                "判题没过：先别改代码，先对答案",
+                "判题器用断言逐条检查你的函数。失败信息里是第一个没通过的断言，它就是你现在的目标。",
+                listOf(
+                    "读出最后一条断言期望什么（例如 assert xxx == 5），用 print() 打印你的函数实际返回值",
+                    "把函数能想到的边界值单独试一遍：0、1、负数、空列表、重复元素",
+                    "检查是不是只覆盖了题目说的那一条路径，漏掉了 return 分支",
+                    "对照题目 brief 里的样例输入输出，是否一一对应"
+                ),
+                null
+            )
+        }
+        // 代码超时
+        if (type.contains("Timeout")) {
+            return tip(
+                "代码超时：几乎总是死循环",
+                "运行超过时限被强制中断，最常见的凶手是 while/for 的退出条件永远达不到。",
+                listOf(
+                    "找到正在执行的循环，问自己：它的退出条件一定会变成 False 吗？",
+                    "循环体里有没有让条件逐步靠近 False 的语句（计数器 + 1、索引 + 1、更新变量）",
+                    "把数据规模先换小（如输入 5）跑一遍，确认小数据能正常结束",
+                    "别急着重写，先在循环里 print(当前进度)，看它到底有没有推进"
+                ),
+                "n = 5\nwhile n > 0:\n    print(n)\n    n -= 1   # 少了这行就是死循环"
+            )
+        }
+        // 运行台不支持 input
+        if (type.contains("InputError")) {
+            return tip(
+                "运行台不支持 input()",
+                "课堂判题环境预置了测试数据，交互式 input() 在这里不可用。",
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 4 页 [app/src/main/java/com/pyneon/academy/ai/CoachEngine.kt 自第 69 行起]
+                listOf(
+                    "把测试用数据直接写死在代码里（赋值给变量），再跑判题",
+                    "想练习交互输入，请去「终端」里运行",
+                    "判题只看你的输出是否匹配断言，固定数据不影响结果"
+                ),
+                "name = 'neo'   # 代替 name = input()"
+            )
+        }
+        // 缩进
+        if (type.contains("IndentationError")) {
+            return tip(
+                "缩进错误：Python 用缩进表示代码块",
+                "if / for / def / while 后面冒号结束的那一行，下一行必须多缩进一层。",
+                listOf(
+                    "看报错行和它上面一行：上面是不是以冒号结尾？是，则这行要缩进",
+                    "同一个代码块内统一用空格（别混 Tab 和空格）",
+                    "多套一层就多缩进 4 空格，层数别多也别少"
+                ),
+                "if x > 0:\n    print(x)   # 必须缩进"
+            )
+        }
+        // 语法
+        if (type.contains("SyntaxError")) {
+            return tip(
+                "语法错误：编译器读不懂这一行",
+                "多半是少了配对的括号、冒号或引号，或中英文符号混用。",
+                listOf(
+                    "看报错行和它上一行，哪个括号/引号/冒号没配对",
+                    "中文输入法打出的括号（）逗号，都不是合法 Python 符号",
+                    "字符串两端的引号必须一模一样"
+                ),
+                "print('hello')   # 半角括号与引号"
+            )
+        }
+        // 名字没定义
+        if (type.contains("NameError")) {
+            val name = Regex("'([^']+)'").find(message)?.groupValues?.get(1) ?: "这个变量"
+            return tip(
+                "名字未定义：Python 不认识这条名字",
+                "NameError 表示这个名字还没被赋值过，或拼写与大小写不一致。",
+                listOf(
+                    "检查是不是多了空格/大小写错字（score 和 scroe 是两个名字）",
+                    "确认它在使用之前被赋值；函数内要用外部变量，请作为参数传入或 return 返回",
+                    "没有定义就补上定义，或换用已存在的变量"
+                ),
+                "score = 100\nprint(score)   # 别把 score 写成 scroe"
+            )
+        }
+        // 类型对不上
+        if (type.contains("TypeError")) {
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 5 页 [app/src/main/java/com/pyneon/academy/ai/CoachEngine.kt 自第 119 行起]
+            return tip(
+                "类型错误：不同类型的值不能直接运算",
+                "Python 对类型很严格：字符串与数字不能 +、len() 只接受容器、下标只接受整数。",
+                listOf(
+                    "看报错的操作两边的类型是什么（print(type(x)) 最快）",
+                    "数字与字符串要转换：int() / str()，再运算",
+                    "报 not subscriptable 说明你对不可以下标的类型用了 [i]"
+                ),
+                "'1' + 1 改成 int('1') + 1，或者 '1' + '1'"
+            )
+        }
+        // 下标越界
+        if (type == "IndexError") {
+            return tip(
+                "下标越界：容器没那么多位置",
+                "列表/字符串下标从 0 开始，最大可用下标是 len(x) - 1。",
+                listOf(
+                    "看一下用到的下标是不是大于等于 len(容器)",
+                    "循环里 range(len(x)) 安全；range(len(x) + 1) 就会越界",
+                    "取末尾可以用负数下标 x[-1]"
+                ),
+                "x = [1, 2, 3]\nprint(x[2])   # 合法；x[3] 越界"
+            )
+        }
+        // 键不存在
+        if (type == "KeyError") {
+            val key = Regex("'([^']+)'").find(message)?.groupValues?.get(1) ?: "这个键"
+            return tip(
+                "键不存在：字典里没有这条键",
+                "KeyError 表示你用 [key] 去取一个并不存在的键。",
+                listOf(
+                    "检查键名拼写（含大小写）是否与写入时一致",
+                    "用 dict.get(key, 默认值) 代替 [key]，不存在时返回默认值而不是报错",
+                    "不确定就先 if key in d: 再取"
+                ),
+                "d = {'a': 1}\nprint(d.get('b', 0))   # 返回 0 而不是报错"
+            )
+        }
+        // 除以零
+        if (type == "ZeroDivisionError") {
+            return tip(
+                "除数为 0：数学上不允许",
+                "某处做了 x / y，而 y 此刻为 0。",
+                listOf(
+                    "定位分母变量，想清楚它什么情况下会等于 0",
+                    "除之前先判断：if y == 0: 给个默认结果",
+                    "或者用 try / except ZeroDivisionError 接住再给提示"
+                ),
+                "if y != 0:\n    result = x / y\nelse:\n    result = None"
+            )
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 6 页 [app/src/main/java/com/pyneon/academy/ai/CoachEngine.kt 自第 169 行起]
+        }
+        // 属性不存在
+        if (type.contains("AttributeError")) {
+            return tip(
+                "对象上没有这个成员",
+                "AttributeError 表示你访问的方法/属性在这类对象上不存在。",
+                listOf(
+                    "确认拼写是否正确（strp 不是 strip、appen 不是 append）",
+                    "方法要加括号调用，属性不加",
+                    "确认对象类型是你以为的那个（print(type(x))）"
+                ),
+                "s = 'neon'\ns.strip()   # 方法记得加 ()"
+            )
+        }
+        // 值不合法
+        if (type == "ValueError") {
+            return tip(
+                "值不合法：转换或拆包失败",
+                "ValueError 常见于 int('abc')、解包数量不匹配、容器查找/索引值不在范围。",
+                listOf(
+                    "int()/float() 不可以的写法：先确保内容能转换",
+                    "if 判断边界后再转换，避免对空串/特殊字符转换",
+                    "解包 a, b = ... 时确认右侧正好 2 个元素"
+                ),
+                "if s.isdigit():\n    n = int(s)"
+            )
+        }
+        // 文件找不到
+        if (type == "FileNotFoundError") {
+            return tip(
+                "文件不存在：路径写错了或文件还没创建",
+                "open() 的路径指向一个不存在的文件。课堂环境里文件系统是受限的。",
+                listOf(
+                    "确认文件名拼写与扩展名（.txt / .csv）完全一致",
+                    "路径是相对路径时，确认文件真的在当前目录；先写出文件再读取",
+                    "课堂环境不建议依赖外部文件，练习时可用字符串代替文件内容"
+                ),
+                "with open('data.txt', 'w') as f:\n    f.write('hello')   # 先写后读"
+            )
+        }
+        // 导入失败
+        if (type == "ImportError" || type == "ModuleNotFoundError") {
+            return tip(
+                "导入失败：模块不存在或拼写错误",
+                "import 的模块名拼错了、未安装，或把文件名当成了模块。",
+                listOf(
+                    "核对模块名拼写（random、math、json 都是内置的）",
+                    "自己写的文件不要起名 random.py / math.py，会顶掉内置模块",
+                    "不要 import 不存在或课堂未提供的第三方包"
+                ),
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 7 页 [app/src/main/java/com/pyneon/academy/ai/CoachEngine.kt 自第 219 行起]
+                "import random   # 内置模块，直接可用"
+            )
+        }
+        // 递归太深
+        if (type == "RecursionError") {
+            return tip(
+                "递归太深：函数无限调用自己",
+                "RecursionError 表示函数调用自己一直没有终止条件，栈被耗尽。",
+                listOf(
+                    "找函数的递归出口：什么时候不再调用自己？",
+                    "递归参数每次都要向出口靠近（如 n-1、列表变短）",
+                    "出口条件写太晚/太宽都会触发；先想清楚最小规模（如 n=0）会发生什么"
+                ),
+                "def f(n):\n    if n <= 0: return 0   # 出口\n    return f(n - 1)   # 向出口靠近"
+            )
+        }
+        // 其他未知错误
+        return if (message.isNotBlank()) {
+            tip(
+                "报错信息定位",
+                "错误类型（$type）。信息原文就是最好的线索，先读最后一行。",
+                listOf(
+                    "把报错信息里提到的行号和代码对应起来，重点看那一行",
+                    "用 print(type(...)) 检查变量的实际类型",
+                    "把问题简化成最小示例单独跑，缩小范围"
+                ),
+                null
+            )
+        } else {
+            tip(
+                "暂无可用诊断",
+                "这次没有任何报错信息，说明问题在结果本身。",
+                listOf(
+                    "把实际输出和题目期望输出逐字符对比（包括空格与换行）",
+                    "对照 brief 的示例输入输出完整复核一遍",
+                    "重新读一遍题目，确认没有遗漏的格式要求"
+                ),
+                null
+            )
+        }
+    }
+
+}
+package com.pyneon.academy.c
+
+import android.content.Context
+import com.pyneon.academy.lang.LanguageIds
+import com.pyneon.academy.lang.LanguageRuntime
+import com.pyneon.academy.lang.RunResult
+import com.pyneon.academy.lang.VarInfo
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 8 页 [app/src/main/java/com/pyneon/academy/c/CBridge.kt 自第 8 行起]
+
+/**
+ * C 运行时，用 Kotlin 写的教学子集解释器。
+ *
+ * Android 离线装 clang 加头文件和链接器要两三百 MB，还链不上 bionic，
+ * 所以这里直接解释执行。gcc 能算的跟着算，不支持的明确报错。
+ *
+ * Java、C++、Go、Rust 在 PLANNED 里显示暂不支持，C 是真的能跑：
+ * 写 printf 有输出，能判题，能改错。
+ */
+object CBridge : LanguageRuntime {
+
+    override val id: String = LanguageIds.C
+    override val displayName: String = LanguageIds.displayNameOf(LanguageIds.C)
+    override val fileExtension: String = "c"
+    override val grammarScope: String = "source.c"
+
+    // 标清楚是子集解释器，别让人以为是 gcc。
+    override val version: String get() = "教学子集（解释执行）"
+
+    override fun isAvailable(): Boolean = true
+
+    override fun ensureStarted(context: Context) = Unit
+
+    override fun runCode(
+        code: String,
+        stdinLines: List<String>,
+        timeoutSec: Double
+    ): RunResult {
+        val started = System.nanoTime()
+        val r = CInterpreter.run(code, stdinLines)
+        return toRunResult(r, started)
+    }
+
+    override fun checkExercise(
+        code: String,
+        tests: List<String>,
+        stdinLines: List<String>
+    ): RunResult {
+        val started = System.nanoTime()
+        val r = CInterpreter.check(code, tests)
+        val base = toRunResult(r, started)
+        return base.copy(passed = r.ok)
+    }
+
+    override fun warmup(): Boolean = true
+
+    // C 的交互会话。以前每行都当完整程序跑，变量不跨行，
+    // 写个 printf 还要求有 main。现在用有状态的 Session：
+    // 函数和全局变量都留着，花括号没闭合就等下一行。
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 9 页 [app/src/main/java/com/pyneon/academy/c/CBridge.kt 自第 58 行起]
+    @Volatile
+    private var session: CInterpreter.Session? = null
+
+    private fun sessionLocked(): CInterpreter.Session =
+        session ?: CInterpreter.Session().also { session = it }
+
+    override fun replStart() {
+        session = CInterpreter.Session()
+    }
+
+    override fun replPush(line: String): Pair<Boolean, String> =
+        synchronized(this) { sessionLocked().push(line) }
+
+    private fun toRunResult(r: CInterpreter.Result, startedAt: Long): RunResult = RunResult(
+        ok = r.ok,
+        stdout = r.stdout,
+        stderr = "",
+        errorType = r.errorType,
+        errorMessage = r.errorMessage,
+        traceback = null,
+        durationMs = (System.nanoTime() - startedAt) / 1_000_000,
+        variables = r.variables.map { VarInfo(it.first, it.second, it.third) },
+        passed = null
+    )
+}
+package com.pyneon.academy.c
+
+/**
+ * 给课程用的 C 子集解释器，纯 Kotlin，不依赖 NDK。
+ *
+ * Android 上装 clang 要两三百 MB，还链不上系统的 bionic，学习场景不划算，
+ * 所以这里直接解释执行源码。gcc 是怎么算的就跟着怎么算，没实现的语法直接报错，
+ * 不猜一个看起来对的结果。
+ *
+ * 类型只有 int、double、char、void；unsigned/short/long 当 int，const 收下但不管。
+ * 数组最多二维，结构体支持 typedef 和一层嵌套。
+ * 语句支持声明、赋值、分支、循环、switch、break/continue/return。
+ * 运算符、单级指针、函数、递归、printf/puts/putchar 和常用字符串数学函数都在。
+ * goto、宏、函数指针、二级指针、union/enum、scanf 不支持。
+ *
+ * sizeof 按教学模型算，不是宿主机的 ABI：int 4、double 8、char 1、指针 8，
+ * 数组是元素大小乘长度，结构体成员大小求和后补到 8 的倍数。
+ * 整数统一用 Long，char 存码点，浮点用 Double；运算时有 double 就按浮点走。
+ */
+
+object CInterpreter {
+
+    // 值模型
+
+    private sealed class Value {
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 10 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 26 行起]
+        data class Num(val v: Long) : Value()
+        data class Real(val v: Double) : Value()
+        data class Str(val v: String) : Value()
+        data class Arr(val cells: List<Cell>, val elem: CType, val dims: List<Int>) : Value()
+        data class Struct(val def: StructDef, val fields: LinkedHashMap<String, Cell>) : Value()
+        data class Ptr(val cells: List<Cell>, val index: Int) : Value()
+        object Void : Value()
+
+        fun asDouble(): Double = when (this) {
+            is Num -> v.toDouble()
+            is Real -> v
+            is Str -> v.toDoubleOrNull() ?: 0.0
+            else -> 0.0
+        }
+
+        fun asLong(): Long = when (this) {
+            is Num -> v
+            is Real -> v.toLong()
+            is Str -> v.toLongOrNull() ?: 0L
+            else -> 0L
+        }
+
+        fun truthy(): Boolean = when (this) {
+            is Num -> v != 0L
+            is Real -> v != 0.0
+            is Str -> v.isNotEmpty()
+            is Arr -> true
+            is Struct -> true
+            is Ptr -> cells.isNotEmpty()
+            Void -> false
+        }
+
+        fun display(): String = when (this) {
+            is Num -> v.toString()
+            is Real -> formatDouble(v)
+            is Str -> v
+            is Arr -> if (elem === CType.TChar) {
+                val sb = StringBuilder()
+                for (c in cells) {
+                    val n = c.value.asLong()
+                    if (n == 0L) break
+                    sb.append(n.toInt().toChar())
+                }
+                sb.toString()
+            } else {
+                cells.joinToString(" ") { it.value.display() }
+            }
+            is Struct -> fields.entries.joinToString(", ", "{", "}") {
+                "${it.key}=${it.value.value.display()}"
+            }
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 11 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 76 行起]
+            is Ptr -> if (cells.isEmpty()) "NULL"
+            else "0x" + System.identityHashCode(cells).toString(16)
+            Void -> ""
+        }
+    }
+
+    /** 内存单元：指针指向它，赋值写它。type 决定赋值时的转换与 sizeof。 */
+    private class Cell(var value: Value, val type: CType, val readonly: Boolean = false)
+
+    private class StructDef(
+        val tag: String?,
+        val fields: MutableList<Pair<String, CType>> = mutableListOf()
+    )
+
+    private sealed class CType {
+        object TInt : CType()
+        object TDouble : CType()
+        object TChar : CType()
+        object TVoid : CType()
+        data class TPtr(val to: CType) : CType()
+        data class TArray(val of: CType, val dims: List<Int>) : CType()
+        data class TStruct(val def: StructDef) : CType()
+
+        fun display(): String = when (this) {
+            TInt -> "int"
+            TDouble -> "double"
+            TChar -> "char"
+            TVoid -> "void"
+            is TPtr -> to.display() + "*"
+            is TArray -> of.display() + dims.joinToString("") { "[$it]" }
+            is TStruct -> "struct " + (def.tag ?: "?")
+        }
+    }
+
+    /** 与 C 的 %g 接近的默认浮点显示：整数值不带小数点，否则最多 6 位有效小数。 */
+    private fun formatDouble(d: Double): String {
+        if (d.isNaN()) return "nan"
+        if (d.isInfinite()) return if (d > 0) "inf" else "-inf"
+        if (d == d.toLong().toDouble() && kotlin.math.abs(d) < 1e15) return d.toLong().toString()
+        val s = String.format(java.util.Locale.US, "%.6f", d).trimEnd('0').trimEnd('.')
+        return s
+    }
+
+    // 词法
+
+    private enum class T { NUM, REAL, STR, CHARLIT, IDENT, KEYWORD, OP, PUNCT, EOF }
+
+    private data class Token(val type: T, val text: String, val line: Int)
+
+    private class Lexer(private val src: String) {
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 12 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 126 行起]
+        private var i = 0
+        private var line = 1
+
+        fun tokenize(): List<Token> {
+            val out = mutableListOf<Token>()
+            while (i < src.length) {
+                val c = src[i]
+                when {
+                    c == '\n' -> { line++; i++ }
+                    c.isWhitespace() -> i++
+                    c == '/' && i + 1 < src.length && src[i + 1] == '/' -> {
+                        while (i < src.length && src[i] != '\n') i++
+                    }
+                    c == '/' && i + 1 < src.length && src[i + 1] == '*' -> {
+                        i += 2
+                        while (i + 1 < src.length && !(src[i] == '*' && src[i + 1] == '/')) {
+                            if (src[i] == '\n') line++
+                            i++
+                        }
+                        i += 2
+                    }
+                    c == '"' -> out.add(readString())
+                    c == '\'' -> out.add(readChar())
+                    c.isDigit() || (c == '.' && i + 1 < src.length && src[i + 1].isDigit()) ->
+                        out.add(readNumber())
+                    c.isLetter() || c == '_' -> out.add(readIdent())
+                    else -> out.add(readOp())
+                }
+            }
+            out.add(Token(T.EOF, "", line))
+            return out
+        }
+
+        private fun readString(): Token {
+            val startLine = line
+            i++ // skip "
+            val sb = StringBuilder()
+            while (i < src.length && src[i] != '"') {
+                if (src[i] == '\\' && i + 1 < src.length) {
+                    sb.append(unescape(src[i + 1])); i += 2
+                } else {
+                    if (src[i] == '\n') line++
+                    sb.append(src[i]); i++
+                }
+            }
+            i++ // skip closing "
+            return Token(T.STR, sb.toString(), startLine)
+        }
+
+        private fun readChar(): Token {
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 13 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 176 行起]
+            val startLine = line
+            i++
+            val ch: Char = if (src[i] == '\\' && i + 1 < src.length) {
+                val c = unescape(src[i + 1]); i += 2; c
+            } else {
+                val c = src[i]; i++; c
+            }
+            if (i < src.length && src[i] == '\'') i++
+            return Token(T.CHARLIT, ch.code.toString(), startLine)
+        }
+
+        private fun unescape(c: Char): Char = when (c) {
+            'n' -> '\n'; 't' -> '\t'; 'r' -> '\r'; '0' -> '\u0000'
+            '\\' -> '\\'; '"' -> '"'; '\'' -> '\''
+            else -> c
+        }
+
+        private fun readNumber(): Token {
+            val startLine = line
+            // 十六进制：位运算课程会用 0xFF 这类写法
+            if (src[i] == '0' && i + 1 < src.length && (src[i + 1] == 'x' || src[i + 1] == 'X')) {
+                val start = i
+                i += 2
+                while (i < src.length && (src[i].isDigit() || src[i] in 'a'..'f' || src[i] in 'A'..'F')) i++
+                val hex = src.substring(start + 2, i)
+                val v = hex.toLongOrNull(16) ?: 0L
+                while (i < src.length && (src[i] == 'l' || src[i] == 'L' || src[i] == 'u' || src[i] == 'U')) i++
+                return Token(T.NUM, v.toString(), startLine)
+            }
+            // 八进制字面量：0 开头且全是 0-7（C 里 077 == 63）
+            if (src[i] == '0' && i + 1 < src.length && src[i + 1] in '0'..'7') {
+                val start0 = i
+                i++
+                while (i < src.length && src[i] in '0'..'7') i++
+                if (i >= src.length || src[i] !in '8'..'9') {
+                    val text = src.substring(start0 + 1, i)
+                    while (i < src.length && (src[i] == 'l' || src[i] == 'L' || src[i] == 'u' || src[i] == 'U')) i++
+                    return Token(T.NUM, text.toLongOrNull(8)?.toString() ?: "0", startLine)
+                }
+                i = start0
+            }
+            val start = i
+            var isReal = false
+            while (i < src.length && (src[i].isDigit() || src[i] == '.')) {
+                if (src[i] == '.') isReal = true
+                i++
+            }
+            // 科学计数法
+            if (i < src.length && (src[i] == 'e' || src[i] == 'E')) {
+                isReal = true; i++
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 14 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 226 行起]
+                if (i < src.length && (src[i] == '+' || src[i] == '-')) i++
+                while (i < src.length && src[i].isDigit()) i++
+            }
+            // 整型后缀
+            while (i < src.length && (src[i] == 'l' || src[i] == 'L' || src[i] == 'u' || src[i] == 'U')) i++
+            val text = src.substring(start, i).filter { !it.isLetter() }
+            return Token(if (isReal) T.REAL else T.NUM, text.ifEmpty { "0" }, startLine)
+        }
+
+        private fun readIdent(): Token {
+            val start = i
+            while (i < src.length && (src[i].isLetterOrDigit() || src[i] == '_')) i++
+            val text = src.substring(start, i)
+            return Token(if (text in KEYWORDS) T.KEYWORD else T.IDENT, text, line)
+        }
+
+        private fun readOp(): Token {
+            val three = if (i + 2 < src.length) src.substring(i, i + 3) else ""
+            if (three in THREE_CHAR_OPS) { i += 3; return Token(T.OP, three, line) }
+            val two = if (i + 1 < src.length) src.substring(i, i + 2) else ""
+            if (two in TWO_CHAR_OPS) { i += 2; return Token(T.OP, two, line) }
+            val c = src[i]; i++
+            return if (c in PUNCT_CHARS) Token(T.PUNCT, c.toString(), line)
+            else Token(T.OP, c.toString(), line)
+        }
+    }
+
+    // 语法树
+
+    private sealed class Expr {
+        data class NumLit(val v: Long) : Expr()
+        data class RealLit(val v: Double) : Expr()
+        data class StrLit(val v: String) : Expr()
+        data class Var(val name: String, val line: Int) : Expr()
+        data class Bin(val op: String, val l: Expr, val r: Expr, val line: Int) : Expr()
+        data class Un(val op: String, val e: Expr, val line: Int) : Expr()
+        data class Assign(val op: String, val target: Expr, val value: Expr, val line: Int) : Expr()
+        data class Call(val name: String, val args: List<Expr>, val line: Int) : Expr()
+        data class Index(val arr: Expr, val idx: Expr, val line: Int) : Expr()
+        data class Ternary(val cond: Expr, val a: Expr, val b: Expr) : Expr()
+        data class PreInc(val op: String, val target: Expr, val line: Int) : Expr()
+        data class PostInc(val op: String, val target: Expr, val line: Int) : Expr()
+        data class Addr(val e: Expr, val line: Int) : Expr()
+        data class Deref(val e: Expr, val line: Int) : Expr()
+        data class Member(val obj: Expr, val name: String, val line: Int) : Expr()
+        data class Arrow(val ptr: Expr, val name: String, val line: Int) : Expr()
+        data class InitList(val items: List<Expr>) : Expr()
+        data class SizeofType(val type: CType) : Expr()
+        data class SizeofExpr(val e: Expr) : Expr()
+    }
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 15 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 276 行起]
+
+    private sealed class Stmt {
+        data class Block(val body: List<Stmt>) : Stmt()
+        data class Decl(val items: List<DeclItem>) : Stmt()
+        data class If(val cond: Expr, val then: Stmt, val otherwise: Stmt?) : Stmt()
+        data class While(val cond: Expr, val body: Stmt) : Stmt()
+        data class DoWhile(val body: Stmt, val cond: Expr) : Stmt()
+        data class For(val init: Stmt?, val cond: Expr?, val step: Expr?, val body: Stmt) : Stmt()
+        data class Switch(val expr: Expr, val cases: List<SwitchCase>) : Stmt()
+        data class Return(val value: Expr?) : Stmt()
+        object Break : Stmt()
+        object Continue : Stmt()
+        data class ExprStmt(val e: Expr) : Stmt()
+        object Empty : Stmt()
+    }
+
+    private data class SwitchCase(val label: Expr?, val body: List<Stmt>)
+    private data class DeclItem(val name: String, val type: CType, val init: Expr?)
+
+    private data class FuncDef(
+        val name: String,
+        val returnType: CType,
+        val params: List<Pair<String, CType>>,
+        val body: Stmt.Block
+    )
+
+    private data class Program(val funcs: Map<String, FuncDef>, val globals: List<DeclItem>)
+
+    class CError(val type: String, message: String) : RuntimeException(message)
+
+    // 解析器
+
+    private class Parser(
+        private val tokens: List<Token>,
+        private val typedefs: MutableMap<String, CType> = linkedMapOf(),
+        private val structDefs: MutableMap<String, StructDef> = linkedMapOf()
+    ) {
+        private var p = 0
+        private val funcs = linkedMapOf<String, FuncDef>()
+        private val globals = mutableListOf<DeclItem>()
+
+        fun parseProgram(): Program {
+            while (!atEnd()) {
+                if (checkKeyword("typedef")) parseTypedef() else parseExternal()
+            }
+            return Program(funcs.toMap(), globals.toList())
+        }
+
+        /** 会话模式解析结果：函数定义与顶层语句分开返回 */
+        class SessionParse(val funcs: Map<String, FuncDef>, val statements: List<Stmt>)
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 16 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 326 行起]
+
+        // 会话模式下函数定义、typedef、struct 和普通语句可能混在一起。
+        // 类型开头、名字后面跟 `{` 的算函数，其余按语句走。类型留在 Session 里，下一行还能用。
+        fun parseProgramInSession(): SessionParse {
+            val stmts = mutableListOf<Stmt>()
+            while (!atEnd()) {
+                when {
+                    checkKeyword("typedef") -> parseTypedef()
+                    isTypeStart() && looksLikeFunctionDecl() -> parseSessionFunction()
+                    isTypeStart() -> stmts.add(parseDecl())
+                    else -> stmts.add(parseStmt())
+                }
+            }
+            return SessionParse(funcs.toMap(), stmts)
+        }
+
+        // 看一段是不是函数声明。原型和定义只差结尾，共用一套扫描，别写两份。
+        private fun looksLikeFunctionDecl(): Boolean {
+            var i = p
+            var sawType = false
+            while (i < tokens.size) {
+                val t = tokens[i]
+                if (t.type == T.KEYWORD) {
+                    when (t.text) {
+                        "const", "static", "unsigned", "signed", "short", "long",
+                        "extern", "register", "volatile" -> { i++; continue }
+                        "struct" -> {
+                            i++; sawType = true
+                            if (i < tokens.size && tokens[i].type == T.IDENT) i++
+                            continue
+                        }
+                        "int", "double", "float", "char", "void" -> { i++; sawType = true; continue }
+                        else -> break
+                    }
+                } else if (t.type == T.IDENT && typedefs.containsKey(t.text)) {
+                    i++; sawType = true; continue
+                }
+                break
+            }
+            if (!sawType) return false
+            while (i < tokens.size && tokens[i].text == "*") i++
+            if (i >= tokens.size || tokens[i].type != T.IDENT) return false
+            i++
+            if (i >= tokens.size || tokens[i].text != "(") return false
+            var depth = 0
+            while (i < tokens.size) {
+                if (tokens[i].text == "(") depth++
+                if (tokens[i].text == ")") {
+                    depth--
+                    if (depth == 0) { i++; break }
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 17 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 376 行起]
+                }
+                i++
+            }
+            return i < tokens.size && (tokens[i].text == "{" || tokens[i].text == ";")
+        }
+
+        private fun parseExternal() {
+            val base = parseDeclSpec()
+            if (matchPunct(";")) return
+            var first = true
+            while (true) {
+                val t = parsePointerStars(base, peek().line)
+                val nameTok = expect(T.IDENT, "声明符")
+                if (first && checkPunct("(")) {
+                    parseFunction(nameTok, t)
+                    return
+                }
+                first = false
+                var full = t
+                val dims = parseArrayDims()
+                if (dims.isNotEmpty()) full = CType.TArray(full, dims)
+                val init = if (matchOp("=")) parseInitializer() else null
+                globals.add(DeclItem(nameTok.text, full, init))
+                if (!matchPunct(",")) break
+            }
+            expectPunct(";")
+        }
+
+        private fun parseSessionFunction() {
+            val base = parseDeclSpec()
+            val t = parsePointerStars(base, peek().line)
+            val nameTok = expect(T.IDENT, "函数名")
+            parseFunction(nameTok, t)
+        }
+
+        private fun parseFunction(nameTok: Token, ret: CType) {
+            expectPunct("(")
+            val params = mutableListOf<Pair<String, CType>>()
+            if (!checkPunct(")")) {
+                if (checkKeyword("void") && p + 1 < tokens.size && tokens[p + 1].text == ")") {
+                    advance()
+                } else {
+                    do {
+                        val spec = parseDeclSpec()
+                        var pt = parsePointerStars(spec, peek().line)
+                        // 原型声明允许省略参数名：int add(int, int);
+                        val pn = if (peek().type == T.IDENT) advance().text else ""
+                        val dims = parseArrayDims()
+                        // 一维数组参数在 C 里退化为指针：int a[] 等价 int *a。
+                        // 二维数组参数保留二维视图（int m[][3]），否则 m[i][j] 无法按下标解释；
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 18 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 426 行起]
+                        // 这是教学模型对真实 ABI 的简化，课程里只要求能读能写。
+                        if (dims.size == 1) pt = CType.TPtr(pt)
+                        else if (dims.size > 1) pt = CType.TArray(pt, dims)
+                        if (pt is CType.TPtr && pt.to is CType.TPtr) {
+                            throw CError("不支持", "暂不支持二级指针参数（第 ${peek().line} 行），例如 char *argv[]")
+                        }
+                        params.add(pn to pt)
+                    } while (matchPunct(","))
+                }
+            }
+            expectPunct(")")
+            // 函数原型声明（以 ';' 结尾）：参数与返回类型已记录，函数体稍后定义即可。
+            // 解析阶段已收集完整个翻译单元，调用不依赖声明顺序。
+            if (matchPunct(";")) return
+            val body = parseBlock()
+            if (funcs.containsKey(nameTok.text)) {
+                // 同一翻译单元里不能重定义。用户写个空 main、测试也带 main 时，
+                // 覆盖会让测试的 main 顶掉用户代码，判题就成了假通过。
+                throw CError("语法错误", "函数 '${nameTok.text}' 重复定义（第 ${nameTok.line} 行）")
+            }
+            funcs[nameTok.text] = FuncDef(nameTok.text, ret, params, body)
+        }
+
+        private fun parseTypedef() {
+            advance() // typedef
+            val base = parseDeclSpec()
+            do {
+                var t = parsePointerStars(base, peek().line)
+                val name = expect(T.IDENT, "类型别名").text
+                val dims = parseArrayDims()
+                if (dims.isNotEmpty()) t = CType.TArray(t, dims)
+                typedefs[name] = t
+            } while (matchPunct(","))
+            expectPunct(";")
+        }
+
+        /** 结构体说明符：struct Tag { ... } 或 struct Tag */
+        private fun parseStructSpec(): CType.TStruct {
+            advance() // struct
+            val tag = if (peek().type == T.IDENT) advance().text else null
+            if (checkPunct("{")) {
+                advance()
+                // 先登记空定义，支持 struct Node { struct Node *next; } 自引用。
+                // 判题会把用户代码与测试拼成一个翻译单元，两边常各自声明同一个 struct：
+                // 已有同名字段表时把新字段先收进 temp，再比对是否一致，一致就复用旧定义。
+                val existing = tag?.let { structDefs[it] }
+                val reuse = existing != null && existing.fields.isNotEmpty()
+                val def = if (reuse) existing!! else StructDef(tag)
+                if (tag != null) structDefs[tag] = def
+                val target = if (reuse) StructDef(tag) else def
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 19 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 476 行起]
+                while (!checkPunct("}") && !atEnd()) {
+                    val ft = parseDeclSpec()
+                    do {
+                        var ct = parsePointerStars(ft, peek().line)
+                        val fn = expect(T.IDENT, "成员名").text
+                        val dims = parseArrayDims()
+                        if (dims.isNotEmpty()) ct = CType.TArray(ct, dims)
+                        target.fields.add(fn to ct)
+                    } while (matchPunct(","))
+                    expectPunct(";")
+                }
+                expectPunct("}")
+                if (target !== def) {
+                    // 字段不一致说明真的是两份不同定义，明确报错而不是悄悄覆盖
+                    val same = target.fields.size == def.fields.size &&
+                        target.fields.zip(def.fields).all { (a, b) ->
+                            a.first == b.first && a.second.display() == b.second.display()
+                        }
+                    if (!same) throw CError("语法错误", "结构体 '$tag' 重复定义且字段不一致")
+                }
+                return CType.TStruct(def)
+            }
+            if (tag == null) throw CError("语法错误", "匿名结构体必须直接定义（第 ${peek().line} 行）")
+            // struct Point; 是前置声明：先登记空定义占位，真正使用时若仍无字段就报
+            // 「不完整类型」，让错误发生在使用点而不是声明点。
+            val def = structDefs.getOrPut(tag) { StructDef(tag) }
+            return CType.TStruct(def)
+        }
+
+        private fun parseDeclSpec(): CType {
+            var base: CType? = null
+            var saw = false
+            var modifier = false
+            while (true) {
+                val t = peek()
+                if (t.type == T.KEYWORD) {
+                    when (t.text) {
+                        "const", "static", "unsigned", "signed", "short", "long",
+                        "extern", "register", "volatile" -> { advance(); modifier = true; continue }
+                        "int" -> { advance(); base = CType.TInt; saw = true; continue }
+                        "double" -> { advance(); base = CType.TDouble; saw = true; continue }
+                        "float" -> { advance(); base = CType.TDouble; saw = true; continue }
+                        "char" -> { advance(); base = CType.TChar; saw = true; continue }
+                        "void" -> { advance(); base = CType.TVoid; saw = true; continue }
+                        "struct" -> { base = parseStructSpec(); saw = true; continue }
+                        else -> break
+                    }
+                } else if (t.type == T.IDENT && typedefs.containsKey(t.text)) {
+                    base = typedefs[t.text]
+                    advance(); saw = true; continue
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 20 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 526 行起]
+                }
+                break
+            }
+            if (base == null && modifier) {
+                // unsigned / short / long 单用：教学模型一律按 int 处理
+                return CType.TInt
+            }
+            if (!saw || base == null) {
+                throw CError("语法错误", "期望类型说明符，实际 '${peek().text}'（第 ${peek().line} 行）")
+            }
+            return base
+        }
+
+
+        /** 解析声明符里的 * 链；二级及以上明确报「不支持」，而不是让类型系统悄悄接受。 */
+        private fun parsePointerStars(base: CType, line: Int): CType {
+            var t = base
+            var stars = 0
+            while (matchOp("*")) { t = CType.TPtr(t); stars++ }
+            if (stars > 0 && base is CType.TPtr) stars = 2
+            if (stars > 1) {
+                throw CError("不支持", "暂不支持二级指针（第 $line 行）。课程只讲单级指针。")
+            }
+            return t
+        }
+
+        private fun parseArrayDims(): List<Int> {
+            val dims = mutableListOf<Int>()
+            while (matchPunct("[")) {
+                if (checkPunct("]")) {
+                    dims.add(-1)
+                    advance()
+                } else {
+                    val n = expect(T.NUM, "数组长度").text.toIntOrNull() ?: 0
+                    expectPunct("]")
+                    dims.add(n)
+                }
+            }
+            return dims
+        }
+
+        private fun parseBlock(): Stmt.Block {
+            expectPunct("{")
+            val body = mutableListOf<Stmt>()
+            while (!checkPunct("}") && !atEnd()) body.add(parseStmt())
+            expectPunct("}")
+            return Stmt.Block(body)
+        }
+
+        private fun parseStmt(): Stmt {
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 21 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 576 行起]
+            if (checkPunct("{")) return parseBlock()
+            if (checkPunct(";")) { advance(); return Stmt.Empty }
+            if (checkKeyword("if")) {
+                advance(); expectPunct("(")
+                val cond = parseExpr(); expectPunct(")")
+                val then = parseStmt()
+                var other: Stmt? = null
+                if (checkKeyword("else")) { advance(); other = parseStmt() }
+                return Stmt.If(cond, then, other)
+            }
+            if (checkKeyword("while")) {
+                advance(); expectPunct("(")
+                val cond = parseExpr(); expectPunct(")")
+                return Stmt.While(cond, parseStmt())
+            }
+            if (checkKeyword("do")) {
+                advance()
+                val body = parseStmt()
+                if (!checkKeyword("while")) {
+                    throw CError("语法错误", "do 语句后缺少 while（第 ${peek().line} 行）")
+                }
+                advance(); expectPunct("(")
+                val cond = parseExpr(); expectPunct(")"); expectPunct(";")
+                return Stmt.DoWhile(body, cond)
+            }
+            if (checkKeyword("for")) {
+                advance(); expectPunct("(")
+                val init: Stmt? = when {
+                    checkPunct(";") -> { advance(); null }
+                    isTypeStart() -> parseDecl()
+                    else -> { val e = parseExpr(); expectPunct(";"); Stmt.ExprStmt(e) }
+                }
+                val cond: Expr? = if (checkPunct(";")) null else parseExpr()
+                expectPunct(";")
+                val step: Expr? = if (checkPunct(")")) null else parseExpr()
+                expectPunct(")")
+                return Stmt.For(init, cond, step, parseStmt())
+            }
+            if (checkKeyword("switch")) return parseSwitch()
+            if (checkKeyword("return")) {
+                advance()
+                val v = if (checkPunct(";")) null else parseExpr()
+                expectPunct(";")
+                return Stmt.Return(v)
+            }
+            if (checkKeyword("break")) { advance(); expectPunct(";"); return Stmt.Break }
+            if (checkKeyword("continue")) { advance(); expectPunct(";"); return Stmt.Continue }
+            if (checkKeyword("typedef")) {
+                parseTypedef()
+                return Stmt.Empty
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 22 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 626 行起]
+            }
+            if (isTypeStart()) return parseDecl()
+            val e = parseExpr()
+            expectPunct(";")
+            return Stmt.ExprStmt(e)
+        }
+
+        private fun parseSwitch(): Stmt {
+            advance(); expectPunct("(")
+            val selector = parseExpr()
+            expectPunct(")"); expectPunct("{")
+            val cases = mutableListOf<SwitchCase>()
+            var currentLabel: Expr? = null
+            var started = false
+            var current = mutableListOf<Stmt>()
+
+            fun flush() {
+                if (started) cases.add(SwitchCase(currentLabel, current.toList()))
+                current = mutableListOf()
+                currentLabel = null
+                started = false
+            }
+
+            while (!checkPunct("}") && !atEnd()) {
+                when {
+                    checkKeyword("case") -> {
+                        flush(); advance()
+                        currentLabel = parseExpr()
+                        expectOp(":")
+                        started = true
+                    }
+                    checkKeyword("default") -> {
+                        flush(); advance()
+                        expectOp(":")
+                        currentLabel = null
+                        started = true
+                    }
+                    else -> current.add(parseStmt())
+                }
+            }
+            flush()
+            expectPunct("}")
+            return Stmt.Switch(selector, cases)
+        }
+
+        private fun parseDecl(): Stmt {
+            val base = parseDeclSpec()
+            if (matchPunct(";")) return Stmt.Empty
+            val items = mutableListOf<DeclItem>()
+            do {
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 23 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 676 行起]
+                var t = parsePointerStars(base, peek().line)
+                val name = expect(T.IDENT, "变量名").text
+                val dims = parseArrayDims()
+                if (dims.isNotEmpty()) t = CType.TArray(t, dims)
+                val init = if (matchOp("=")) parseInitializer() else null
+                items.add(DeclItem(name, t, init))
+            } while (matchPunct(","))
+            expectPunct(";")
+            return Stmt.Decl(items)
+        }
+
+        // ---- 表达式（优先级与 C 一致，自上而下） ----
+
+        fun parseExpr(): Expr = parseAssignment()
+
+        private fun parseAssignment(): Expr {
+            val left = parseTernary()
+            val op = ASSIGN_OPS.firstOrNull { checkOp(it) }
+            if (op != null) {
+                val line = peek().line
+                advance()
+                return Expr.Assign(op, left, parseAssignment(), line)
+            }
+            return left
+        }
+
+        private fun parseTernary(): Expr {
+            val cond = parseLogicalOr()
+            if (checkOp("?")) {
+                advance()
+                val a = parseExpr()
+                expectOp(":")
+                val b = parseTernary()
+                return Expr.Ternary(cond, a, b)
+            }
+            return cond
+        }
+
+        private fun parseLogicalOr(): Expr {
+            var e = parseLogicalAnd()
+            while (checkOp("||")) {
+                val line = peek().line; advance()
+                e = Expr.Bin("||", e, parseLogicalAnd(), line)
+            }
+            return e
+        }
+
+        private fun parseLogicalAnd(): Expr {
+            var e = parseBitOr()
+            while (checkOp("&&")) {
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 24 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 726 行起]
+                val line = peek().line; advance()
+                e = Expr.Bin("&&", e, parseBitOr(), line)
+            }
+            return e
+        }
+
+        private fun parseBitOr(): Expr {
+            var e = parseBitXor()
+            while (checkOp("|")) {
+                val line = peek().line; advance()
+                e = Expr.Bin("|", e, parseBitXor(), line)
+            }
+            return e
+        }
+
+        private fun parseBitXor(): Expr {
+            var e = parseBitAnd()
+            while (checkOp("^")) {
+                val line = peek().line; advance()
+                e = Expr.Bin("^", e, parseBitAnd(), line)
+            }
+            return e
+        }
+
+        private fun parseBitAnd(): Expr {
+            var e = parseEquality()
+            while (checkOp("&")) {
+                val line = peek().line; advance()
+                e = Expr.Bin("&", e, parseEquality(), line)
+            }
+            return e
+        }
+
+        private fun parseEquality(): Expr {
+            var e = parseRelational()
+            while (checkOp("==") || checkOp("!=")) {
+                val op = peek().text; val line = peek().line; advance()
+                e = Expr.Bin(op, e, parseRelational(), line)
+            }
+            return e
+        }
+
+        private fun parseRelational(): Expr {
+            var e = parseShift()
+            while (checkOp("<") || checkOp(">") || checkOp("<=") || checkOp(">=")) {
+                val op = peek().text; val line = peek().line; advance()
+                e = Expr.Bin(op, e, parseShift(), line)
+            }
+            return e
+        }
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 25 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 776 行起]
+
+        private fun parseShift(): Expr {
+            var e = parseAdditive()
+            while (checkOp("<<") || checkOp(">>")) {
+                val op = peek().text; val line = peek().line; advance()
+                e = Expr.Bin(op, e, parseAdditive(), line)
+            }
+            return e
+        }
+
+        private fun parseAdditive(): Expr {
+            var e = parseMultiplicative()
+            while (checkOp("+") || checkOp("-")) {
+                val op = peek().text; val line = peek().line; advance()
+                e = Expr.Bin(op, e, parseMultiplicative(), line)
+            }
+            return e
+        }
+
+        private fun parseMultiplicative(): Expr {
+            var e = parseUnary()
+            while (checkOp("*") || checkOp("/") || checkOp("%")) {
+                val op = peek().text; val line = peek().line; advance()
+                e = Expr.Bin(op, e, parseUnary(), line)
+            }
+            return e
+        }
+
+        private fun parseUnary(): Expr {
+            val line = peek().line
+            if (checkOp("-")) { advance(); return Expr.Un("-", parseUnary(), line) }
+            if (checkOp("+")) { advance(); return Expr.Un("+", parseUnary(), line) }
+            if (checkOp("!")) { advance(); return Expr.Un("!", parseUnary(), line) }
+            if (checkOp("~")) { advance(); return Expr.Un("~", parseUnary(), line) }
+            if (checkOp("&")) { advance(); return Expr.Addr(parseUnary(), line) }
+            if (checkOp("*")) { advance(); return Expr.Deref(parseUnary(), line) }
+            if (checkOp("++")) { advance(); return Expr.PreInc("++", parseUnary(), line) }
+            if (checkOp("--")) { advance(); return Expr.PreInc("--", parseUnary(), line) }
+            if (checkKeyword("sizeof")) {
+                advance()
+                if (checkPunct("(") && isTypeStartAt(p + 1)) {
+                    advance()
+                    var t = parsePointerStars(parseDeclSpec(), peek().line)
+                    val dims = parseArrayDims()
+                    if (dims.isNotEmpty()) t = CType.TArray(t, dims)
+                    expectPunct(")")
+                    return Expr.SizeofType(t)
+                }
+                return Expr.SizeofExpr(parseUnary())
+            }
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 26 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 826 行起]
+            return parsePostfix()
+        }
+
+        private fun parsePostfix(): Expr {
+            var e = parsePrimary()
+            while (true) {
+                when {
+                    checkPunct("[") -> {
+                        val line = peek().line
+                        advance()
+                        val idx = parseExpr()
+                        expectPunct("]")
+                        e = Expr.Index(e, idx, line)
+                    }
+                    checkOp(".") -> {
+                        val line = peek().line
+                        advance()
+                        val name = expect(T.IDENT, "成员名").text
+                        e = Expr.Member(e, name, line)
+                    }
+                    checkOp("->") -> {
+                        val line = peek().line
+                        advance()
+                        val name = expect(T.IDENT, "成员名").text
+                        e = Expr.Arrow(e, name, line)
+                    }
+                    checkOp("++") -> { val line = peek().line; advance(); e = Expr.PostInc("++", e, line) }
+                    checkOp("--") -> { val line = peek().line; advance(); e = Expr.PostInc("--", e, line) }
+                    else -> return e
+                }
+            }
+        }
+
+        private fun parsePrimary(): Expr {
+            val t = peek()
+            return when (t.type) {
+                T.NUM -> { advance(); Expr.NumLit(t.text.toLongOrNull() ?: 0L) }
+                T.REAL -> { advance(); Expr.RealLit(t.text.toDoubleOrNull() ?: 0.0) }
+                T.STR -> { advance(); Expr.StrLit(t.text) }
+                T.CHARLIT -> { advance(); Expr.NumLit(t.text.toLongOrNull() ?: 0L) }
+                T.IDENT -> {
+                    advance()
+                    if (checkPunct("(")) {
+                        advance()
+                        val args = mutableListOf<Expr>()
+                        if (!checkPunct(")")) {
+                            do { args.add(parseExpr()) } while (matchPunct(","))
+                        }
+                        expectPunct(")")
+                        Expr.Call(t.text, args, t.line)
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 27 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 876 行起]
+                    } else if (t.text == "NULL") {
+                        // C 的 NULL 通常来自宏；教学子集直接内置成 0，不要求 include
+                        Expr.NumLit(0)
+                    } else {
+                        Expr.Var(t.text, t.line)
+                    }
+                }
+                T.PUNCT -> {
+                    if (t.text == "(") {
+                        advance(); val e = parseExpr(); expectPunct(")"); e
+                    } else {
+                        throw CError("语法错误", "意外的符号 '${t.text}'（第 ${t.line} 行）")
+                    }
+                }
+                else -> throw CError("语法错误", "意外的标记 '${t.text}'（第 ${t.line} 行）")
+            }
+        }
+
+        private fun parseInitializer(): Expr {
+            if (!checkPunct("{")) return parseAssignment()
+            advance()
+            val items = mutableListOf<Expr>()
+            if (!checkPunct("}")) {
+                do {
+                    items.add(parseInitializer())
+                    if (!matchPunct(",")) break
+                } while (!checkPunct("}"))
+            }
+            expectPunct("}")
+            return Expr.InitList(items)
+        }
+
+        // ---- 辅助 ----
+
+        private fun peek() = tokens[p]
+        private fun atEnd() = peek().type == T.EOF
+        private fun advance(): Token = tokens[p].also { if (!atEnd()) p++ }
+
+        private fun checkKeyword(k: String) = peek().type == T.KEYWORD && peek().text == k
+        private fun checkPunct(s: String) = peek().type == T.PUNCT && peek().text == s
+        private fun checkOp(s: String) = peek().type == T.OP && peek().text == s
+        private fun matchPunct(s: String): Boolean { if (checkPunct(s)) { advance(); return true }; return false }
+        private fun matchOp(s: String): Boolean { if (checkOp(s)) { advance(); return true }; return false }
+
+        private fun expectPunct(s: String) {
+            if (!checkPunct(s)) throw CError("语法错误", "期望 '$s'，实际 '${peek().text}'（第 ${peek().line} 行）")
+            advance()
+        }
+
+        private fun expectOp(s: String) {
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 28 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 926 行起]
+            if (!checkOp(s)) throw CError("语法错误", "期望 '$s'，实际 '${peek().text}'（第 ${peek().line} 行）")
+            advance()
+        }
+
+        private fun expect(t: T, what: String): Token {
+            if (peek().type != t) throw CError("语法错误", "期望$what，实际 '${peek().text}'（第 ${peek().line} 行）")
+            return advance()
+        }
+
+        private fun isTypeStart(): Boolean = isTypeStartAt(p)
+
+        private fun isTypeStartAt(index: Int): Boolean {
+            if (index >= tokens.size) return false
+            val t = tokens[index]
+            return (t.type == T.KEYWORD && t.text in TYPE_KEYWORDS) ||
+                (t.type == T.IDENT && typedefs.containsKey(t.text))
+        }
+    }
+
+    // 运行时
+
+    private class BreakSignal : RuntimeException()
+    private class ContinueSignal : RuntimeException()
+    private class ReturnSignal(val value: Value) : RuntimeException()
+
+    private class Scope(val parent: Scope?) {
+        val vars = linkedMapOf<String, Cell>()
+        fun lookup(name: String): Cell? = vars[name] ?: parent?.lookup(name)
+        fun find(name: String): Scope? = if (vars.containsKey(name)) this else parent?.find(name)
+    }
+
+    private class Loc(val cells: List<Cell>, val index: Int)
+
+    private class Interpreter(
+        private val funcs: Map<String, FuncDef>,
+        private val out: StringBuilder,
+        private val stdin: ArrayDeque<String>,
+        private val globalDecls: List<DeclItem> = emptyList()
+    ) {
+        private var scopes = mutableListOf(Scope(null))
+        private var globalRoot: Scope = scopes.first()
+        private var steps = 0
+        private val maxSteps = 2_000_000
+
+        init {
+            // 全局变量在入口函数之前初始化，作用域挂在全局 scope 上
+            for (d in globalDecls) exec(Stmt.Decl(listOf(d)))
+        }
+
+        /** 会话模式：接管外部传入的作用域，使变量跨 push 保留 */
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 29 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 976 行起]
+        fun adoptScope(shared: Scope) {
+            scopes = mutableListOf(shared)
+            globalRoot = shared
+        }
+
+        fun callEntry(entry: String): Value {
+            val fn = funcs[entry] ?: throw CError("运行时错误", "缺少 $entry 函数")
+            return invoke(fn, emptyList())
+        }
+
+        /**
+         * 会话式执行：把一段语句（不是完整程序）当作 main 的函数体跑。
+         *
+         * REPL 需要这个入口。用户在终端里敲 `int x = 5;` 时，不该被迫写
+         * `int main() { ... }`，也不该每行都重新开始（变量必须跨行保留）。
+         */
+        fun runStatements(stmts: List<Stmt>) {
+            for (s in stmts) exec(s)
+        }
+
+        /** 会话中的全局变量快照（供 REPL 展示） */
+        fun globalVars(): List<Triple<String, String, String>> =
+            scopes.firstOrNull()?.vars?.map { (k, cell) ->
+                Triple(k, cell.type.display(), cell.value.display())
+            } ?: emptyList()
+
+        /**
+         * 判题入口：先跑用户代码的 main（产出真实输出），再跑测试入口。
+         *
+         * 两步必须共用一个输出缓冲区，这样测试里的 assertOutput 才能看到
+         * 用户 main 打印了什么。若用户没有 main，则只跑测试（允许练习
+         * 只实现函数、由测试自己调用的情况）。
+         */
+        fun callMainThenTest(testEntry: String) {
+            funcs["main"]?.let { invoke(it, emptyList()) }
+            val test = funcs[testEntry] ?: throw CError("运行时错误", "缺少测试入口 $testEntry")
+            invoke(test, emptyList())
+        }
+
+        /** 输出上限：防止死循环 printf 把内存打爆（1 MB 足够课程所有场景）。 */
+        private fun emit(text: String) {
+            if (out.length + text.length > MAX_OUTPUT_CHARS) {
+                throw CError("Timeout", "输出超过 ${MAX_OUTPUT_CHARS / 1024} KB 上限（疑似死循环打印）")
+            }
+            out.append(text)
+        }
+
+        private fun tick() {
+            if (++steps > maxSteps) throw CError("Timeout", "执行步数超过上限（疑似死循环）")
+        }
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 30 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 1026 行起]
+
+        private fun invoke(fn: FuncDef, args: List<Value>): Value {
+            if (args.size != fn.params.size) {
+                throw CError("运行时错误", "函数 ${fn.name} 期望 ${fn.params.size} 个参数，实际 ${args.size} 个")
+            }
+            // 函数作用域的父级必须是全局作用域，不是调用点：否则被调函数能看见
+            // 调用者的局部变量，等于动态作用域，与 C 的词法作用域不符。
+            val scope = Scope(globalRoot)
+            fn.params.forEachIndexed { i, (name, ty) ->
+                val v = coerce(args[i], ty)
+                // 二维数组参数写的是 int m[][3]，第一维长度由实参决定；
+                // 用实参的真实维度补全，函数内 sizeof 才不会算出负数。
+                val actual = if (ty is CType.TArray && v is Value.Arr && ty.dims.firstOrNull() == -1) {
+                    CType.TArray(ty.of, v.dims)
+                } else ty
+                scope.vars[name] = Cell(v, actual)
+            }
+            val saved = scopes
+            scopes = mutableListOf(scope)
+            val result = try {
+                execBlock(fn.body)
+                Value.Void
+            } catch (r: ReturnSignal) {
+                r.value
+            } finally {
+                scopes = saved
+            }
+            return coerce(result, fn.returnType)
+        }
+
+        private fun coerce(v: Value, ty: CType): Value {
+            // 函数没写 return 就落到末尾时值为 Void，按 C 的「未定义」给类型的零值，
+            // 不要抛出「不能把空值赋给 int」这种对学习者没有意义的错误。
+            if (v is Value.Void) return defaultValue(ty)
+            return coerceNonNull(v, ty)
+        }
+
+        private fun coerceNonNull(v: Value, ty: CType): Value = when (ty) {
+            CType.TDouble -> when (v) {
+                is Value.Real -> v
+                is Value.Num -> Value.Real(v.v.toDouble())
+                else -> throw CError("运行时错误", "不能把 ${v.display()} 赋给数值变量")
+            }
+            CType.TChar -> when (v) {
+                is Value.Num -> Value.Num(v.v)
+                is Value.Real -> Value.Num(v.v.toLong())
+                else -> throw CError("运行时错误", "不能把 ${v.display()} 赋给 char")
+            }
+            CType.TInt -> when (v) {
+                is Value.Real -> Value.Num(v.v.toLong())
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 31 页 [app/src/main/java/com/pyneon/academy/ui/theme/AppThemes.kt 自第 167 行起]
+            null
+        }
+    }
+
+    // 拿一个主色生成整套主题。辅助色和强调色在色环上往后转，饱和度降一点；
+    // 主色太暗就换成亮底，不然字看不清。
+    fun customTheme(hexColor: String): AppTheme {
+        val base = parseHex(hexColor) ?: cyberNeon.primary
+        val hsv = FloatArray(3)
+        AndroidColor.colorToHSV(base.toArgb(), hsv)
+        val h = hsv[0]; val s = hsv[1]; val v = hsv[2]
+        val secondary = Color(AndroidColor.HSVToColor(floatArrayOf((h + 0.11f) % 1f, (s * 0.85f).coerceIn(0f, 1f), v)))
+        val accent = Color(AndroidColor.HSVToColor(floatArrayOf((h + 0.22f) % 1f, (s * 0.70f).coerceIn(0f, 1f), v)))
+        val light = v < 0.35f
+        val baseTheme = if (light) paperLight else cyberNeon
+        return AppTheme(
+            id = CUSTOM_THEME_ID,
+            name = "自定义",
+            primary = base,
+            secondary = secondary,
+            accent = accent,
+            background = baseTheme.background,
+            surface = baseTheme.surface,
+            surfaceHigh = baseTheme.surfaceHigh,
+            textPrimary = baseTheme.textPrimary,
+            textSecondary = baseTheme.textSecondary,
+            textDim = baseTheme.textDim,
+            isLight = light
+        )
+    }
+}
+package com.pyneon.academy.ui.theme
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
+
+// 界面颜色都从这里取。切主题就是换一套值，调用方不用动。
+data class NeonTokens(
+    // 背景层级（从最深到最浅）
+    val bg0: Color,          // 页面主背景
+    val bg1: Color,          // 次级背景（代码/输出面板等）
+    val surfaceDark: Color,  // 卡片/弹窗表面
+    val surfaceHigh: Color,  // 高亮表面（表头、输入框等）
+    // 文字层级（从最亮到最暗）
+    val textHi: Color,       // 主文字
+    val textMid: Color,      // 次级文字
+    val textDim: Color,      // 弱化文字
+    // 强调色，每套主题单独调过，保证在各自背景上看得清。
+    val primary: Color,      // 主色（青）
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 32 页 [app/src/main/java/com/pyneon/academy/ui/theme/Color.kt 自第 20 行起]
+    val secondary: Color,    // 辅助色（品红）
+    val accent: Color,       // 强调色（黄）
+    val success: Color,      // 成功绿
+    val danger: Color,       // 错误红
+    val gold: Color,         // 金色（任务/奖励）
+    val purple: Color,       // 紫色（进阶）
+    // 编辑器靠它选深色还是浅色配色。
+    val isLight: Boolean = false
+)
+
+// 默认深色，赛博霓虹。
+val DarkTokens = NeonTokens(
+    bg0 = Color(0xFF0E1420),
+    bg1 = Color(0xFF182232),
+    surfaceDark = Color(0xFF151E2C),
+    surfaceHigh = Color(0xFF1E2A3C),
+    textHi = Color(0xFFFBFDFF),
+    textMid = Color(0xFFB4C4DA),
+    textDim = Color(0xFF93A3B8),
+    primary = Color(0xFF00E5FF),
+    secondary = Color(0xFFFF2D78),
+    accent = Color(0xFFF7FF00),
+    success = Color(0xFF00FF9C),
+    danger = Color(0xFFFF4D6A),
+    gold = Color(0xFFF7FF00),
+    purple = Color(0xFFC35DF5)
+)
+
+// 白纸主题，颜色按白底重新调过。
+val LightTokens = NeonTokens(
+    bg0 = Color(0xFFF5F7FB),
+    bg1 = Color(0xFFE9EEF5),
+    surfaceDark = Color(0xFFFFFFFF),
+    surfaceHigh = Color(0xFFE2E8F2),
+    textHi = Color(0xFF10151F),
+    textMid = Color(0xFF2E3B4A),
+    textDim = Color(0xFF5A6B7E),
+    primary = Color(0xFF007E96),
+    secondary = Color(0xFFC2185B),
+    accent = Color(0xFFB08900),
+    success = Color(0xFF00965C),
+    danger = Color(0xFFC62828),
+    gold = Color(0xFFB08900),
+    purple = Color(0xFF7B1FA2),
+    isLight = true
+)
+
+val LocalNeonTokens = staticCompositionLocalOf { DarkTokens }
+
+// 背景层级
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 33 页 [app/src/main/java/com/pyneon/academy/ui/theme/Color.kt 自第 70 行起]
+val Bg0: Color
+    @Composable get() = LocalNeonTokens.current.bg0
+val Bg1: Color
+    @Composable get() = LocalNeonTokens.current.bg1
+val SurfaceDark: Color
+    @Composable get() = LocalNeonTokens.current.surfaceDark
+val SurfaceHigh: Color
+    @Composable get() = LocalNeonTokens.current.surfaceHigh
+
+// 文字层级
+val TextHi: Color
+    @Composable get() = LocalNeonTokens.current.textHi
+val TextMid: Color
+    @Composable get() = LocalNeonTokens.current.textMid
+val TextDim: Color
+    @Composable get() = LocalNeonTokens.current.textDim
+
+// 强调色
+val NeonCyan: Color
+    @Composable get() = LocalNeonTokens.current.primary
+val NeonMagenta: Color
+    @Composable get() = LocalNeonTokens.current.secondary
+val NeonGreen: Color
+    @Composable get() = LocalNeonTokens.current.success
+val NeonYellow: Color
+    @Composable get() = LocalNeonTokens.current.gold
+val NeonPurple: Color
+    @Composable get() = LocalNeonTokens.current.purple
+val DangerRed: Color
+    @Composable get() = LocalNeonTokens.current.danger
+package com.pyneon.academy.ui.theme
+
+import androidx.compose.foundation.shape.CutCornerShape
+import androidx.compose.material3.Shapes
+import androidx.compose.ui.unit.dp
+
+val AppShapes = Shapes(
+    extraSmall = CutCornerShape(4.dp),
+    small = CutCornerShape(8.dp),
+    medium = CutCornerShape(14.dp),
+    large = CutCornerShape(20.dp),
+    extraLarge = CutCornerShape(28.dp)
+)
+package com.pyneon.academy.ui.theme
+
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 34 页 [app/src/main/java/com/pyneon/academy/ui/theme/Theme.kt 自第 8 行起]
+import androidx.compose.runtime.CompositionLocalProvider
+
+// 按 AppTheme 生成 Material 配色。亮暗只差基底和 error，其余统一 copy 覆盖。
+private fun createColorScheme(theme: AppTheme): ColorScheme {
+    val base = if (theme.isLight) lightColorScheme() else darkColorScheme()
+    return base.copy(
+        primary = theme.primary,
+        onPrimary = theme.background,
+        primaryContainer = theme.surfaceHigh,
+        onPrimaryContainer = theme.primary,
+        secondary = theme.secondary,
+        onSecondary = theme.background,
+        secondaryContainer = theme.surfaceHigh,
+        onSecondaryContainer = theme.secondary,
+        tertiary = theme.accent,
+        onTertiary = theme.background,
+        background = theme.background,
+        onBackground = theme.textPrimary,
+        surface = theme.surface,
+        onSurface = theme.textPrimary,
+        surfaceVariant = theme.surfaceHigh,
+        onSurfaceVariant = theme.textSecondary,
+        outline = theme.textDim,
+        error = if (theme.isLight) theme.textDim else DarkTokens.danger,
+        onError = theme.background
+    )
+}
+
+// 默认赛博霓虹配色。给预览和旧调用点用，直接取深色常量。
+private val PyNeonColorScheme = darkColorScheme(
+    primary = DarkTokens.primary,
+    onPrimary = DarkTokens.bg0,
+    primaryContainer = DarkTokens.surfaceHigh,
+    onPrimaryContainer = DarkTokens.primary,
+    secondary = DarkTokens.secondary,
+    onSecondary = DarkTokens.bg0,
+    secondaryContainer = DarkTokens.surfaceHigh,
+    onSecondaryContainer = DarkTokens.secondary,
+    tertiary = DarkTokens.success,
+    onTertiary = DarkTokens.bg0,
+    background = DarkTokens.bg0,
+    onBackground = DarkTokens.textHi,
+    surface = DarkTokens.surfaceDark,
+    onSurface = DarkTokens.textHi,
+    surfaceVariant = DarkTokens.surfaceHigh,
+    onSurfaceVariant = DarkTokens.textMid,
+    outline = DarkTokens.textDim,
+    error = DarkTokens.danger,
+    onError = DarkTokens.bg0
+)
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 35 页 [app/src/main/java/com/pyneon/academy/ui/theme/Theme.kt 自第 58 行起]
+
+// 默认主题，不跟系统切换。
+@Composable
+fun PyNeonTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = PyNeonColorScheme,
+        typography = AppTypography,
+        shapes = AppShapes,
+        content = content
+    )
+}
+
+// 支持运行时切明暗。颜色 Token 和视觉风格都从这里下发，界面代码不用自己判断。
+@Composable
+fun PyNeonTheme(
+    appTheme: AppTheme,
+    visualStyle: VisualStyle = VisualStyle.DEFAULT,
+    fontScale: FontScale = FontScale.DEFAULT,
+    content: @Composable () -> Unit
+) {
+    val tokens = appTheme.toNeonTokens()
+    CompositionLocalProvider(
+        LocalNeonTokens provides tokens,
+        LocalVisualStyle provides visualStyle
+    ) {
+        MaterialTheme(
+            colorScheme = createColorScheme(appTheme),
+            typography = typographyFor(fontScale),
+            shapes = AppShapes,
+            content = content
+        )
+    }
+}
+package com.pyneon.academy.ui.theme
+
+import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+
+val AppTypography = Typography(
+    // 标题/标签保留等宽字以维持赛博视觉；正文改用系统无衬线并放大，保证长文阅读清晰
+    headlineLarge = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 30.sp, lineHeight = 38.sp),
+    headlineMedium = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 24.sp, lineHeight = 32.sp),
+    headlineSmall = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 28.sp),
+    titleLarge = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 18.sp, lineHeight = 26.sp),
+    titleMedium = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 15.sp, lineHeight = 22.sp),
+    bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 25.sp),
+    bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 22.sp),
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 36 页 [app/src/main/java/com/pyneon/academy/ui/theme/Type.kt 自第 18 行起]
+    bodySmall = TextStyle(fontSize = 12.sp, lineHeight = 18.sp),
+    labelLarge = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 13.sp, lineHeight = 20.sp),
+    labelMedium = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 12.sp, lineHeight = 18.sp),
+    labelSmall = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp, lineHeight = 15.sp)
+)
+
+// 代码统一用等宽，缩进才对得齐。行高按字号比例给，免得不同字体下忽高忽低。
+val MonoCode = TextStyle(
+    fontFamily = FontFamily.Monospace,
+    fontSize = 14.sp,
+    lineHeight = 21.sp
+)
+
+// 字号档位。系统字体缩放会把代码块弄乱，所以这里自己放大正文，
+// 代码块和编辑器保持原样。
+enum class FontScale(val id: String, val label: String, val factor: Float) {
+    COMPACT("compact", "紧凑", 0.9f),
+    NORMAL("normal", "标准", 1.0f),
+    COMFORT("comfort", "舒适", 1.15f),
+    LARGE("large", "大字", 1.3f);
+
+    companion object {
+        val DEFAULT = NORMAL
+        fun fromId(id: String?): FontScale = entries.firstOrNull { it.id == id } ?: DEFAULT
+    }
+}
+
+// 按档位生成排版，只放大三档正文。标题和标签不动，
+// 不然中文标题在窄屏上会乱换行。
+fun typographyFor(scale: FontScale): Typography {
+    if (scale == FontScale.NORMAL) return AppTypography
+    val f = scale.factor
+    fun TextStyle.scaled(): TextStyle = copy(
+        fontSize = (fontSize.value * f).sp,
+        lineHeight = (lineHeight.value * f).sp
+    )
+    // 只放大正文，标题和标签保持原样。
+    return AppTypography.copy(
+        bodyLarge = AppTypography.bodyLarge.scaled(),
+        bodyMedium = AppTypography.bodyMedium.scaled(),
+        bodySmall = AppTypography.bodySmall.scaled()
+    )
+}
+package com.pyneon.academy.ui.theme
+
+import androidx.compose.foundation.shape.CutCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Shape
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 37 页 [app/src/main/java/com/pyneon/academy/ui/theme/VisualStyle.kt 自第 8 行起]
+import androidx.compose.ui.unit.dp
+
+/**
+ * 颜色和视觉风格分开设置：换配色不影响动效，换风格也不改色值。
+ */
+enum class VisualStyle(
+    val id: String,
+    val label: String,
+    val description: String
+) {
+    // 默认风格，故障字、扫描线、霓虹描边都开着。
+    CYBER(
+        id = "cyber",
+        label = "赛博朋克",
+        description = "故障字，扫描线，霓虹描边，切角卡片"
+    ),
+
+    // 适合长时间看正文，动效基本关掉。
+    MINIMAL(
+        id = "minimal",
+        label = "简洁",
+        description = "静态排版，细描边，圆角卡片，无动效"
+    );
+
+    val glitchEnabled: Boolean get() = this == CYBER
+
+    val backdropEnabled: Boolean get() = this == CYBER
+
+    val neonBorderEnabled: Boolean get() = this == CYBER
+
+    val pressAnimationEnabled: Boolean get() = this == CYBER
+
+    // 赛博用切角，简洁用圆角。
+    val cardShape: Shape
+        get() = if (this == CYBER) CutCornerShape(14.dp) else RoundedCornerShape(12.dp)
+
+    companion object {
+        val DEFAULT = CYBER
+
+        fun fromId(id: String?): VisualStyle =
+            entries.firstOrNull { it.id == id } ?: DEFAULT
+    }
+}
+
+val LocalVisualStyle = staticCompositionLocalOf { VisualStyle.DEFAULT }
+
+// 必须是 Composable 函数：CompositionLocal 的 current 只能在 Composable 里读。
+@Composable
+fun isCyberStyle(): Boolean = LocalVisualStyle.current == VisualStyle.CYBER
+package com.pyneon.academy.utils
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 38 页 [app/src/main/java/com/pyneon/academy/utils/AppConstants.kt 自第 2 行起]
+
+import com.pyneon.academy.BuildConfig
+
+object AppConstants {
+    // 发版只改 build.gradle.kts，这里从 BuildConfig 取。
+    val VERSION_NAME: String = BuildConfig.VERSION_NAME
+    val VERSION_CODE: Int = BuildConfig.VERSION_CODE
+
+    const val APP_NAME = "CodeLearning"
+    const val APP_NAME_CN = "码上"
+    const val APP_NAME_EN = "CodeLearning"
+
+    // 国内优先用 GitCode，GitHub 只做镜像。应用内链接别默认跳 GitHub，
+    // 不然没代理的时候「查看源码」很容易打不开。
+    const val REPO_URL = "https://gitcode.com/badhope/mashang"
+    const val REPO_URL_GITHUB = "https://github.com/badhope/mashang"
+    const val REPO_URL_GITEE = "https://gitee.com/badhope/mashang"
+    const val SITE_URL = "https://badhope.github.io/mashang/"
+    const val USER_GUIDE_URL = "$REPO_URL/blob/main/docs/USER_GUIDE.md"
+
+    const val SHARE_HASHTAG = "#CodeLearning #码上 #编程学习"
+
+    // 上架资料，发版前确认这里和华为后台填的一致。
+    const val DEV_NAME = "bigbad"
+    const val CONTACT_EMAIL = "bigbad338@outlook.com"
+
+    // 隐私政策也走 GitCode，审核员那边打开更稳。
+    const val PRIVACY_POLICY_URL = "$REPO_URL/blob/main/PRIVACY_POLICY.md"
+    const val TERMS_URL = "$REPO_URL/blob/main/TERMS_OF_SERVICE.md"
+}
+package com.pyneon.academy.utils
+
+import android.content.Context
+
+object AppPrefs {
+    private const val PREFS_NAME = "app_prefs"
+    private const val KEY_FIRST_LAUNCH = "first_launch"
+    private const val KEY_PRIVACY_CONSENT = "privacy_consent"
+
+    fun isFirstLaunch(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_FIRST_LAUNCH, true)
+    }
+
+    fun markFirstLaunchComplete(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(KEY_FIRST_LAUNCH, false).apply()
+    }
+
+    /**
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 39 页 [app/src/main/java/com/pyneon/academy/utils/AppPrefs.kt 自第 21 行起]
+     * 是否已同意隐私政策。华为/工信部要求：在收集/处理任何数据前必须取得明示同意。
+     */
+    fun isPrivacyConsented(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_PRIVACY_CONSENT, false)
+    }
+
+    fun setPrivacyConsented(context: Context, consented: Boolean) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(KEY_PRIVACY_CONSENT, consented).apply()
+    }
+}
+package com.pyneon.academy.utils
+
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import java.nio.charset.StandardCharsets
+
+/**
+ * 内容中心和检查更新共用的小 HTTP 客户端，限制超时和响应大小。
+ */
+object HttpText {
+    const val DEFAULT_USER_AGENT = "CodeLearning-Android"
+    private const val DEFAULT_TIMEOUT_MS = 6000
+    private const val DEFAULT_MAX_BYTES = 5 * 1024 * 1024
+
+    fun getText(
+        url: String,
+        timeoutMs: Int = DEFAULT_TIMEOUT_MS,
+        maxBytes: Int = DEFAULT_MAX_BYTES,
+        accept: String = "application/json",
+        userAgent: String = DEFAULT_USER_AGENT
+    ): String = String(getBytes(url, timeoutMs, maxBytes, accept, userAgent), StandardCharsets.UTF_8)
+
+    fun getBytes(
+        url: String,
+        timeoutMs: Int = DEFAULT_TIMEOUT_MS,
+        maxBytes: Int = DEFAULT_MAX_BYTES,
+        accept: String = "application/octet-stream",
+        userAgent: String = DEFAULT_USER_AGENT
+    ): ByteArray {
+        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = timeoutMs
+            readTimeout = timeoutMs
+            requestMethod = "GET"
+            setRequestProperty("Accept", accept)
+            setRequestProperty("User-Agent", userAgent)
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 40 页 [app/src/main/java/com/pyneon/academy/utils/HttpText.kt 自第 39 行起]
+        }
+        try {
+            if (conn.responseCode !in 200..299) {
+                throw IOException("HTTP ${conn.responseCode} ($url)")
+            }
+            return conn.inputStream.use { readCapped(it, maxBytes, url) }
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    private fun readCapped(stream: InputStream, maxBytes: Int, url: String): ByteArray {
+        val buf = ByteArray(64 * 1024)
+        var total = 0
+        val out = ByteArrayOutputStream(256 * 1024)
+        while (true) {
+            val n = stream.read(buf)
+            if (n < 0) break
+            total += n
+            if (total > maxBytes) {
+                throw IOException("HTTP 响应超过 ${maxBytes / (1024 * 1024)}MB，已断开 ($url)")
+            }
+            out.write(buf, 0, n)
+        }
+        return out.toByteArray()
+    }
+}
+package com.pyneon.academy.utils
+
+import android.content.Context
+import java.util.Locale
+
+// 简单文案表。中文为主，英文和日文有基础版本。
+object I18n {
+    
+    fun getString(context: Context, key: String): String {
+        val locale = Locale.getDefault()
+        return when (locale.language) {
+            "zh" -> getZhString(key)
+            "ja" -> getJaString(key)
+            else -> getEnString(key)
+        }
+    }
+    
+    private fun getZhString(key: String): String {
+        return when (key) {
+            "welcome.title" -> "欢迎使用 CodeLearning"
+            "welcome.subtitle" -> "码上编程学院"
+            "welcome.offline.title" -> "完全离线学习"
+            "welcome.offline.desc" -> "内置语言运行时\n地铁、飞机、没网的地方都能学\n随时打开随时练"
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 41 页 [app/src/main/java/com/pyneon/academy/utils/I18n.kt 自第 24 行起]
+            "welcome.gamification.title" -> "游戏化成长"
+            "welcome.gamification.desc" -> "XP 和段位\n每日任务、成就徽章\n学一点就有一点反馈"
+            "welcome.snapshot.title" -> "变量快照"
+            "welcome.snapshot.desc" -> "运行后能看变量\n名字、类型、值都列出来\n对着代码理解执行过程"
+            "welcome.plan.title" -> "7天入门计划"
+            "welcome.plan.desc" -> "每天两节课\n从基础语法到面向对象\n跟着做完能自己写小项目"
+            "button.next" -> "下一步"
+            "button.skip" -> "跳过"
+            "button.start" -> "开始学习"
+            else -> key
+        }
+    }
+    
+    private fun getEnString(key: String): String {
+        return when (key) {
+            "welcome.title" -> "Welcome to CodeLearning"
+            "welcome.subtitle" -> "Learn to Code, Offline"
+            "welcome.offline.title" -> "Learn Completely Offline"
+            "welcome.offline.desc" -> "Built-in language runtimes\nLearn on subway, plane, anywhere\nNo internet needed"
+            "welcome.gamification.title" -> "Gamified Progress"
+            "welcome.gamification.desc" -> "XP and ranks\nDaily missions and badges\nA little progress every day"
+            "welcome.snapshot.title" -> "Variable Snapshot"
+            "welcome.snapshot.desc" -> "See variables after running\nNames, types and values\nUnderstand how the code runs"
+            "welcome.plan.title" -> "7-Day Starter Plan"
+            "welcome.plan.desc" -> "2 lessons per day\nMaster coding step by step\nFrom basics to OOP"
+            "button.next" -> "Next"
+            "button.skip" -> "Skip"
+            "button.start" -> "Start Learning"
+            else -> key
+        }
+    }
+    
+    private fun getJaString(key: String): String {
+        return when (key) {
+            "welcome.title" -> "CodeLearning へようこそ"
+            "welcome.subtitle" -> "今すぐコードを書こう"
+            "button.next" -> "次へ"
+            "button.skip" -> "スキップ"
+            "button.start" -> "学習開始"
+            else -> getEnString(key)
+        }
+    }
+}
+package com.pyneon.academy.utils
+
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 42 页 [app/src/main/java/com/pyneon/academy/utils/ShareHelper.kt 自第 8 行起]
+object ShareHelper {
+
+        // 用系统浏览器打开外链。
+    fun openUrl(context: Context, url: String) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+    }
+
+    // 复制到剪贴板。诊断日志导出用，不申请存储权限，也不留文件。
+    fun copyText(context: Context, text: String) {
+        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        cm.setPrimaryClip(android.content.ClipData.newPlainText("CodeLearning", text))
+    }
+
+    fun sendEmail(context: Context, email: String, subject: String = "") {
+        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$email")).apply {
+            putExtra(Intent.EXTRA_SUBJECT, subject)
+        }
+        context.startActivity(Intent.createChooser(intent, "选择邮件应用"))
+    }
+
+
+
+    fun shareAchievement(context: Context, xp: Int, streak: Int, rank: String) {
+        val text = buildString {
+            appendLine("我在码上学的编程")
+            appendLine()
+            appendLine("XP：$xp")
+            appendLine("连击：$streak 天")
+            appendLine("段位：$rank")
+            appendLine()
+            appendLine("完全离线，随时能练。")
+            appendLine(AppConstants.REPO_URL)
+        }
+        
+        shareText(context, text, "分享我的学习成就")
+    }
+    
+
+    private fun shareText(context: Context, text: String, title: String) {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+            putExtra(Intent.EXTRA_SUBJECT, title)
+        }
+        
+        val chooser = Intent.createChooser(intent, "分享到")
+        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(chooser)
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 43 页 [app/src/main/java/com/pyneon/academy/utils/ShareHelper.kt 自第 58 行起]
+    }
+}
+package com.pyneon.academy.utils
+
+import android.content.Context
+import android.content.SharedPreferences
+import com.pyneon.academy.ui.theme.AppTheme
+import com.pyneon.academy.ui.theme.AppThemes
+import com.pyneon.academy.ui.theme.FontScale
+import com.pyneon.academy.ui.theme.VisualStyle
+
+// 主题偏好都存在 SharedPreferences。配色和风格分开存，可以随便组合。
+object ThemePreference {
+    private const val PREFS_NAME = "pyneon_theme"
+    const val KEY_THEME_ID = "theme_id"
+    const val KEY_CUSTOM_COLOR = "custom_color"
+    const val KEY_VISUAL_STYLE = "visual_style"
+    const val KEY_FONT_SCALE = "font_scale"
+
+    private fun getPrefs(context: Context): SharedPreferences =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    // 主题一变就通知，MainActivity 拿来做即时换肤。
+    fun registerListener(context: Context, listener: SharedPreferences.OnSharedPreferenceChangeListener) {
+        getPrefs(context).registerOnSharedPreferenceChangeListener(listener)
+    }
+
+    fun unregisterListener(context: Context, listener: SharedPreferences.OnSharedPreferenceChangeListener) {
+        getPrefs(context).unregisterOnSharedPreferenceChangeListener(listener)
+    }
+
+    // 自定义主题按用户给的主色现算，其余按 id 查表。
+    fun getCurrentTheme(context: Context): AppTheme {
+        val themeId = getCurrentThemeId(context)
+        return if (themeId == AppThemes.CUSTOM_THEME_ID) {
+            AppThemes.customTheme(getCustomColor(context))
+        } else {
+            AppThemes.getThemeById(themeId)
+        }
+    }
+
+
+    fun saveTheme(context: Context, themeId: String) {
+        getPrefs(context).edit().putString(KEY_THEME_ID, themeId).apply()
+    }
+
+    // 当前主题 id。默认白纸模式，看长文舒服；换过的用户保持自己的选择。
+
+    fun getCurrentThemeId(context: Context): String {
+        return getPrefs(context).getString(KEY_THEME_ID, DEFAULT_THEME_ID) ?: DEFAULT_THEME_ID
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 44 页 [app/src/main/java/com/pyneon/academy/utils/ThemePreference.kt 自第 49 行起]
+    }
+
+    // 首次安装用白纸模式。
+    const val DEFAULT_THEME_ID = "paper_light"
+
+
+    fun getCustomColor(context: Context): String {
+        return getPrefs(context).getString(KEY_CUSTOM_COLOR, "#00E5FF") ?: "#00E5FF"
+    }
+
+
+    fun saveCustomColor(context: Context, hex: String) {
+        getPrefs(context).edit().putString(KEY_CUSTOM_COLOR, hex).apply()
+    }
+
+    // 视觉风格，和配色分开。
+
+    // 没设置过就用默认赛博朋克。
+    fun getVisualStyle(context: Context): VisualStyle =
+        VisualStyle.fromId(getPrefs(context).getString(KEY_VISUAL_STYLE, null))
+
+
+    fun saveVisualStyle(context: Context, style: VisualStyle) {
+        getPrefs(context).edit().putString(KEY_VISUAL_STYLE, style.id).apply()
+    }
+
+    // 字号缩放。
+
+    // 没设置过就用标准档。
+    fun getFontScale(context: Context): FontScale =
+        FontScale.fromId(getPrefs(context).getString(KEY_FONT_SCALE, null))
+
+    fun saveFontScale(context: Context, scale: FontScale) {
+        getPrefs(context).edit().putString(KEY_FONT_SCALE, scale.id).apply()
+    }
+}
+package com.pyneon.academy.utils
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+
+/**
+ * 手动检查更新。主发国内应用市场，不在 Google Play。
+ * 先查 GitCode，挂了再查 GitHub。只读公开版本号，不带设备信息，
+ * 不自动下载，也不申请安装权限。查不到就算了，不影响离线学习。
+ */
+object UpdateChecker {
+
+    data class ReleaseInfo(
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 45 页 [app/src/main/java/com/pyneon/academy/utils/UpdateChecker.kt 自第 15 行起]
+        val version: String,
+        val url: String,
+        val publishedAt: String
+    )
+
+    // 按顺序试，哪个先成功就用哪个。
+    private val SOURCES = listOf(
+        "https://api.gitcode.com/api/v5/repos/badhope/mashang/releases/latest",
+        "https://api.github.com/repos/badhope/mashang/releases/latest"
+    )
+
+    suspend fun fetchLatest(): Result<ReleaseInfo> = withContext(Dispatchers.IO) {
+        var lastError: Exception? = null
+        for (api in SOURCES) {
+            try {
+                val body = HttpText.getText(
+                    url = api,
+                    timeoutMs = 6000,
+                    maxBytes = 2 * 1024 * 1024,
+                    accept = "application/json"
+                )
+                val json = JSONObject(body)
+                val tag = json.optString("tag_name").trim().removePrefix("v")
+                // GitCode 和 GitHub 的字段名不一样，两个都认。
+                val url = json.optString("html_url").ifBlank { json.optString("web_url") }
+                if (tag.isBlank() || url.isBlank()) {
+                    lastError = IllegalStateException("返回内容缺少版本信息")
+                    continue
+                }
+                return@withContext Result.success(
+                    ReleaseInfo(tag, url, json.optString("published_at"))
+                )
+            } catch (e: Exception) {
+                lastError = e
+            }
+        }
+        Result.failure(lastError ?: IllegalStateException("所有更新源均不可达"))
+    }
+
+    // 按点号拆版本号逐段比，格式不对就当没有新版本。
+    fun isNewer(latest: String, current: String): Boolean {
+        fun parse(v: String): List<Int>? =
+            v.trim().removePrefix("v").split('.').map { it.toIntOrNull() ?: return null }
+        val a = parse(latest) ?: return false
+        val b = parse(current) ?: return false
+        val n = maxOf(a.size, b.size)
+        for (i in 0 until n) {
+            val x = a.getOrElse(i) { 0 }
+            val y = b.getOrElse(i) { 0 }
+            if (x != y) return x > y
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 46 页 [app/src/main/java/com/pyneon/academy/utils/UpdateChecker.kt 自第 65 行起]
+        }
+        return false
+    }
+}
+import code as code_module
+import io
+import json
+import sys
+import threading
+import time
+
+from runner import DEFAULT_TIMEOUT, EXEC_LOCK, SandboxTimeout, _Watchdog, _truncate
+
+# 单条 REPL 语句最多跑多久，和 runner.DEFAULT_TIMEOUT 一样，
+# 桌面和 Android 行为保持一致。
+REPL_TIMEOUT = DEFAULT_TIMEOUT
+
+_console = None
+# REPL 会话是进程内单例，跨 push 要保住状态。start/reset/push 都加锁，
+# 免得 UI 和后台线程抢同一个 console。
+# 复用 runner.EXEC_LOCK：REPL 也会改 sys.stdout/stderr，
+# 必须和 run_code、check_exercise 互斥，不然终端和课程页一起跑会串输出。
+_console_lock = EXEC_LOCK
+
+
+class NeonConsole(code_module.InteractiveConsole):
+    def __init__(self):
+        super().__init__(locals={"__name__": "__neon_console__", "__doc__": None})
+        self.capture = io.StringIO()
+        # 每条语句的预算，push 时更新。
+        self._timeout = REPL_TIMEOUT
+
+    def write(self, data):
+        self.capture.write(data)
+
+    def runcode(self, code):
+        # 每条语句都丢进 daemon 线程，用和 runner 一样的 settrace 看门狗。
+        # 死循环或慢语句会被掐掉，不会把 UI 线程卡死。
+        capture = self.capture
+        state = {"finished": False}
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        deadline = time.perf_counter() + self._timeout
+
+        def target():
+            try:
+                sys.stdout = capture
+                sys.stderr = capture
+                sys.settrace(_Watchdog(deadline))
+                try:
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 47 页 [app/src/main/python/repl.py 自第 47 行起]
+                    exec(code, self.locals)
+                finally:
+                    sys.settrace(None)
+            except SystemExit:
+                raise
+            except SandboxTimeout:
+                self.write("运行超时：代码疑似死循环，已被强制中断。\n")
+            except BaseException:
+                self.showtraceback()
+            finally:
+                sys.stdout = old_stdout
+                sys.stderr = old_stderr
+                state["finished"] = True
+
+        worker = threading.Thread(target=target, daemon=True)
+        worker.start()
+        # 等预算再加一点余量，让看门狗先触发。
+        worker.join(self._timeout + 1.5)
+        if not state["finished"]:
+            self.write("运行超时：代码疑似死循环，已被强制中断。\n")
+
+
+def _active_console() -> NeonConsole:
+    global _console
+    with _console_lock:
+        if _console is None:
+            _console = NeonConsole()
+        return _console
+
+
+def start():
+    global _console
+    with _console_lock:
+        _console = NeonConsole()
+    return json.dumps({"ok": True})
+
+
+def reset():
+    # 重建 InteractiveConsole 会清掉 locals，变量和函数都没了。
+    # import 过的模块和改过的 builtins 不会回滚，CPython 就这样，教学场景能接受。
+    return start()
+
+
+def push(line, timeout=None):
+    console = _active_console()
+    with _console_lock:
+        # 可以传单次预算，测试用；默认 REPL_TIMEOUT。
+        console._timeout = REPL_TIMEOUT if timeout is None else float(timeout)
+        console.capture.seek(0)
+        console.capture.truncate(0)
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 48 页 [app/src/main/python/repl.py 自第 97 行起]
+        more = console.push(line)
+        return json.dumps(
+            {"more": bool(more), "output": _truncate(console.capture.getvalue())},
+            ensure_ascii=False,
+        )
+import io
+import json
+import sys
+import threading
+import time
+import traceback
+import types
+
+DEFAULT_TIMEOUT = 8.0
+EXERCISE_TEST_TIMEOUT = 2.0
+MAX_VARS = 40
+MAX_REPR = 200
+# 输出最多留 1MiB，死循环 print 也不会把 JSON 和内存撑爆。
+MAX_OUTPUT = 1_048_576
+# 调 repr 之前先看对象多大，太大就跳过，免得 repr 本身把内存吃光。
+MAX_VAR_BYTES = 1_000_000
+
+
+# 执行锁。一次运行会改 sys.stdout、sys.stderr 和 builtins.input 这些进程级对象，
+# 两个线程一起跑就会互相抢缓冲区，A 的输出跑进 B 里。
+# run_code、check_exercise 和 repl.push 都用这一把，repl.py 也导它，不另起炉灶。
+# 用 RLock 是允许同线程嵌套，比如 push 里再调 runcode。
+EXEC_LOCK = threading.RLock()
+
+
+class SandboxTimeout(Exception):
+    pass
+
+
+class InputExhausted(Exception):
+    pass
+
+
+def _make_input(stdin_lines):
+    queue = list(stdin_lines)
+
+    def _input(prompt=""):
+        if prompt:
+            sys.stdout.write(str(prompt))
+            sys.stdout.flush()
+        if not queue:
+            raise InputExhausted(
+                "运行台不支持交互式输入：请把测试数据直接写在代码里，或到「神经接口」终端中使用 input()"
+            )
+        return queue.pop(0)
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 49 页 [app/src/main/python/runner.py 自第 46 行起]
+
+    return _input
+
+
+class _Watchdog:
+    def __init__(self, deadline):
+        self.deadline = deadline
+
+    def __call__(self, frame, event, arg):
+        if time.perf_counter() > self.deadline:
+            raise SandboxTimeout()
+        return self
+
+
+def _error_payload(etype, evalue, tb):
+    trimmed_tb = tb.tb_next if tb is not None else None
+    text = "".join(traceback.format_exception(etype, evalue, trimmed_tb)).strip()
+    return {
+        "type": getattr(etype, "__name__", "Error"),
+        "message": str(evalue),
+        "traceback": text,
+    }
+
+
+def _truncate(text):
+    """输出太长就丢前面留尾部，最近的输出和报错还能看到。"""
+    if text and len(text) > MAX_OUTPUT:
+        return "[输出过长已截断]\n" + text[-MAX_OUTPUT:]
+    return text
+
+
+class OutputTooLong(Exception):
+    """输出超过硬上限，立即中断执行（防 OOM）。"""
+
+
+class _BoundedBuffer(io.StringIO):
+    """带上限的输出缓冲。只在结束后截断挡不住内存，
+    死循环 print 在超时前就能吃几百 MB。这里边写边量，超过上限直接抛异常。"""
+
+    HARD_LIMIT = MAX_OUTPUT * 4
+
+    def __init__(self):
+        super().__init__()
+        self._written = 0
+
+    def write(self, s):
+        self._written += len(s)
+        if self._written > self.HARD_LIMIT:
+            raise OutputTooLong()
+        return super().write(s)
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 50 页 [app/src/main/python/runner.py 自第 96 行起]
+
+
+def _run_protected(code, namespace, stdin_lines, timeout):
+    out_buf = _BoundedBuffer()
+    err_buf = _BoundedBuffer()
+    state = {"finished": False, "error": None}
+    import builtins
+
+    original_input = builtins.input
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+
+    def target():
+        try:
+            sys.stdout = out_buf
+            sys.stderr = err_buf
+            builtins.input = _make_input(stdin_lines)
+            sys.settrace(_Watchdog(time.perf_counter() + timeout))
+            try:
+                exec(compile(code, "<pyneon>", "exec"), namespace)
+            finally:
+                sys.settrace(None)
+        except SandboxTimeout:
+            state["error"] = {
+                "type": "Timeout",
+                "message": "代码运行超过 %.1f 秒，已被强制中断（可能是死循环）"
+                % timeout,
+                "traceback": "",
+            }
+        except OutputTooLong:
+            state["error"] = {
+                "type": "OutputTooLong",
+                "message": "输出超过 %d KB 上限，已中断（疑似死循环打印）"
+                % (_BoundedBuffer.HARD_LIMIT // 1024),
+                "traceback": "",
+            }
+        except InputExhausted as exc:
+            state["error"] = {
+                "type": "InputError",
+                "message": str(exc),
+                "traceback": "",
+            }
+        except BaseException:
+            etype, evalue, tb = sys.exc_info()
+            state["error"] = _error_payload(etype, evalue, tb)
+        finally:
+            builtins.input = original_input
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+            state["finished"] = True
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 51 页 [app/src/main/python/runner.py 自第 146 行起]
+
+    started_at = time.perf_counter()
+    worker = threading.Thread(target=target, daemon=True, name="pyneon-sandbox")
+    thread_started = True
+    try:
+        worker.start()
+    except RuntimeError as exc:
+        # 无多线程能力的环境（Pyodide 未启用 SharedArrayBuffer 时 start() 抛
+        # RuntimeError: can't start new thread）：降级为主线程直接执行。
+        # settrace 看门狗仍能中断纯 Python 死循环；C 阻塞调用失去超时保护。
+        if "can't start new thread" not in str(exc):
+            raise
+        thread_started = False
+    if thread_started:
+        worker.join(timeout + 1.5)
+    else:
+        # 在 except 之外调用，避免异常的 "During handling of the above"
+        # 上下文污染用户代码的 traceback。
+        target()
+    duration_ms = int((time.perf_counter() - started_at) * 1000)
+
+    # settrace 只能拦纯 Python 字节码。用户卡在 C 调用（sleep、C 写的循环）时，
+    # join 超时后线程可能还在跑，CPython 又没法安全强杀线程。这里只能：
+    # 不再读它的缓冲，免得脏数据上屏；每次用新命名空间，残留线程写不到状态；
+    # 线程是 daemon，进程退出就结束。真要管 C 阻塞得上子进程，教学场景不值当。
+    still_alive = not state["finished"]
+    error = (
+        None
+        if state["finished"] and state["error"] is None
+        else (
+            state["error"]
+            or {
+                "type": "Timeout",
+                "message": "代码运行超过 %.1f 秒，已被强制中断（可能是死循环）"
+                % timeout,
+                "traceback": "",
+            }
+        )
+    )
+    return {
+        "stdout": _truncate(out_buf.getvalue()),
+        "stderr": _truncate(err_buf.getvalue()),
+        "error": error,
+        "duration_ms": duration_ms,
+        # 供调用方判断是否需要重建会话（超时线程可能仍在写命名空间）
+        "worker_still_alive": still_alive,
+    }
+
+
+def _snapshot(namespace):
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 52 页 [app/src/main/python/runner.py 自第 196 行起]
+    # 先收数据变量，再按定义顺序倒着显示，最近算出来的放最上面。
+    # 以前数到 40 个就 break，按插入顺序截断，最该看的最后几个反而没了。
+    items = []
+    for key, value in reversed(namespace.items()):
+        if key.startswith("__"):
+            continue
+        # 只展示“数据变量”：过滤内置函数/自定义函数/方法/类/模块等噪音，
+        # 避免快照面板出现 random: module 这类与学习无关的条目。
+        if isinstance(
+            value,
+            (
+                type,
+                types.ModuleType,
+                types.FunctionType,
+                types.BuiltinFunctionType,
+                types.BuiltinMethodType,
+                types.MethodType,
+                types.LambdaType,
+                types.GeneratorType,
+            ),
+        ):
+            continue
+        try:
+            if sys.getsizeof(value, 0) > MAX_VAR_BYTES:
+                rendered = "<对象过大>"
+            else:
+                rendered = repr(value)
+        except BaseException:
+            # 自定义 __repr__ 抛异常或递归太深，也不能把整个快照带崩。
+            rendered = "<无法显示>"
+        if len(rendered) > MAX_REPR:
+            rendered = rendered[:MAX_REPR] + "…"
+        items.append({"name": key, "type": type(value).__name__, "value": rendered})
+        if len(items) >= MAX_VARS:
+            break
+    return items
+
+
+def run_code(code, stdin_lines=None, timeout=DEFAULT_TIMEOUT):
+    namespace = {"__name__": "__main__", "__doc__": None}
+    with EXEC_LOCK:
+        core = _run_protected(code, namespace, stdin_lines or [], float(timeout))
+    result = dict(core)
+    result["ok"] = core["error"] is None
+    result["variables"] = _snapshot(namespace)
+    return result
+
+
+def check_exercise(code, tests, stdin_lines=None):
+    # 用户代码与后续每条断言都会改写进程级 sys.stdout，必须与 run_code 互斥，
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 53 页 [app/src/main/python/runner.py 自第 246 行起]
+    # 且整段（跑用户代码 + 跑用例）保持同一把锁，否则中途可能被另一次运行插入。
+    namespace = {"__name__": "__main__", "__doc__": None}
+    with EXEC_LOCK:
+        return _check_exercise_locked(code, tests, stdin_lines, namespace)
+
+
+def _check_exercise_locked(code, tests, stdin_lines, namespace):
+    core = _run_protected(code, namespace, stdin_lines or [], DEFAULT_TIMEOUT)
+    if core["error"] is not None:
+        return {
+            "ok": False,
+            "passed": False,
+            "stdout": core["stdout"],
+            "stderr": core["stderr"],
+            "test_output": "",
+            "error": core["error"],
+            "duration_ms": core["duration_ms"],
+            "variables": [],
+        }
+
+    failures = []
+    test_outputs = []
+    # 用户代码跑完后，测试放在 namespace 的浅拷贝里跑：
+    # 测试之间共享状态，课程里的 tests 本来就是准备、动作、断言三段；
+    # 但测试的赋值不会污染用户命名空间，快照只显示用户自己定义的东西。
+    # 函数和类通过浅拷贝对测试可见。
+    test_ns = namespace.copy()
+    # 判题把用户 stdout 交给用例，允许 assert 输出内容。
+    # 不然只赋值不打印也能过，l01 就出过这个漏洞。stderr 同样处理。
+    test_ns["__stdout__"] = core["stdout"]
+    test_ns["__stderr__"] = core["stderr"]
+    for index, test in enumerate(tests, start=1):
+        test_state = {"finished": False, "error": None}
+        test_out = io.StringIO()
+
+        def test_target(ns=test_ns, source=test, st=test_state, buf=test_out):
+            old_stdout = sys.stdout
+            try:
+                sys.stdout = buf
+                sys.settrace(_Watchdog(time.perf_counter() + EXERCISE_TEST_TIMEOUT))
+                try:
+                    exec(compile(source, "<neon-test-%d>" % index, "exec"), ns)
+                finally:
+                    sys.settrace(None)
+            except AssertionError as exc:
+                st["error"] = str(exc) or "断言未通过"
+            except SandboxTimeout:
+                st["error"] = "测试执行超时"
+            except BaseException:
+                etype, evalue, _tb = sys.exc_info()
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 54 页 [app/src/main/python/runner.py 自第 296 行起]
+                st["error"] = "%s: %s" % (getattr(etype, "__name__", "Error"), evalue)
+            finally:
+                sys.stdout = old_stdout
+                st["finished"] = True
+
+        worker = threading.Thread(target=test_target, daemon=True)
+        test_thread_started = True
+        try:
+            worker.start()
+        except RuntimeError as exc:
+            if "can't start new thread" not in str(exc):
+                raise
+            test_thread_started = False
+        if test_thread_started:
+            worker.join(EXERCISE_TEST_TIMEOUT + 1.0)
+        else:
+            test_target()  # 无多线程环境降级为主线程执行（同 run_code）
+        if not test_state["finished"]:
+            test_state["error"] = "测试执行超时"
+        # 测试不管过没过，print 出来的内容都收着，用户加的排查输出才看得到。
+        test_outputs.append(test_out.getvalue())
+        if test_state["error"] is not None:
+            failures.append(
+                {"index": index, "test": test.strip(), "reason": test_state["error"]}
+            )
+
+    passed = not failures
+    message = (
+        ""
+        if passed
+        else "共 %d 个用例，%d 个未通过；首个失败：%s"
+        % (len(tests), len(failures), failures[0]["reason"])
+    )
+    return {
+        "ok": True,
+        "passed": passed,
+        "stdout": core["stdout"],
+        "stderr": core["stderr"],
+        "test_output": _truncate("".join(test_outputs)),
+        "error": None
+        if passed
+        else {"type": "TestFailed", "message": message, "traceback": ""},
+        "duration_ms": core["duration_ms"],
+        "variables": _snapshot(namespace),
+    }
+
+
+def info_json():
+    return json.dumps(
+        {
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 55 页 [app/src/main/python/runner.py 自第 346 行起]
+            "python_version": sys.version.split()[0],
+            "platform": sys.platform,
+        }
+    )
+
+
+def run_code_json(payload_json):
+    payload = json.loads(payload_json)
+    result = run_code(
+        payload.get("code", ""),
+        payload.get("stdin") or [],
+        payload.get("timeout", DEFAULT_TIMEOUT),
+    )
+    return json.dumps(result, ensure_ascii=False)
+
+
+def check_exercise_json(payload_json):
+    payload = json.loads(payload_json)
+    result = check_exercise(
+        payload.get("code", ""),
+        payload.get("tests") or [],
+        payload.get("stdin") or [],
+    )
+    return json.dumps(result, ensure_ascii=False)
+"""设备端 SQLite 内存库的 SQL 执行和判题。
+
+SQLite 的 execute 是同步阻塞的，死循环 CTE（比如漏了终止条件的 WITH RECURSIVE）
+会把线程占死，界面一直转。这里用 set_progress_handler 做指令级看门狗：
+每 1000 条虚拟机指令看一眼时间，超了返回非 0，SQLite 自己中断并抛错。
+"""
+import json
+import sqlite3
+import time
+import traceback
+
+DEFAULT_TIMEOUT = 8.0
+MAX_OUTPUT = 1_048_576
+MAX_ROWS = 200
+# 每多少条 SQLite 虚拟机指令检查一次时钟。数值越小越及时、开销越大；
+# 1000 在低端机上对常见查询的开销可忽略，中断粒度约毫秒级。
+_PROGRESS_STEPS = 1000
+
+_DENIED_ACTIONS = {
+    getattr(sqlite3, "SQLITE_ATTACH", 24),
+    getattr(sqlite3, "SQLITE_DETACH", 25),
+}
+
+
+def _authorizer(action, arg1, arg2, dbname, source):
+    if action in _DENIED_ACTIONS:
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 56 页 [app/src/main/python/sql_runner.py 自第 27 行起]
+        return sqlite3.SQLITE_DENY
+    return sqlite3.SQLITE_OK
+
+
+def _split_statements(sql):
+    """按分号切分语句，忽略字符串与 -- 行注释中的分号。"""
+    statements = []
+    buf = []
+    quote = None
+    i = 0
+    while i < len(sql):
+        ch = sql[i]
+        if quote:
+            buf.append(ch)
+            if ch == quote:
+                if i + 1 < len(sql) and sql[i + 1] == quote:
+                    buf.append(sql[i + 1])
+                    i += 2
+                    continue
+                quote = None
+            i += 1
+            continue
+        if ch in ("'", '"'):
+            quote = ch
+            buf.append(ch)
+            i += 1
+            continue
+        if ch == "-" and i + 1 < len(sql) and sql[i + 1] == "-":
+            while i < len(sql) and sql[i] != "\n":
+                i += 1
+            continue
+        if ch == ";":
+            text = "".join(buf).strip()
+            if text:
+                statements.append(text)
+            buf = []
+            i += 1
+            continue
+        buf.append(ch)
+        i += 1
+    tail = "".join(buf).strip()
+    if tail:
+        statements.append(tail)
+    return statements
+
+
+def _format_table(cursor):
+    columns = [d[0] for d in cursor.description or []]
+    rows = cursor.fetchmany(MAX_ROWS)
+    lines = ["\t".join(columns)] if columns else []
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 57 页 [app/src/main/python/sql_runner.py 自第 77 行起]
+    for row in rows:
+        lines.append("\t".join("NULL" if v is None else str(v) for v in row))
+    return columns, rows, "\n".join(lines)
+
+
+def _execute(sql, timeout=None):
+    started = time.perf_counter()
+    budget = DEFAULT_TIMEOUT if timeout is None else float(timeout)
+    deadline = started + budget
+    timed_out = {"hit": False}
+
+    def _watchdog():
+        """SQLite 每执行 _PROGRESS_STEPS 条指令回调一次；返回非 0 中断语句。"""
+        if time.perf_counter() > deadline:
+            timed_out["hit"] = True
+            return 1
+        return 0
+
+    # isolation_level=None 关闭 Python 的隐式事务管理：否则 sqlite3 会在每条语句前
+    # 自动 BEGIN，用户写的 BEGIN / COMMIT / ROLLBACK 会直接报
+    # 「cannot start a transaction within a transaction」。
+    # 关闭后行为与 sqlite3 命令行一致，事务控制权完全交给 SQL 本身。
+    conn = sqlite3.connect(":memory:", isolation_level=None)
+    conn.set_authorizer(_authorizer)
+    conn.set_progress_handler(_watchdog, _PROGRESS_STEPS)
+    out = []
+    error = None
+    last = None
+    try:
+        for statement in _split_statements(sql):
+            cursor = conn.execute(statement)
+            if cursor.description:
+                columns, rows, text = _format_table(cursor)
+                last = {
+                    "columns": columns,
+                    "rows": [[None if v is None else v for v in row] for row in rows],
+                }
+                out.append(text)
+            else:
+                out.append("OK (%d rows affected)" % cursor.rowcount)
+        conn.commit()
+    except BaseException:  # 任何异常都要转成结构化结果，别让桥接层崩。
+        try:
+            conn.rollback()  # 未提交的事务在报错时必须撤销，避免半成品状态
+        except Exception:
+            pass
+        etype, evalue, tb = __import__("sys").exc_info()
+        trimmed = tb.tb_next if tb is not None else None
+        if timed_out["hit"]:
+            # SQLite 中断时抛的是 OperationalError('interrupted')，对外统一报超时，
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 58 页 [app/src/main/python/sql_runner.py 自第 127 行起]
+            # 不然用户只看到一句看不懂的 interrupted。
+            error = {
+                "type": "Timeout",
+                "message": "执行超过 %.1f 秒上限，已中断（疑似死循环或超大查询）" % budget,
+                "traceback": "",
+            }
+        else:
+            error = {
+                "type": getattr(etype, "__name__", "Error"),
+                "message": str(evalue),
+                "traceback": "".join(traceback.format_exception(etype, evalue, trimmed)).strip(),
+            }
+    finally:
+        conn.close()
+    text = "\n".join(out)
+    if len(text) > MAX_OUTPUT:
+        text = "[输出过长已截断]\n" + text[-MAX_OUTPUT:]
+    return {
+        "ok": error is None,
+        "stdout": text,
+        "stderr": "",
+        "error": error,
+        "duration_ms": int((time.perf_counter() - started) * 1000),
+        "last": last,
+    }
+
+
+def run_sql(sql, timeout=None):
+    core = _execute(sql, timeout)
+    return {
+        "ok": core["ok"],
+        "stdout": core["stdout"],
+        "stderr": core["stderr"],
+        "error": core["error"],
+        "duration_ms": core["duration_ms"],
+        "variables": [],
+    }
+
+
+def check_sql(sql, tests, timeout=None):
+    core = _execute(sql, timeout)
+    if core["error"] is not None:
+        return {
+            "ok": False,
+            "passed": False,
+            "stdout": core["stdout"],
+            "stderr": "",
+            "test_output": "",
+            "error": core["error"],
+            "duration_ms": core["duration_ms"],
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 59 页 [app/src/main/python/sql_runner.py 自第 177 行起]
+            "variables": [],
+        }
+    namespace = {
+        "__name__": "__main__",
+        "__stdout__": core["stdout"],
+        "last": core["last"],
+        "columns": core["last"]["columns"] if core["last"] else [],
+        "rows": core["last"]["rows"] if core["last"] else [],
+    }
+    failures = []
+    for index, test in enumerate(tests, start=1):
+        try:
+            exec(compile(test, "<sql-test-%d>" % index, "exec"), namespace)
+        except AssertionError as exc:
+            failures.append(str(exc) or "断言未通过")
+        except BaseException:  # 任何异常都要转成结构化结果，别让桥接层崩。
+            etype, evalue, _tb = __import__("sys").exc_info()
+            failures.append("%s: %s" % (getattr(etype, "__name__", "Error"), evalue))
+    passed = not failures
+    message = "" if passed else "共 %d 个用例，%d 个未通过；首个失败：%s" % (
+        len(tests), len(failures), failures[0]
+    )
+    return {
+        "ok": True,
+        "passed": passed,
+        "stdout": core["stdout"],
+        "stderr": "",
+        "test_output": "",
+        "error": None if passed else {"type": "TestFailed", "message": message, "traceback": ""},
+        "duration_ms": core["duration_ms"],
+        "variables": [],
+    }
+
+
+def run_sql_json(payload_json):
+    payload = json.loads(payload_json)
+    return json.dumps(
+        run_sql(payload.get("code", ""), payload.get("timeout")),
+        ensure_ascii=False,
+    )
+
+
+def check_sql_json(payload_json):
+    payload = json.loads(payload_json)
+    return json.dumps(
+        check_sql(payload.get("code", ""), payload.get("tests") or [], payload.get("timeout")),
+        ensure_ascii=False,
+    )
+
+
+
+CodeLearning（码上）多语言编程学习软件 V1.0 第 60 页 [app/src/main/python/sql_runner.py 自第 227 行起]
+def info_json():
+    return json.dumps({"sqlite_version": sqlite3.sqlite_version, "platform": "sqlite3"})
+

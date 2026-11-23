@@ -87,16 +87,31 @@
 
 已完成：
 
-- `docs/index.html` 的品牌、课程数、挑战数和版本号对齐到 0.7.1，去掉装饰符号、英文小标题和营销腔。
+- `docs/index.html` 的品牌、课程数、挑战数和版本号对齐到 0.7.2，去掉装饰符号、英文小标题和营销腔。
 - 修掉网页版区块多出来的一个 `</div>`，这个标签会让后面的 `section` 错位。
 - 三语 README、`FAQ.md`、`docs/USER_GUIDE.md` 去掉品牌分隔符、箭头和粗体标签，路径改成正常说法。
 - 课程统计统一成 245 讲、22 道挑战、扩展包 206 讲。
 
 验证：HTML 标签检查没有错误，没有未闭合标签；`pytest` 247 项通过。
 
+## 第七批：0.7.2 发布收口
+
+已完成：
+
+- 版本升到 `versionCode 21` / `versionName 0.7.2`，网页端、官网、用户手册和发布材料同步。
+- 新增 `docs/PRODUCT_POSITIONING.md`、`docs/QUALITY_REPORT.md`、`docs/OFFLINE_DEMO.md`、`docs/COURSE_SAMPLES.md`，补齐产品定位、质量证明、离线演示和课程样例。
+- 三语 README、FAQ、官网和 `docs/LANGUAGE_COVERAGE.md` 统一课程口径：245 讲、448 个课程代码块（434 个可直接运行）、1,097 条用例。
+- 补 `THIRD_PARTY_NOTICES.md`，修正 Rhino 许可证说明。
+- 软著材料生成：`docs/softcopy/源程序.pdf` 60 页、`软件说明书.pdf` 13 页，源程序册覆盖 80 个原创文件、16,002 行。
+- 0.7.2 由 GitHub Actions 用 release keystore 签名构建，APK 通过 `apksigner` 非 debug 证书校验和 `tests/ci_apk_probe.py --require-release`。
+- 0.7.2 APK 已发布到 GitHub `badhope`、`X33834`、`Morningstar202604`、Gitee `badhope`、GitCode `badhope` 的 Release。
+
+验证：Kotlin 单测 275 项通过，`pytest` 247 项通过，`lintDebug` 0 Error，内容校验结构问题 0。
+
 ## 还没做的
 
 - `tools/` 里的内容生成脚本只清理了明显的横幅注释，课程正文里的 `·`、箭头属于课程排版，不按代码符号处理。
 - `tests/` 的断言不随便改，注释里的历史日期还在陆续清。
 - `app/src/main/python` 的深水区、语言桥接和网页端交互还需要人工点一遍。
-- 0.7.1 的 APK 还是重构前构建的，风格重构没有重新打包。
+- 官网截图还是早期界面，版本角标显示 v0.4.0；下次有设备时统一重截。
+- 软著是否提交、以谁的名义提交，要申请人本人决定；新版申请表有“未使用 AI”承诺，不能代签。

@@ -162,7 +162,7 @@ def build_html(
     font-size: 10pt; font-family: "Microsoft YaHei", sans-serif;
   }}
   .pg {{ font-size: 9pt; color: #555; }}
-  .src {{ white-space: pre; font-size: 7.6pt; line-height: 1.28; }}
+  .src {{ white-space: pre; font-size: 7.0pt; line-height: 1.32; }}
   @media print {{
     body {{ background: #fff; }}
     .page {{ margin: 0; width: auto; min-height: auto; height: 267mm; page-break-after: always; }}
