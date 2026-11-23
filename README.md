@@ -26,6 +26,8 @@
 |:--:|:--:|:--:|
 | ![Editor](demo/app/lesson_exercise.png) | ![Terminal](demo/app/terminal.png) | ![Language Center](demo/app/contenthub.png) |
 
+These screenshots come from an earlier development build; the version badge and lesson counts may differ from the current package.
+
 ---
 
 ## Six languages, real errors

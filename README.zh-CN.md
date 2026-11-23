@@ -26,6 +26,8 @@
 |:--:|:--:|:--:|
 | ![练习](demo/app/lesson_exercise.png) | ![终端](demo/app/terminal.png) | ![语言中心](demo/app/contenthub.png) |
 
+截图来自开发期构建，版本角标和课程数不代表当前版本，以安装包和课程目录为准。
+
 ---
 
 ## 六门语言，写错会报错
