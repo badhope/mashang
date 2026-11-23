@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/banner.png" alt="CodeLearning · 码上" width="830"/>
+<img src="docs/banner.png" alt="CodeLearning（码上）" width="830"/>
 
-**CodeLearning · 码上 —— 手机上写代码。六门语言，共 245 讲，全程离线。**
+**CodeLearning（码上）：手机上写代码。六门语言，共 245 讲，全程离线。**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-00E5FF.svg)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-10.0%2B-00E5FF.svg)]()
@@ -32,12 +32,12 @@
 
 | 语言 | 运行时 | 课程 |
 |---|---|---|
-| **Python** | CPython 3.13 | 39 讲内置主线 + 综合项目 + DSA + 内置函数 |
-| **JavaScript** | Rhino 1.7.15 | 38 讲（基础 / 核心 / 进阶 / 专业四包） |
-| **TypeScript** | 类型擦除 → Rhino | 38 讲（基础 / 核心 / 进阶 / 专业四包） |
-| **C** | 内置解释器 | 38 讲（基础 / 核心 / 进阶 / 专业四包） |
-| **Lua** | LuaJ 3.0.1 | 38 讲（基础 / 核心 / 进阶 / 专业四包） |
-| **SQL** | SQLite | 43 讲（38 主线 + 5 边界专题） |
+| **Python** | CPython 3.13 | 39 讲主线，另有综合项目、DSA 和内置函数 |
+| **JavaScript** | Rhino 1.7.15 | 38 讲（基础、核心、进阶、专业四包） |
+| **TypeScript** | 类型擦除后交给 Rhino | 38 讲（基础、核心、进阶、专业四包） |
+| **C** | 内置解释器 | 38 讲（基础、核心、进阶、专业四包） |
+| **Lua** | LuaJ 3.0.1 | 38 讲（基础、核心、进阶、专业四包） |
+| **SQL** | SQLite | 43 讲（38 讲主线，另 5 讲边界专题） |
 
 Python 主线随 APK 内置；其余五门从「语言中心」按需下载。首装约 39 MB。
 
@@ -65,10 +65,10 @@ C 和 TypeScript 是教学子集（C 不支持预处理指令、goto 与函数�
 
 ## 许可
 
-MIT。第三方组件许可见应用内「关于 → 开源许可」。
+MIT。第三方组件许可见应用内「关于」里的开源许可。
 
-[隐私政策](PRIVACY_POLICY.md) · [用户协议](TERMS_OF_SERVICE.md)
+[隐私政策](PRIVACY_POLICY.md)、[用户协议](TERMS_OF_SERVICE.md)
 
 ---
 
-<sub>源码镜像：[GitHub](https://github.com/badhope/mashang) · [GitCode](https://gitcode.com/badhope/mashang) · [Gitee](https://gitee.com/badhope/mashang)</sub>
+<sub>源码镜像：[GitHub](https://github.com/badhope/mashang)、[GitCode](https://gitcode.com/badhope/mashang)、[Gitee](https://gitee.com/badhope/mashang)</sub>

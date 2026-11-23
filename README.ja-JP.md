@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/banner.png" alt="CodeLearning · 码上" width="830"/>
+<img src="docs/banner.png" alt="CodeLearning（码上）" width="830"/>
 
-**CodeLearning · 码上 —— スマホでコードを書く。6 言語、245 レッスン、すべてオフライン。**
+**CodeLearning（码上）：スマホでコードを書く。6 言語、245 レッスン、すべてオフライン。**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-00E5FF.svg)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-10.0%2B-00E5FF.svg)]()
@@ -34,7 +34,7 @@
 |---|---|---|
 | **Python** | CPython 3.13 | 39（内蔵メインライン）+ 総合プロジェクト + DSA + 組み込み関数 |
 | **JavaScript** | Rhino 1.7.15 | 38（基礎 / コア / 上級 / 専門パック） |
-| **TypeScript** | 型消去 → Rhino | 38（基礎 / コア / 上級 / 専門パック） |
+| **TypeScript** | 型消去して Rhino | 38（基礎 / コア / 上級 / 専門パック） |
 | **C** | 内蔵インタプリタ | 38（基礎 / コア / 上級 / 専門パック） |
 | **Lua** | LuaJ 3.0.1 | 38（基礎 / コア / 上級 / 専門パック） |
 | **SQL** | SQLite | 43（38 メインライン + 5 境界トピック） |
@@ -65,10 +65,10 @@ C と TypeScript は学習用サブセットです（C はプリプロセッサ�
 
 ## ライセンス
 
-MIT。サードパーティのライセンスはアプリ内「About → オープンソースライセンス」に記載。
+MIT。サードパーティのライセンスはアプリ内「About のオープンソースライセンス」に記載。
 
-[プライバシー](PRIVACY_POLICY.md) · [利用規約](TERMS_OF_SERVICE.md)
+[プライバシー](PRIVACY_POLICY.md)、[利用規約](TERMS_OF_SERVICE.md)
 
 ---
 
-<sub>ミラー：[GitHub](https://github.com/badhope/mashang) · [GitCode](https://gitcode.com/badhope/mashang) · [Gitee](https://gitee.com/badhope/mashang)</sub>
+<sub>ミラー：[GitHub](https://github.com/badhope/mashang)、[GitCode](https://gitcode.com/badhope/mashang)、[Gitee](https://gitee.com/badhope/mashang)</sub>

@@ -34,7 +34,7 @@ PACK = ROOT / "content_packs" / "js-basics.json"
 # 关键细节：Rhino 在每次 evaluateString 返回前会把微任务队列（Promise 回调）
 # 跑干净，所以「上一条用例注册的 then 回调」在下一条用例开始时已经执行。
 # node 的 vm 不会自动这么做，因此这里在每条用例之间显式让出一轮事件循环，
-# 否则 Promise 相关课程会被误判为失败（实测 js28）。
+# 否则 Promise 相关课程会被误判为失败（js28 踩过）。
 HARNESS = r"""
 const fs = require('fs');
 const vm = require('vm');

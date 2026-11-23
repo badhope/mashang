@@ -170,7 +170,7 @@ class CoursePackContractTests(unittest.TestCase):
                 self.assertTrue(ex.get("tests"), "练习必须有判题用例")
                 # 课程里不得出现转译器不支持的高级特性。
                 # 只扫「可执行的代码」，正文讲解允许提到 declare module / 装饰器等概念
-                # ——否则讲「声明文件」这一课连概念都不能提（2026-11 修正）。
+                # 否则讲「声明文件」这一课连概念都不能提。
                 code_blobs = [
                     b.get("code", "")
                     for b in lesson.get("blocks", [])

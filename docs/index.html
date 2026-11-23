@@ -3,25 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>CodeLearning · 码上 — 装进口袋的赛博朋克编程学习终端</title>
-<meta name="description" content="CodeLearning · 码上：内嵌真实语言运行时的离线编程学习终端。六门语言、共 245 讲（SQL 43 讲，其余各 38 讲），assert 自动判题、变量可视化、六段位成长。Android 10.0+ 免费下载，MIT 开源。">
+<title>CodeLearning（码上）：装进口袋的赛博朋克编程学习终端</title>
+<meta name="description" content="CodeLearning（码上）：带真实语言运行时的离线编程学习应用。六门语言共 245 讲，SQL 43 讲，其余各 38 讲。支持自动判题、变量快照和六段位成长。Android 10.0+ 免费下载，MIT 开源。">
 <meta name="theme-color" content="#07090F">
 <meta name="author" content="badhope">
 <link rel="canonical" href="https://badhope.github.io/mashang/">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="CodeLearning · 码上">
-<meta property="og:title" content="CodeLearning · 码上 — 装进口袋的赛博朋克编程学习终端">
+<meta property="og:site_name" content="CodeLearning（码上）">
+<meta property="og:title" content="CodeLearning（码上）：装进口袋的赛博朋克编程学习终端">
 <meta property="og:description" content="内嵌 CPython 3.13、JavaScript、TypeScript、C、Lua、SQL 六个运行时的离线编程学习终端：六门语言、共 245 讲（SQL 43 讲，其余各 38 讲），assert 判题、变量快照、六段位成长。Android 10.0+，MIT 开源。">
 <meta property="og:url" content="https://badhope.github.io/mashang/">
 <meta property="og:image" content="https://badhope.github.io/mashang/assets/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="CodeLearning · 码上 — 离线编程学习终端">
-<meta name="twitter:description" content="CPython 3.13 装进口袋：六门语言、共 245 讲（SQL 43 讲，其余各 38 讲） + assert 判题 + 变量快照，全离线。">
+<meta name="twitter:title" content="CodeLearning（码上）：离线编程学习终端">
+<meta name="twitter:description" content="CPython 3.13 装进口袋：六门语言共 245 讲（SQL 43 讲，其余各 38 讲），assert 判题、变量快照，全离线。">
 <meta name="twitter:image" content="https://badhope.github.io/mashang/assets/og.jpg">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"CodeLearning · 码上","operatingSystem":"Android 10.0+","applicationCategory":"EducationalApplication","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"license":"https://opensource.org/licenses/MIT","downloadUrl":"https://github.com/badhope/mashang/releases/latest","codeRepository":"https://github.com/badhope/mashang","description":"内嵌 CPython 3.13、JavaScript、TypeScript、C、Lua、SQL 六个运行时的离线编程学习终端，六门语言、共 245 讲（SQL 43 讲，其余各 38 讲），assert 自动判题、变量快照与六段位成长。"}
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"CodeLearning（码上）","operatingSystem":"Android 10.0+","applicationCategory":"EducationalApplication","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"license":"https://opensource.org/licenses/MIT","downloadUrl":"https://github.com/badhope/mashang/releases/latest","codeRepository":"https://github.com/badhope/mashang","description":"内嵌 CPython 3.13、JavaScript、TypeScript、C、Lua、SQL 六个运行时的离线编程学习终端，六门语言、共 245 讲（SQL 43 讲，其余各 38 讲），assert 自动判题、变量快照与六段位成长。"}
 </script>
 <link rel="icon" href="logo-mark.svg" type="image/svg+xml">
 <link rel="alternate icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 108 108'%3E%3Crect width='108' height='108' rx='24' fill='#0A0E17'/%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M41 32 L27 54 L41 76' stroke='#00E5FF' stroke-width='8'/%3E%3Cpath d='M67 32 L81 54 L67 76' stroke='#00E5FF' stroke-width='8'/%3E%3Cpath d='M40 74 L40 64 L51 64 L51 54 L62 54 L62 44' stroke='#00FF9C' stroke-width='8'/%3E%3C/g%3E%3C/svg%3E">
@@ -50,7 +50,7 @@ button{font-family:inherit}
 .wrap{width:100%;max-width:1120px;margin-inline:auto;padding-inline:clamp(18px,4.5vw,28px)}
 .mono{font-family:var(--mono)}
 
-/* ===== global fx ===== */
+/* 全局效果 */
 #scan{position:fixed;inset:0;pointer-events:none;z-index:98;
   background:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 4px);}
 #vig{position:fixed;inset:0;pointer-events:none;z-index:97;
@@ -81,7 +81,7 @@ button{font-family:inherit}
 #totop:active{transform:scale(.92)}
 #totop svg{width:20px;height:20px}
 
-/* ===== nav ===== */
+/* 导航 */
 nav{position:fixed;top:0;left:0;right:0;z-index:100;height:var(--nav-h);
   background:rgba(7,9,15,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   border-bottom:1px solid rgba(31,41,55,.7);transition:background .3s,box-shadow .3s}
@@ -126,7 +126,7 @@ nav .wrap{height:100%;display:flex;align-items:center;gap:34px}
   .bar-row .bl{grid-row:1/2}
 }
 
-/* ===== hero ===== */
+/* 首屏 */
 #hero{min-height:100vh;min-height:100svh;position:relative;display:flex;flex-direction:column;
   justify-content:center;padding:calc(var(--nav-h) + 54px) 0 76px;overflow:clip}
 #hero .glow-a,#hero .glow-b{position:absolute;border-radius:50%;filter:blur(120px);pointer-events:none;will-change:transform}
@@ -205,7 +205,7 @@ nav .wrap{height:100%;display:flex;align-items:center;gap:34px}
   background:linear-gradient(var(--cyan),transparent);animation:drip 1.8s infinite}
 @keyframes drip{0%{transform:scaleY(0);transform-origin:top}55%{transform:scaleY(1);transform-origin:top}56%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
 
-/* ===== sections ===== */
+/* 区块 */
 section{padding:clamp(70px,11vw,110px) 0;scroll-margin-top:calc(var(--nav-h) + 28px)}
 .sec-head{margin-bottom:clamp(36px,6vw,56px)}
 .sec-id{font-family:var(--mono);font-size:12.5px;letter-spacing:3px;margin-bottom:14px}
@@ -454,13 +454,13 @@ footer .fine b{color:var(--dim)}
 @keyframes barIn{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 .bar-row .bv{font-family:var(--mono);font-size:13.5px;color:var(--hi);font-weight:700;min-width:40px;text-align:right}
 
-/* ===== responsive fine-tuning ===== */
+/* 响应式微调 */
 @media(max-width:560px){
   .corner.tl,.corner.tr{top:calc(var(--nav-h) + 12px)}
   .scroll-hint{display:none}
   #hero{padding-bottom:56px}
 }
-/* ===== reduced motion ===== */
+/* 减少动画 */
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
@@ -489,11 +489,11 @@ footer .fine b{color:var(--dim)}
       <a href="#web"><i>07</i>网页版</a>
       <a href="#faq"><i>08</i>FAQ</a>
     </div>
-    <a class="nav-cta" href="https://github.com/badhope/mashang/releases/latest" target="_blank" rel="noopener">⬇ 下载 APK</a>
+    <a class="nav-cta" href="https://github.com/badhope/mashang/releases/latest" target="_blank" rel="noopener">下载 APK</a>
   </div>
 </nav>
 
-<!-- ================= HERO ================= -->
+<!-- 首屏 -->
 <header id="hero">
   <div class="glow-a" id="glowA"></div><div class="glow-b" id="glowB"></div>
   <div class="gridbg"></div>
@@ -502,7 +502,7 @@ footer .fine b{color:var(--dim)}
   <div id="boot" class="mono"></div>
 
   <div class="wrap hero-inner">
-    <div class="glitch-wrap"><svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-label="CodeLearning · 码上">
+    <div class="glitch-wrap"><svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-label="CodeLearning（码上）">
   <defs>
     <linearGradient id="cl-bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0A0E17"/>
@@ -529,19 +529,19 @@ footer .fine b{color:var(--dim)}
     <path d="M40 74 L40 64 L51 64 L51 54 L62 54 L62 44" stroke="#00FF9C" stroke-width="8"/>
   </g>
   <text x="250" y="139" font-family="Segoe UI, Inter, 'Helvetica Neue', Arial, sans-serif" font-size="86" font-weight="700" letter-spacing="-1.5" fill="#F9FAFB">Code<tspan fill="url(#cl-sweep)">Learning</tspan></text>
-  <text x="253" y="197" font-family="Microsoft YaHei, PingFang SC, Noto Sans SC, sans-serif" font-size="29" font-weight="500" letter-spacing="3.5" fill="#93A3B8">码上 · 离线编程学习终端</text>
+  <text x="253" y="197" font-family="Microsoft YaHei, PingFang SC, Noto Sans SC, sans-serif" font-size="29" font-weight="500" letter-spacing="3.5" fill="#93A3B8">码上：离线编程学习终端</text>
   <rect x="253" y="230" width="64" height="3.5" rx="1.75" fill="#00E5FF"/>
-  <text x="333" y="237" font-family="Consolas, 'SF Mono', Menlo, monospace" font-size="17" letter-spacing="2.6" fill="#00E5FF" opacity="0.62">OFFLINE FIRST · 6 LANGUAGES</text>
+  <text x="333" y="237" font-family="Consolas, 'SF Mono', Menlo, monospace" font-size="17" letter-spacing="2.6" fill="#00E5FF" opacity="0.62">离线优先，六门语言</text>
 </svg></div>
-    <h1 class="sr-only">CodeLearning · 码上 — 离线编程学习终端</h1>
+    <h1 class="sr-only">CodeLearning（码上）：离线编程学习终端</h1>
     <div class="hero-tag">码上，<em>就是马上。</em></div>
-    <div class="hero-tag-en">CODE NOW · SIX LANGUAGES · LEARN OFFLINE, ANYWHERE</div>
-    <div class="hero-sub">装进口袋的赛博朋克编程学习终端 —— 内嵌真·<b>CPython 3.13</b>、<b>JavaScript</b>、<b>TypeScript</b>、<b>C</b>、<b>Lua</b>、<b>SQL</b> 运行时，<b>核心学习零网络</b>：写码、运行、判题全在本机；另有同源<b>网页版</b>可直接试玩</div>
+    <div class="hero-tag-en">随时写代码，六门语言，离线也能学</div>
+    <div class="hero-sub">装进口袋的编程学习终端。内嵌 <b>CPython 3.13</b>、<b>JavaScript</b>、<b>TypeScript</b>、<b>C</b>、<b>Lua</b>、<b>SQL</b> 运行时，<b>核心学习零网络</b>：写码、运行、判题全在本机；另有同源<b>网页版</b>可直接试玩</div>
 
     <div class="hero-cta">
       <a class="btn btn-primary" href="https://github.com/badhope/mashang/releases/latest" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 21h16"/></svg>
-        下载 APK · Android 10.0+
+        下载 APK，Android 10.0+
       </a>
       <a class="btn btn-ghost" href="#demo">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
@@ -554,80 +554,80 @@ footer .fine b{color:var(--dim)}
     </div>
 
     <div class="hero-stats">
-      <span><b>6</b> 门语言 · <b>245</b> 讲</span><span class="sep">//</span>
-      <span><b>真实运行时</b> 全部离线</span><span class="sep">//</span>
-      <span><b>assert</b> 自动判题</span><span class="sep">//</span>
-      <span><b>语言包</b> 按需下载</span><span class="sep">//</span>
-      <span><b>7</b> 套主题</span><span class="sep">//</span>
-      <span><b>6</b> 级段位</span><span class="sep">//</span>
+      <span><b>6</b> 门语言，<b>245</b> 讲</span><span class="sep">，</span>
+      <span><b>真实运行时</b> 全部离线</span><span class="sep">，</span>
+      <span><b>assert</b> 自动判题</span><span class="sep">，</span>
+      <span><b>语言包</b> 按需下载</span><span class="sep">，</span>
+      <span><b>7</b> 套主题</span><span class="sep">，</span>
+      <span><b>6</b> 级段位</span><span class="sep">，</span>
       <span><b>MIT</b> 开源</span>
     </div>
   </div>
-  <div class="scroll-hint">SCROLL</div>
+  <div class="scroll-hint">向下滚动</div>
 </header>
 
-<!-- ================= 01 SCREENS ================= -->
+<!-- 01 界面截图 -->
 <section id="shots">
   <div class="wm2">NEON CITY</div>
   <div class="wrap">
     <div class="sec-head rv">
-      <div class="sec-id sec-mag"><span class="bar"></span><b>01</b> // ON-DEVICE</div>
-      <h2>装机实拍<small>REAL SCREENS · 1080×2400 · EMULATOR API 35</small></h2>
+      <div class="sec-id sec-mag"><span class="bar"></span><b>01</b> 设备端</div>
+      <h2>装机实拍<small>真机截图，1080×2400，模拟器 API 35</small></h2>
     </div>
     <div class="phone-row" id="phoneRow">
       <div class="phone p1 rv">
         <div class="frame"><div class="notch"></div><div class="screen"><img src="assets/app/home.jpg" alt="指挥台首页" width="1080" height="2400"></div></div>
-        <div class="phone-cap"><b style="color:var(--cyan)">指挥台 · HOME</b>XP / 连击 / 每日任务</div>
+        <div class="phone-cap"><b style="color:var(--cyan)">指挥台：首页</b>XP / 连击 / 每日任务</div>
       </div>
       <div class="phone p2 rv">
         <div class="frame"><div class="notch"></div><div class="screen"><img src="assets/app/lesson_exercise.jpg" alt="课程练习与判题" width="1080" height="2400"></div></div>
-        <div class="phone-cap"><b style="color:var(--green)">练习判题 · EXERCISE</b>变量快照 · assert 判题</div>
+        <div class="phone-cap"><b style="color:var(--green)">练习判题：练习</b>变量快照，assert 判题</div>
       </div>
       <div class="phone p3 rv">
         <div class="frame"><div class="notch"></div><div class="screen"><img src="assets/app/lesson_steps.jpg" alt="课程讲解与图示" width="1080" height="2400"></div></div>
-        <div class="phone-cap"><b style="color:var(--yel)">课程讲解 · LESSON</b>图示对照 · 运行输出</div>
+        <div class="phone-cap"><b style="color:var(--yel)">课程讲解：课程</b>图示对照，运行输出</div>
       </div>
     </div>
-    <div class="carousel-hint"><span class="line"></span>← 左右滑动查看 →<span class="line"></span></div>
+    <div class="carousel-hint"><span class="line"></span>左右滑动查看<span class="line"></span></div>
   </div>
 </section>
 
-<!-- ================= 02 DEMO ================= -->
+<!-- 02 使用演示 -->
 <section id="demo" style="padding-top:clamp(20px,4vw,40px)">
   <div class="wrap">
     <div class="sec-head rv" style="text-align:center">
-      <div class="sec-id sec-cyan"><span class="bar"></span><b>02</b> // USAGE DEMO</div>
-      <h2>57 秒看完整个使用流<small>BOOT → 闯关 → 判题 → 终端 → 段位</small></h2>
+      <div class="sec-id sec-cyan"><span class="bar"></span><b>02</b> 使用演示</div>
+      <h2>57 秒看完整个使用流<small>启动、闯关、判题、终端、段位</small></h2>
     </div>
     <div class="demo-wrap rv">
       <div class="term">
-        <div class="term-bar"><i></i><i></i><i></i><span class="tt">mashang-usage-demo.mp4 — 720×1280 · 30fps · H.264</span></div>
+        <div class="term-bar"><i></i><i></i><i></i><span class="tt">mashang-usage-demo.mp4，720×1280，30fps，H.264</span></div>
         <video controls preload="none" playsinline webkit-playsinline poster="assets/app/lesson_exercise.jpg">
           <source src="usage-video.mp4" type="video/mp4">
-          您的浏览器不支持视频播放 — 可使用下方链接下载观看。
+          您的浏览器不支持视频播放，可点下面的链接下载。
         </video>
       </div>
       <div class="demo-note">
         <span>播放卡顿或无法加载？</span>
         <span><a href="usage-video.mp4" download="mashang-usage-demo.mp4">下载原片</a>
-        &nbsp;·&nbsp; <a href="https://github.com/badhope/mashang/blob/main/demo/usage-video.mp4" target="_blank" rel="noopener">仓库内查看</a></span>
+        &nbsp;&nbsp; <a href="https://github.com/badhope/mashang/blob/main/demo/usage-video.mp4" target="_blank" rel="noopener">仓库内查看</a></span>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ================= 03 MODULES ================= -->
+<!-- 03 核心模块 -->
 <section id="features" style="padding-top:clamp(20px,4vw,40px)">
   <div class="wrap">
     <div class="sec-head rv">
-      <div class="sec-id sec-green"><span class="bar"></span><b>03</b> // MODULES</div>
-      <h2>核心模块<small>8 MODULES · CORE LEARNING OFFLINE</small></h2>
+      <div class="sec-id sec-green"><span class="bar"></span><b>03</b> 核心模块</div>
+      <h2>核心模块<small>8 个模块，离线学习核心</small></h2>
     </div>
     <div class="mods" id="modGrid">
       <div class="mod rv" style="--ac:var(--cyan);--ac-soft:rgba(0,229,255,.16);--ac-soft2:rgba(0,229,255,.5)">
         <div class="top"><span class="id">MOD-01</span><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></div>
         <h3>离线引擎</h3>
-        <p>Chaquopy 内嵌完整 <b>CPython 3.13</b>——地铁、飞机、偏远地区，没有网络照样写码、运行、判题。</p>
+        <p>Chaquopy 内嵌完整 <b>CPython 3.13</b>，地铁、飞机、偏远地区，没有网络照样写码、运行、判题。</p>
       </div>
       <div class="mod rv" style="--ac:var(--green);--ac-soft:rgba(0,255,156,.16);--ac-soft2:rgba(0,255,156,.5)">
         <div class="top"><span class="id">MOD-02</span><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
@@ -637,146 +637,146 @@ footer .fine b{color:var(--dim)}
       <div class="mod rv" style="--ac:var(--mag);--ac-soft:rgba(255,45,120,.16);--ac-soft2:rgba(255,45,120,.5)">
         <div class="top"><span class="id">MOD-03</span><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/></svg></div>
         <h3>变量快照</h3>
-        <p>每次运行后展示命名空间里<b>每个变量的名 / 型 / 值</b>——全 App 独有的可视化面板。</p>
+        <p>每次运行后展示命名空间里<b>每个变量的名、型、值</b>，这是 App 里独有的可视化面板。</p>
       </div>
       <div class="mod rv" style="--ac:var(--yel);--ac-soft:rgba(247,255,0,.14);--ac-soft2:rgba(247,255,0,.45)">
         <div class="top"><span class="id">MOD-04</span><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-5-6-5M12 19h8"/></svg></div>
         <h3>神经 REPL</h3>
-        <p>有状态会话、<b>↑↓ 历史</b>、多行块、一键重置——把终端装进兜里。</p>
+        <p>有状态会话，<b>方向键翻历史</b>，支持多行块和一键重置。</p>
       </div>
       <div class="mod rv" style="--ac:var(--mag);--ac-soft:rgba(255,45,120,.16);--ac-soft2:rgba(255,45,120,.5)">
         <div class="top"><span class="id">MOD-05</span><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></div>
         <h3>错题本</h3>
-        <p>错题自动收录，按 <b>SM-2 间隔重复</b>（1 天 → 6 天 → 按难度自适应增长）安排复习。</p>
+        <p>错题自动收录，按 <b>SM-2 间隔重复</b>（1 天、6 天，之后按难度增长）安排复习。</p>
       </div>
       <div class="mod rv" style="--ac:var(--cyan);--ac-soft:rgba(0,229,255,.16);--ac-soft2:rgba(0,229,255,.5)">
         <div class="top"><span class="id">MOD-06</span><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M12 12l9-5M12 12v10M12 12L3 7"/></svg></div>
         <h3>内容中枢</h3>
-        <p>课程包按需下载：<b>内建函数巡礼 + DSA 基础/进阶 + JavaScript / Lua / SQL 启程</b>（+29 讲），GitCode → GitHub raw → GitHub Pages 三级源 · SHA-256 校验。</p>
+        <p>课程包按需下载：<b>内建函数巡礼 + DSA 基础/进阶 + JavaScript / Lua / SQL 启程</b>（共 206 讲），GitCode、GitHub raw、GitHub Pages 三级源，SHA-256 校验。</p>
       </div>
       <div class="mod rv" style="--ac:var(--yel);--ac-soft:rgba(247,255,0,.14);--ac-soft2:rgba(247,255,0,.45)">
         <div class="top"><span class="id">MOD-07</span><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 010 18z" fill="currentColor" stroke="none" opacity=".8"/></svg></div>
         <h3>七套主题</h3>
-        <p>赛博霓虹 / 深空灰 / 极光绿 / 暮光紫 / 暮光橙 / 柔光护眼 / 白纸模式，外加<b>自定义主色</b>，即切即用不重启。</p>
+        <p>赛博霓虹、深空灰、极光绿、暮光紫、暮光橙、柔光护眼、白纸模式，外加<b>自定义主色</b>，即切即用不重启。</p>
       </div>
       <div class="mod rv" style="--ac:var(--green);--ac-soft:rgba(0,255,156,.16);--ac-soft2:rgba(0,255,156,.5)">
         <div class="top"><span class="id">MOD-08</span><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M6 20V9m6 11V4m6 16v-7"/></svg></div>
         <h3>六段位成长</h3>
-        <p><b>脚本小子 → 数据幽灵 → 网络浪人 → 义体黑客 → 街头传奇 → 系统架构师</b>，XP 驱动。</p>
+        <p><b>脚本小子、数据幽灵、网络浪人、义体黑客、街头传奇、系统架构师</b>，XP 驱动。</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ================= 04 SYSTEM VIZ ================= -->
+<!-- 04 运行原理 -->
 <section id="system" style="padding-top:clamp(20px,4vw,40px)">
   <div class="wrap">
     <div class="sec-head rv">
-      <div class="sec-id sec-cyan"><span class="bar"></span><b>04</b> // UNDER THE HOOD</div>
-      <h2>内核可视化<small>HOW A PHONE RUNS PYTHON — FULLY OFFLINE</small></h2>
+      <div class="sec-id sec-cyan"><span class="bar"></span><b>04</b> 运行原理</div>
+      <h2>内核可视化<small>手机里怎么跑 Python，全程离线</small></h2>
     </div>
-    <p class="sys-sub rv">别的学习 App 靠<b>云端执行</b>、断网即瘫；CodeLearning 把完整 <b>CPython 3.13</b> 直接嵌进 APK，所有代码都在这台手机本地跑。下面四张图把「它怎么做到」画给你看。</p>
+    <p class="sys-sub rv">别的学习 App 靠<b>云端执行</b>，断网就瘫；CodeLearning 把完整 <b>CPython 3.13</b> 直接嵌进 APK，所有代码都在这台手机本地跑。下面四张图把「它怎么做到」画给你看。</p>
 
     <div class="viz rv">
-      <div class="vtag">// ARCHITECTURE</div>
-      <h3>运行链路<small>从手指到 CPython，再回到屏幕</small></h3>
+      <div class="vtag">架构</div>
+      <h3>一次运行怎么走<small>从手指到 CPython，再回到屏幕</small></h3>
       <div class="flow">
-        <div class="node cyan"><div class="ni">UI</div><div class="nt">赛博 HUD</div><div class="nd">Jetpack Compose · 五 Tab 导航</div></div>
-        <div class="arrow">→</div>
+        <div class="node cyan"><div class="ni">UI</div><div class="nt">赛博 HUD</div><div class="nd">Jetpack Compose，五 Tab 导航</div></div>
+        <div class="arrow">至</div>
         <div class="node cyan"><div class="ni">BRIDGE</div><div class="nt">PyBridge</div><div class="nd">JSON 协议桥</div></div>
-        <div class="arrow">→</div>
+        <div class="arrow">至</div>
         <div class="node green"><div class="ni">RUNTIME</div><div class="nt">CPython 3.13</div><div class="nd">Chaquopy 17 内嵌真解释器</div></div>
-        <div class="arrow">→</div>
-        <div class="node green"><div class="ni">SANDBOX</div><div class="nt">安全沙箱</div><div class="nd">死循环看门狗 · input 接管</div></div>
-        <div class="arrow">→</div>
+        <div class="arrow">至</div>
+        <div class="node green"><div class="ni">SANDBOX</div><div class="nt">安全沙箱</div><div class="nd">死循环看门狗，input 接管</div></div>
+        <div class="arrow">至</div>
         <div class="node mag"><div class="ni">OUTPUT</div><div class="nt">变量快照</div><div class="nd">整个命名空间可视化</div></div>
       </div>
     </div>
 
     <div class="viz rv">
-      <div class="vtag">// LEARNING LOOP</div>
-      <h3>学习闭环<small>教会你为止的强制动手流</small></h3>
+      <div class="vtag">学习步骤</div>
+      <h3>学习流程<small>每一步都要自己动手</small></h3>
       <div class="loop">
-        <div class="lnode"><div class="lt">✍️ 写代码</div><div class="ld">填空 / 排序 / 手写</div></div>
-        <div class="larrow">→</div>
-        <div class="lnode"><div class="lt">▶ 运行</div><div class="ld">本机即时执行</div></div>
-        <div class="larrow">→</div>
+        <div class="lnode"><div class="lt">写代码</div><div class="ld">填空 / 排序 / 手写</div></div>
+        <div class="larrow">至</div>
+        <div class="lnode"><div class="lt">运行</div><div class="ld">本机即时执行</div></div>
+        <div class="larrow">至</div>
         <div class="lnode"><div class="lt">assert 判题</div><div class="ld">用例不过不放行</div></div>
-        <div class="larrow back">↺</div>
-        <div class="lnode"><div class="lt">🧭 规则教练</div><div class="ld">诊断 → 三步引导</div></div>
-        <div class="larrow">→</div>
-        <div class="lnode"><div class="lt">⚡ 升级</div><div class="ld">通过才段位 +XP</div></div>
+        <div class="larrow back">回</div>
+        <div class="lnode"><div class="lt">规则教练</div><div class="ld">诊断，三步引导</div></div>
+        <div class="larrow">至</div>
+        <div class="lnode"><div class="lt">升级</div><div class="ld">通过才段位 +XP</div></div>
       </div>
     </div>
 
     <div class="viz rv">
-      <div class="vtag">// SIX TIERS</div>
-      <h3>六段位成长<small>像打游戏一样升级</small></h3>
+      <div class="vtag">六个段位</div>
+      <h3>六段位成长<small>一级一级往上走</small></h3>
       <div class="ladder">
-        <div class="tier"><div class="rk">🥉</div><div class="tn">脚本小子</div><div class="tp">TIER 01</div></div>
-        <div class="tier"><div class="rk">🥈</div><div class="tn">数据幽灵</div><div class="tp">TIER 02</div></div>
-        <div class="tier"><div class="rk">🥉</div><div class="tn">网络浪人</div><div class="tp">TIER 03</div></div>
-        <div class="tier"><div class="rk">🥇</div><div class="tn">义体黑客</div><div class="tp">TIER 04</div></div>
-        <div class="tier"><div class="rk">🏆</div><div class="tn">街头传奇</div><div class="tp">TIER 05</div></div>
-        <div class="tier"><div class="rk">👑</div><div class="tn">系统架构师</div><div class="tp">TIER 06</div></div>
+        <div class="tier"><div class="rk">01</div><div class="tn">脚本小子</div><div class="tp">第 1 段</div></div>
+        <div class="tier"><div class="rk">02</div><div class="tn">数据幽灵</div><div class="tp">第 2 段</div></div>
+        <div class="tier"><div class="rk">03</div><div class="tn">网络浪人</div><div class="tp">第 3 段</div></div>
+        <div class="tier"><div class="rk">04</div><div class="tn">义体黑客</div><div class="tp">第 4 段</div></div>
+        <div class="tier"><div class="rk">05</div><div class="tn">街头传奇</div><div class="tp">第 5 段</div></div>
+        <div class="tier"><div class="rk">06</div><div class="tn">系统架构师</div><div class="tp">第 6 段</div></div>
       </div>
     </div>
 
     <div class="viz rv">
-      <div class="vtag">// WHAT YOU LEARN</div>
-      <h3>六门语言，都能真跑<small>REAL RUNTIME · LESSONS · ASSERT JUDGING</small></h3>
+      <div class="vtag">能学到什么</div>
+      <h3>六门语言，都能真跑<small>真实运行时、课程、断言判题</small></h3>
       <div class="bars">
-        <div class="bar-row"><span class="bl">Python · CPython 3.13 内置 —— print 到异步协程，39 讲主线（含综合项目）+ DSA + 内置函数</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bv">内置</span></div>
-        <div class="bar-row"><span class="bl">TypeScript · 类型擦除 → Rhino —— 类型标注到类型建模</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bv">38 讲</span></div>
-        <div class="bar-row"><span class="bl">C · 内置解释器 —— printf 到指针、结构体与综合项目</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bv">38 讲</span></div>
-        <div class="bar-row"><span class="bl">JavaScript · Rhino —— console.log 到生成器与项目实战</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bv">38 讲</span></div>
-        <div class="bar-row"><span class="bl">Lua · LuaJ —— local 与类型、table、元表与协程</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bv">38 讲</span></div>
-        <div class="bar-row"><span class="bl">SQL · SQLite —— SELECT 到窗口函数、事务与边界专题</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bv">43 讲</span></div>
+        <div class="bar-row"><span class="bl">Python，内置 CPython 3.13，从 print 到异步协程，39 讲主线，另有 DSA 和内置函数</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bv">内置</span></div>
+        <div class="bar-row"><span class="bl">TypeScript，类型擦除后交给 Rhino，从类型标注到类型建模</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bv">38 讲</span></div>
+        <div class="bar-row"><span class="bl">C，内置解释器，从 printf 到指针、结构体和综合项目</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bv">38 讲</span></div>
+        <div class="bar-row"><span class="bl">JavaScript，Rhino 运行时，从 console.log 到生成器和项目实战</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bv">38 讲</span></div>
+        <div class="bar-row"><span class="bl">Lua，LuaJ 运行时，从 local、table 到元表和协程</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bv">38 讲</span></div>
+        <div class="bar-row"><span class="bl">SQL，SQLite 运行时，从 SELECT 到窗口函数、事务和边界专题</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bv">43 讲</span></div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ================= CURRICULUM ================= -->
+<!-- 课程 -->
 <section id="curriculum" style="padding-top:clamp(20px,4vw,40px)">
   <div class="wrap">
     <div class="sec-head rv">
-      <div class="sec-id sec-yel"><span class="bar"></span><b>05</b> // CURRICULUM</div>
-      <h2>Python 39 讲 · 五幕<small>FROM print() TO DECORATORS — PLUS 5 MORE LANGUAGES, NO CLOUD, NO ADS, NO ACCOUNT</small></h2>
+      <div class="sec-id sec-yel"><span class="bar"></span><b>05</b> 课程</div>
+      <h2>Python 39 讲，五幕<small>从 print() 到装饰器，另有五门语言，离线、无广告、不注册</small></h2>
     </div>
     <div class="term rv">
-      <div class="term-bar"><i></i><i></i><i></i><span class="tt">curriculum.py — act list</span></div>
+      <div class="term-bar"><i></i><i></i><i></i><span class="tt">curriculum.py 课程列表</span></div>
       <div class="curr-term">
         <div><span class="cmd">$ python curriculum.py --list</span></div>
-        <div class="act"><span class="tag a1">第一幕 · 基础协议</span><span class="rng">01-10</span><span class="desc">print 握手 → 变量家族 → 字典金库 → 通关仪式</span></div>
-        <div class="act"><span class="tag a2">第二幕 · 进阶装备</span><span class="rng">11-18</span><span class="desc">字符串工具箱 → 函数进化 → 异常护盾 → 类与对象</span></div>
-        <div class="act"><span class="tag a3">第三幕 · 高阶义体</span><span class="rng">19-26</span><span class="desc">魔术方法 → 生成器引擎 → 装饰器 → 标准库实战</span></div>
-        <div class="act"><span class="tag fin">第四幕 · 边界之外</span><span class="rng">27-30</span><span class="desc">资源管家 → 文件 IO → 自定义异常 → __main__ 守卫</span></div>
-        <div class="act"><span class="tag plus">第五幕 · 生产实战</span><span class="rng">31-38</span><span class="desc">正则 → 类型提示 → 并发/异步 → 测试与工程化</span></div>
-        <div class="act"><span class="tag plus">+ 角斗场 ARENA</span><span class="desc">8 大挑战（6 Python + 2 JavaScript，App 内可跑）· 霓虹计数器 / 回文侦测 / 密码防火墙…</span></div>
-        <div class="act"><span class="tag plus">+ 内容中枢 HUB</span><span class="desc">内建函数巡礼 1 讲 · DSA 基础/进阶各 5 讲 · JavaScript / TypeScript / C / Lua 各 38 讲，SQL 43 讲（共 +206 讲，全库 245 讲）</span></div>
+        <div class="act"><span class="tag a1">第一幕：基础协议</span><span class="rng">01-10</span><span class="desc">print、变量、字典、通关练习</span></div>
+        <div class="act"><span class="tag a2">第二幕：进阶装备</span><span class="rng">11-18</span><span class="desc">字符串、函数、异常、类与对象</span></div>
+        <div class="act"><span class="tag a3">第三幕：高阶义体</span><span class="rng">19-26</span><span class="desc">魔术方法、生成器、装饰器、标准库</span></div>
+        <div class="act"><span class="tag fin">第四幕：边界之外</span><span class="rng">27-30</span><span class="desc">资源管理、文件 IO、自定义异常、__main__ 守卫</span></div>
+        <div class="act"><span class="tag plus">第五幕：生产实战</span><span class="rng">31-38</span><span class="desc">正则、类型提示、并发与异步、测试与工程化</span></div>
+        <div class="act"><span class="tag plus">+ 角斗场 ARENA</span><span class="desc">22 道挑战（Python 7 道，其余覆盖 JavaScript、TypeScript、C、Lua、SQL）</span></div>
+        <div class="act"><span class="tag plus">+ 内容中枢 HUB</span><span class="desc">内建函数巡礼 1 讲，DSA 基础与进阶各 5 讲，JavaScript、TypeScript、C、Lua 各 38 讲，SQL 43 讲，扩展包共 206 讲，全库 245 讲。</span></div>
       </div>
     </div>
-    <p class="curr-foot rv">每一讲都包含：<b>可运行示例 + OUTPUT 预览 + 图示/表格 + 随堂一问 + assert 判题实战</b> —— 通关即掌握。</p>
+    <p class="curr-foot rv">每一讲都有<b>可运行示例、输出预览、图示表格、随堂一问和 assert 判题</b>。</p>
   </div>
 </section>
 
 
-<!-- ================= WEB CLIENT ================= -->
+<!-- 网页版 -->
 <section id="web" style="padding-top:clamp(20px,4vw,40px)">
   <div class="wrap">
     <div class="sec-head rv">
-      <div class="sec-id sec-cyan"><span class="bar"></span><b>06</b> // WEB CLIENT</div>
-      <h2>不装 App 也能学<small>BROWSER-NATIVE CPYTHON 3.13 · SAME COURSES, SAME ENGINE</small></h2>
+      <div class="sec-id sec-cyan"><span class="bar"></span><b>06</b> 网页版</div>
+      <h2>不装 App 也能学<small>浏览器里跑 CPython 3.13，课程和引擎跟 App 一样</small></h2>
     </div>
     <div class="dl-card rv">
       <div class="dl-left">
-        <h3>网页版 · 在线试玩</h3>
-        <div class="sub">PYODIDE 0.29.5 · CPYTHON 3.13.2 · 无需注册</div>
+        <h3>网页版：在线试玩</h3>
+        <div class="sub">Pyodide 0.29.5，CPython 3.13.2，无需注册</div>
         <ul class="spec">
-          <li>与手机端<b>同一套课程 JSON</b>与<b>同一份 runner.py</b></li>
-          <li>执行在 <b>Web Worker</b> 内，死循环可强制终止，不冻结页面</li>
-          <li>进度 / XP 存本机 <b>localStorage</b>，刷新与深链可恢复</li>
+          <li>和手机端用<b>同一套课程 JSON</b>和<b>同一份 runner.py</b></li>
+          <li>代码在 <b>Web Worker</b> 里跑，死循环能强制终止，页面不会卡住</li>
+          <li>进度和 XP 存本机 <b>localStorage</b>，刷新与深链可恢复</li>
           <li>首屏需联网下载约 12 MB WASM 内核（浏览器缓存后复用）</li>
           <li>需要现代浏览器 <b>Chrome / Edge / Firefox / Safari 16.4+</b></li>
         </ul>
@@ -784,14 +784,14 @@ footer .fine b{color:var(--dim)}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           打开网页版
         </a>
-        <div class="dl-alt">网页版是 App 的<b>子集</b>：6 道 Python 挑战可判题，2 道 JavaScript 挑战请在 App 内体验；成就 / 连击 / 证书等 Android 专属功能不在网页端。</div>
+        <div class="dl-alt">网页版是 App 的<b>子集</b>：Python 7 道挑战能判题，其余 15 道请到 App 里做；成就、连击、证书这些只在 Android 端。</div>
       </div>
       <div class="dl-right">
-        <div class="lbl">// SAME ENGINE, TWO RUNTIMES</div>
-        <div class="codeblk"><span class="cm"># Android: CPython 3.13 via Chaquopy</span>
+        <div class="lbl">同一份引擎，两个运行时</div>
+        <div class="codeblk"><span class="cm"># Android 端：CPython 3.13，走 Chaquopy</span>
 <span class="c1">./gradlew</span> :app:assembleDebug
 
-<span class="cm"># Web: same runner.py in Pyodide</span>
+<span class="cm"># 网页端：同一个 runner.py，跑在 Pyodide</span>
 <span class="c1">cd</span> web
 <span class="c1">python</span> -m http.server 8765
 
@@ -803,41 +803,40 @@ footer .fine b{color:var(--dim)}
 
     <div class="web-demo rv">
       <div class="term">
-        <div class="term-bar"><i></i><i></i><i></i><span class="tt">mashang-web-demo.mp4 — 1280×800 · 28s · Chromium</span></div>
+        <div class="term-bar"><i></i><i></i><i></i><span class="tt">mashang-web-demo.mp4，1280×800，28 秒，Chromium</span></div>
         <video controls preload="none" playsinline poster="assets/web-demo-poster.jpg">
           <source src="assets/web-demo.mp4" type="video/mp4">
-          您的浏览器不支持视频播放 — <a href="assets/web-demo.mp4">下载观看</a>。
+          您的浏览器不支持视频播放，<a href="assets/web-demo.mp4">点这里下载</a>。
         </video>
       </div>
-      <p class="demo-note"><span>真实网页端录屏：运行课程代码 → 判题通过 → XP 落盘 → REPL 交互</span></p>
+      <p class="demo-note"><span>真实网页端录屏：运行课程代码、判题通过、XP 存档、REPL 交互</span></p>
     </div>
 
     <div class="web-shots rv">
-      <figure><img src="assets/web-home.jpg" alt="网页版首页" loading="lazy" width="1440" height="980"><figcaption>指挥台 · 进度存档</figcaption></figure>
-      <figure><img src="assets/web-lesson.jpg" alt="网页版课程与判题" loading="lazy" width="1440" height="980"><figcaption>课程详情 · 判题编辑器</figcaption></figure>
-      <figure><img src="assets/web-terminal.jpg" alt="网页版终端" loading="lazy" width="1440" height="980"><figcaption>终端 · 有状态 REPL</figcaption></figure>
-      </div>
+      <figure><img src="assets/web-home.jpg" alt="网页版首页" loading="lazy" width="1440" height="980"><figcaption>指挥台：进度存档</figcaption></figure>
+      <figure><img src="assets/web-lesson.jpg" alt="网页版课程与判题" loading="lazy" width="1440" height="980"><figcaption>课程详情：判题编辑器</figcaption></figure>
+      <figure><img src="assets/web-terminal.jpg" alt="网页版终端" loading="lazy" width="1440" height="980"><figcaption>终端：有状态 REPL</figcaption></figure>
     </div>
   </div>
 </section>
 
-<!-- ================= 05 DOWNLOAD ================= -->
+<!-- 05 下载 -->
 <section id="download" style="padding-top:clamp(20px,4vw,40px)">
   <div class="wrap">
     <div class="sec-head rv">
-      <div class="sec-id sec-green"><span class="bar"></span><b>07</b> // DOWNLOAD</div>
-      <h2>获取 CodeLearning<small>FREE · OPEN SOURCE · NO SIGN-UP</small></h2>
+      <div class="sec-id sec-green"><span class="bar"></span><b>07</b> 下载</div>
+      <h2>获取 CodeLearning<small>免费，开源，不用注册</small></h2>
     </div>
     <div class="dl-card rv">
       <div class="dl-left">
         <h3>直接下载 APK</h3>
-        <div class="sub">RELEASES @ GITHUB / GITCODE / GITEE · 免费 · 无广告 · 无账号</div>
+        <div class="sub">GitHub、GitCode、Gitee 发布，免费，无广告，无账号</div>
         <ul class="spec">
           <li>系统要求 <b>Android 10.0+</b>（minSdk 29）</li>
           <li>架构 <b>arm64-v8a</b>（64 位 ARM 真机）</li>
-          <li>构建 <b>R8 混淆</b> Release 版 · 签名证书 CN=Mashang</li>
-          <li>协议 <b>MIT License</b> · 可商用</li>
-          <li>隐私 <b>零数据上传</b> · 无账号体系</li>
+          <li>构建 <b>R8 混淆</b> Release 版，签名证书 CN=Mashang</li>
+          <li>协议 <b>MIT License</b>，可商用</li>
+          <li>隐私 <b>零数据上传</b>，无账号体系</li>
         </ul>
         <a class="dl-btn-big" href="https://github.com/badhope/mashang/releases/latest" target="_blank" rel="noopener">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 21h16"/></svg>
@@ -846,7 +845,7 @@ footer .fine b{color:var(--dim)}
         <div class="dl-alt">应用内暂未内置自动更新；新版本请从 GitHub / GitCode / Gitee 的 Releases 下载后覆盖安装，学习数据不受影响。</div>
       </div>
       <div class="dl-right">
-        <div class="lbl">// BUILD FROM SOURCE</div>
+        <div class="lbl">从源码构建</div>
         <div class="codeblk"><span class="cm"># 克隆仓库</span>
 <span class="c1">git</span> clone https://gitcode.com/badhope/mashang.git
 <span class="c1">cd</span> mashang
@@ -856,27 +855,27 @@ footer .fine b{color:var(--dim)}
 
 <span class="cm"># 课程内容全量校验</span>
 python tests/validate_content.py</div>
-        <p class="note"><b>技术栈：</b>Kotlin + Jetpack Compose（Material3 赛博自定义主题）· Chaquopy 17.0 桥接 CPython 3.13 · DataStore 进度存储 · 单 Activity 五 Tab 导航。</p>
+        <p class="note"><b>技术栈：</b>Kotlin + Jetpack Compose（Material3 赛博自定义主题），Chaquopy 17.0 桥接 CPython 3.13，DataStore 存进度，单 Activity 五 Tab 导航。</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ================= FAQ ================= -->
+<!-- 常见问题 -->
 <section id="faq" style="padding-top:clamp(16px,3vw,30px)">
   <div class="wrap">
     <div class="sec-head rv" style="text-align:center">
-      <div class="sec-id sec-mag"><span class="bar"></span><b>08</b> // FAQ</div>
-      <h2>常见疑问<small>BEFORE YOU ASK</small></h2>
+      <div class="sec-id sec-mag"><span class="bar"></span><b>08</b> 常见问题</div>
+      <h2>常见疑问<small>提问之前</small></h2>
     </div>
     <div class="faq" id="faqList">
       <details class="rv" open>
         <summary>真的是 100% 离线吗？那要网络权限干嘛？</summary>
-        <div class="ans">学习、写码、判题 <b>100% 离线</b>——CPython 3.13 解释器直接嵌在 APK 里。联网仅当你手动在「内容中枢」检查/下载新课程包时发生，且<b>零个人数据上传</b>。</div>
+        <div class="ans">学习、写码、判题 <b>100% 离线</b>，CPython 3.13 解释器直接嵌在 APK 里。联网仅当你手动在「内容中枢」检查/下载新课程包时发生，且<b>零个人数据上传</b>。</div>
       </details>
       <details class="rv">
         <summary>和 Pydroid3 这类 IDE 有什么区别？</summary>
-        <div class="ans">Pydroid 是开发工具；CodeLearning 是<b>「课程即代码」的学习终端</b>——每讲自带判题挑战与成长体系。我们的目标是<b>教会你</b>，而不是只给你一个空白编辑器。</div>
+        <div class="ans">Pydroid 是开发工具；CodeLearning 是<b>课程加代码的学习应用</b>，每讲自带判题和成长体系。我们的目标是<b>教会你</b>，而不是只给你一个空白编辑器。</div>
       </details>
       <details class="rv">
         <summary>会有 iOS 版吗？</summary>
@@ -884,16 +883,16 @@ python tests/validate_content.py</div>
       </details>
       <details class="rv">
         <summary>可以商用吗？</summary>
-        <div class="ans">可以。项目以 <b>MIT License</b> 开源——可自由使用、修改、分发（含商用），只需保留许可声明。详见仓库 LICENSE。</div>
+        <div class="ans">可以。项目以 <b>MIT License</b> 开源，可以自由使用、修改、分发，商用也行，保留许可声明即可。详见仓库 LICENSE。</div>
       </details>
     </div>
   </div>
 </section>
 
-<!-- ================= FOOTER ================= -->
+<!-- 页脚 -->
 <footer>
   <div class="wrap foot-center">
-    <div class="rv foot-logo"><svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-label="CodeLearning · 码上">
+    <div class="rv foot-logo"><svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-label="CodeLearning（码上）">
   <defs>
     <linearGradient id="fbg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0A0E17"/>
@@ -920,11 +919,11 @@ python tests/validate_content.py</div>
     <path d="M40 74 L40 64 L51 64 L51 54 L62 54 L62 44" stroke="#00FF9C" stroke-width="8"/>
   </g>
   <text x="250" y="139" font-family="Segoe UI, Inter, 'Helvetica Neue', Arial, sans-serif" font-size="86" font-weight="700" letter-spacing="-1.5" fill="#F9FAFB">Code<tspan fill="url(#fsweep)">Learning</tspan></text>
-  <text x="253" y="197" font-family="Microsoft YaHei, PingFang SC, Noto Sans SC, sans-serif" font-size="29" font-weight="500" letter-spacing="3.5" fill="#93A3B8">码上 · 离线编程学习终端</text>
+  <text x="253" y="197" font-family="Microsoft YaHei, PingFang SC, Noto Sans SC, sans-serif" font-size="29" font-weight="500" letter-spacing="3.5" fill="#93A3B8">码上：离线编程学习终端</text>
   <rect x="253" y="230" width="64" height="3.5" rx="1.75" fill="#00E5FF"/>
-  <text x="333" y="237" font-family="Consolas, 'SF Mono', Menlo, monospace" font-size="17" letter-spacing="2.6" fill="#00E5FF" opacity="0.62">OFFLINE FIRST · 6 LANGUAGES</text>
+  <text x="333" y="237" font-family="Consolas, 'SF Mono', Menlo, monospace" font-size="17" letter-spacing="2.6" fill="#00E5FF" opacity="0.62">离线优先，六门语言</text>
 </svg></div>
-    <div class="tag">CODE NOW · PYTHON + JAVASCRIPT · LEARN OFFLINE, ANYWHERE</div>
+    <div class="tag">随时写代码，离线也能学</div>
     <div class="foot-links">
       <a href="https://github.com/badhope/mashang" target="_blank" rel="noopener">GitHub</a>
       <a href="https://gitcode.com/badhope/mashang" target="_blank" rel="noopener">GitCode</a>
@@ -936,8 +935,8 @@ python tests/validate_content.py</div>
       <a href="https://github.com/badhope/mashang/blob/main/PRIVACY_POLICY.md" target="_blank" rel="noopener">隐私政策</a>
     </div>
     <div class="fine">
-      <b>CodeLearning</b> · 码上 — 装进口袋的赛博朋克编程学习终端<br>
-      badhope / mashang · © 2026 · MIT · BUILT WITH NEON &amp; CAFFEINE
+      <b>CodeLearning</b>（码上）：装进口袋的编程学习终端<br>
+      badhope / mashang，© 2026，MIT 协议
     </div>
   </div>
 </footer>
@@ -953,12 +952,12 @@ python tests/validate_content.py</div>
 
   /* ---- boot log typing ---- */
   const BOOT=[
-    ['> CodeLearning BOOT SEQUENCE v0.5.0','c'],
-    ['> mounting /dev/python ............ <b>OK</b>',''],
-    ['> curriculum: 245 lessons ....... <b>LOADED</b>',''],
-    ['> assert judge .................... <b>ARMED</b>',''],
-    ['> variable snapshot ............... <b>READY</b>',''],
-    ['> network ......................... <b style="color:#00FF9C">OPTIONAL</b>','']
+    ['> CodeLearning 启动 v0.7.1','c'],
+    ['> 加载 Python 运行时 ............ <b>成功</b>',''],
+    ['> 课程 245 讲 ................... <b>已加载</b>',''],
+    ['> 断言判题 ....................... <b>就绪</b>',''],
+    ['> 变量快照 ....................... <b>就绪</b>',''],
+    ['> 网络 ........................... <b style="color:#00FF9C">可选</b>','']
   ];
   (async()=>{
     const box=document.getElementById('boot'); if(!box) return;

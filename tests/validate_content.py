@@ -644,7 +644,7 @@ def structural_checks(lessons):
             problems.append(f"{lid}: 缺少练习")
         elif lid not in SOLUTIONS and not ex.get("solution"):
             # 多语言：非 Python 课程的参考答案直接放在 exercise.solution 里，
-            # 由对应语言的判题器（如 JS → node）使用
+            # 由对应语言的判题器使用，比如 JS 交给 node
             problems.append(f"{lid}: 缺少参考答案")
         for b in lesson["blocks"]:
             if b.get("type") == "quiz":

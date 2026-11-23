@@ -45,7 +45,7 @@ class StripSelfShaTests(unittest.TestCase):
         stripped = update_catalog.strip_self_sha(text)
         # 顶层字段必须被置空
         self.assertTrue(re.search(r'"sha256"\s*:\s*""', stripped))
-        # packs 内层的 sha256 必须保持 64 位 hex 原值（核心断言：旧实现会清空它们）。
+        # packs 内层的 sha256 必须保持 64 位 hex 原值（核心断言：之前那版会清空它们）。
         # 包数量随语言包扩充变化，按 catalog 实际 packs 数动态断言。
         import json
 

@@ -58,7 +58,7 @@ class EditorThemeTests(unittest.TestCase):
         漏一个的直接后果：该语言编辑器静默降级成白底默认主题。
         """
         import plistlib
-        # 语言 id → (scopeName, 代表扩展名)
+        # 语言 id 对应 (scopeName, 代表扩展名)
         expected = {
             "python": ("source.python", "py"),
             "javascript": ("source.js", "js"),
@@ -447,7 +447,7 @@ class PlatformDecisionTests(unittest.TestCase):
                 self.assertNotIn("getExternalStoragePublicDirectory", text,
                                  f"{rel[-1]} 仍含 pre-Q 公共存储路径")
                 # 只检查实际调用（sendBroadcast(...ACTION_MEDIA_SCANNER...)），
-                # 注释里说明"旧实现曾用该常量"是正常文档
+                # 注释里说明"早期版本曾用该常量"是正常文档
                 self.assertNotIn("sendBroadcast", text,
                                  f"{rel[-1]} 仍含手动扫描广播调用")
 

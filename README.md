@@ -2,7 +2,7 @@
 
 <img src="docs/banner.png" alt="CodeLearning" width="830"/>
 
-**CodeLearning · 码上 — write code on your phone. Six languages, 245 lessons, all offline.**
+**CodeLearning: write code on your phone. Six languages, 245 lessons, all offline.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-00E5FF.svg)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-10.0%2B-00E5FF.svg)]()
@@ -65,10 +65,10 @@ Build from source:
 
 ## License
 
-MIT. Third-party licenses are listed in-app under About → Open Source Licenses.
+MIT. Third-party licenses are listed in-app under About 里的 Open Source Licenses.
 
-[Privacy](PRIVACY_POLICY.md) · [Terms](TERMS_OF_SERVICE.md)
+[Privacy](PRIVACY_POLICY.md)、[Terms](TERMS_OF_SERVICE.md)
 
 ---
 
-<sub>Mirrors: [GitHub](https://github.com/badhope/mashang) · [GitCode](https://gitcode.com/badhope/mashang) · [Gitee](https://gitee.com/badhope/mashang)</sub>
+<sub>Mirrors: [GitHub](https://github.com/badhope/mashang)、[GitCode](https://gitcode.com/badhope/mashang)、[Gitee](https://gitee.com/badhope/mashang)</sub>

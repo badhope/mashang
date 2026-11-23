@@ -13,7 +13,7 @@ import runner
 
 class IsolationTests(unittest.TestCase):
     def test_tests_share_state_but_do_not_pollute_user_ns(self):
-        # 现有课程把 tests 写成"准备→动作→断言"的有序脚本，测试间必须共享状态
+        # 现有课程把 tests 写成"准备、动作、断言"的有序脚本，测试间必须共享状态
         code = "class Counter:\n    def __init__(self):\n        self.n = 0\n    def add(self, x):\n        self.n += x\n        return self.n"
         tests = [
             "c = Counter()",                     # 准备
@@ -55,7 +55,7 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(names[0], "v49")
         # 最多展示 MAX_VARS 个（40）
         self.assertLessEqual(len(names), 40)
-        # 旧实现按插入序 break 会漏掉最后定义的；现在最近定义优先，必然保留
+        # 早期版本按插入序 break 会漏掉最后定义的；现在最近定义优先，必然保留
         self.assertIn("v49", names)
 
     def test_snapshot_keeps_data_vars_only(self):

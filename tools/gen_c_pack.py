@@ -36,8 +36,8 @@ c_lessons = [
         "starterCode": "int main() {\n    // 打印 HELLO, V\n\n    return 0;\n}",
         "hint": "printf(\"HELLO, V\");",
         "tests": [
-            # 判题断言的是「用户 main 的真实输出」，不是让测试自己打印——
-            # 否则用户什么都没写也能通过（2026-11 实测漏洞）。
+            # 判题断言的是「用户 main 的真实输出」，不是让测试自己打印。
+            # 否则用户什么都没写也能通过（之前踩过的坑）。
             "int main() { assertOutput(\"HELLO, V\", \"应打印 HELLO, V\"); return 0; }",
         ],
         "stdin": [],

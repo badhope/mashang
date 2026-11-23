@@ -56,7 +56,7 @@ class WorkflowSyntaxTests(unittest.TestCase):
             with self.subTest(path=path.name):
                 doc = _strict_load(path)
                 self.assertIsInstance(doc, dict)
-                # GitHub/GitCode 用 jobs，Gitee Go 用 stages —— 都要求至少有一层任务
+                # GitHub/GitCode 用 jobs，Gitee Go 用 stages，都要求至少有一层任务
                 self.assertIn("jobs", doc, f"{path.name} 缺少 jobs")
 
 

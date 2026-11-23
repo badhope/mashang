@@ -60,7 +60,7 @@ def main():
 
     def find_module(stem):
         # Chaquopy 按平台/缓存状态可能产出 <stem>.py、<stem>.pyc 或
-        # __pycache__/<stem>.cpython-3XX.pyc —— 三种布局都接受。
+        # __pycache__/<stem>.cpython-3XX.pyc，三种布局都接受。
         hits = [
             n for n in entries
             if n.rsplit("/", 1)[-1].split(".")[0] == stem and n.endswith((".py", ".pyc"))
@@ -126,7 +126,7 @@ def main():
         fail("AndroidManifest 中未找到包名 com.pyneon.academy")
     print("[PASS] AndroidManifest 包名就位")
 
-    # ===== 发布级 APK 检查（2026-11 补充）=====
+    # 发布级 APK 检查
     # 这几条都是「能在真机上炸」的问题，必须在打包阶段就拦住。
 
     # R6: 不得混入源码/调试器/示例文件（体积与信息泄漏）
