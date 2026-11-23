@@ -36,13 +36,9 @@ object BackupUtil {
         val mistakes: List<MistakeRecord>
     )
 
-    // Export backup to Downloads/CodeLearning
     suspend fun exportBackup(context: Context): Result<Uri> = withContext(Dispatchers.IO) {
         try {
             val progress = ProgressStore.snapshot(context)
-            val reviewCards = loadReviewCardsFromFile(context)
-            val mistakes = loadMistakesFromFile(context)
-
             val backup = BackupData(
                 xpTotal = progress.xpTotal,
                 completedLessons = progress.completedLessons,
@@ -57,32 +53,27 @@ object BackupUtil {
                 nightOwl = progress.nightOwl,
                 terminalHead = progress.terminalHead,
                 badges = progress.badges,
-                reviewCards = reviewCards,
-                mistakes = mistakes
+                reviewCards = UserDataFiles.reviewCardsStore(context).read(),
+                mistakes = UserDataFiles.mistakesStore(context).read()
             )
-
-            val jsonString = backupToJson(backup).toString(2)
-            val uri = saveToStorage(context, jsonString, "codelearning_backup_${System.currentTimeMillis()}.json")
-            Result.success(uri)
+            val name = "codelearning_backup_${System.currentTimeMillis()}.json"
+            Result.success(saveBackup(context, backupToJson(backup).toString(2), name))
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    // Import backup from file picker
     suspend fun importBackup(context: Context, uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val inputStream = context.contentResolver.openInputStream(uri)
+            val input = context.contentResolver.openInputStream(uri)
                 ?: return@withContext Result.failure(IllegalArgumentException("无法打开文件"))
-
-            val jsonString = inputStream.bufferedReader().use { it.readText() }
-            val backup = backupFromJson(JSONObject(jsonString))
+            val json = input.bufferedReader().use { it.readText() }
+            val backup = backupFromJson(JSONObject(json))
 
             if (backup.version > BACKUP_VERSION) {
                 return@withContext Result.failure(IllegalArgumentException("备份版本过新，请更新应用"))
             }
 
-            // Restore DataStore progress
             ProgressStore.restoreFromBackup(
                 context,
                 xpTotal = backup.xpTotal,
@@ -97,124 +88,83 @@ object BackupUtil {
                 terminalHead = backup.terminalHead,
                 badges = backup.badges
             )
-            // restoreFromBackup 不带 longest/total（旧备份字段），单独补写
-            ProgressStore.updateStreakStats(context, backup.streakDays, backup.longestStreak, backup.totalActiveDays)
+            ProgressStore.updateStreakStats(
+                context,
+                backup.streakDays,
+                backup.longestStreak,
+                backup.totalActiveDays
+            )
 
-            // Save review cards and mistakes to their JSON files
-            saveReviewCardsToFile(context, backup.reviewCards)
-            saveMistakesToFile(context, backup.mistakes)
-
+            UserDataFiles.reviewCardsStore(context).write(backup.reviewCards)
+            UserDataFiles.mistakesStore(context).write(backup.mistakes)
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    // ---- JSON serialization helpers using org.json ----
-    private fun setToJson(set: Set<String>): JSONArray = JSONArray().apply {
+    private fun setToJson(set: Set<String>) = JSONArray().apply {
         for (item in set) put(item)
     }
 
-    private fun setFromJson(arr: JSONArray): Set<String> = buildSet {
+    private fun setFromJson(arr: JSONArray) = buildSet {
         for (i in 0 until arr.length()) add(arr.getString(i))
     }
-
-    private fun progressToJson(b: BackupData) = JSONObject().apply {
-        put("xpTotal", b.xpTotal)
-        put("completedLessons", setToJson(b.completedLessons))
-        put("solvedKeys", setToJson(b.solvedKeys))
-        put("streakDays", b.streakDays)
-        put("longestStreak", b.longestStreak)
-        put("totalActiveDays", b.totalActiveDays)
-        put("lastActiveEpochDay", b.lastActiveEpochDay)
-        put("dailyDate", b.dailyDate)
-        put("dailyCount", b.dailyCount)
-        put("firstRunDone", b.firstRunDone)
-        put("nightOwl", b.nightOwl)
-        put("terminalHead", b.terminalHead)
-        put("badges", setToJson(b.badges))
-    }
-
-    private fun progressFromJson(o: JSONObject) = object {
-        val xpTotal = o.optInt("xpTotal")
-        val completedLessons = setFromJson(o.getJSONArray("completedLessons"))
-        val solvedKeys = setFromJson(o.getJSONArray("solvedKeys"))
-        val streakDays = o.optInt("streakDays")
-        val longestStreak = o.optInt("longestStreak")
-        val totalActiveDays = o.optInt("totalActiveDays")
-        val lastActiveEpochDay = o.optLong("lastActiveEpochDay", -1L)
-        val dailyDate = o.optLong("dailyDate", -1L)
-        val dailyCount = o.optInt("dailyCount")
-        val firstRunDone = o.optBoolean("firstRunDone")
-        val nightOwl = o.optBoolean("nightOwl")
-        val terminalHead = o.optBoolean("terminalHead")
-        val badges = setFromJson(o.getJSONArray("badges"))
-    }
-
-    // 2026-11 去重：卡片/错题不再手写字段映射，统一走 kotlinx.serialization；
-    // 与 ViewModels、JsonListFile 共用同一份 @Serializable 定义。
-    private fun reviewCardsToJson(cards: List<ReviewCard>): JSONArray =
-        JSONArray(UserDataJson.encodeToString(ListSerializer(ReviewCard.serializer()), cards))
-
-    private fun reviewCardsFromJson(arr: JSONArray): List<ReviewCard> =
-        UserDataJson.decodeFromString(ListSerializer(ReviewCard.serializer()), arr.toString())
-
-    private fun mistakesToJson(mistakes: List<MistakeRecord>): JSONArray =
-        JSONArray(UserDataJson.encodeToString(ListSerializer(MistakeRecord.serializer()), mistakes))
-
-    private fun mistakesFromJson(arr: JSONArray): List<MistakeRecord> =
-        UserDataJson.decodeFromString(ListSerializer(MistakeRecord.serializer()), arr.toString())
 
     private fun backupToJson(b: BackupData) = JSONObject().apply {
         put("version", b.version)
         put("timestamp", b.timestamp)
-        put("progress", progressToJson(b))
-        put("reviewCards", reviewCardsToJson(b.reviewCards))
-        put("mistakes", mistakesToJson(b.mistakes))
+        put("progress", JSONObject().apply {
+            put("xpTotal", b.xpTotal)
+            put("completedLessons", setToJson(b.completedLessons))
+            put("solvedKeys", setToJson(b.solvedKeys))
+            put("streakDays", b.streakDays)
+            put("longestStreak", b.longestStreak)
+            put("totalActiveDays", b.totalActiveDays)
+            put("lastActiveEpochDay", b.lastActiveEpochDay)
+            put("dailyDate", b.dailyDate)
+            put("dailyCount", b.dailyCount)
+            put("firstRunDone", b.firstRunDone)
+            put("nightOwl", b.nightOwl)
+            put("terminalHead", b.terminalHead)
+            put("badges", setToJson(b.badges))
+        })
+        put("reviewCards", JSONArray(UserDataJson.encodeToString(ListSerializer(ReviewCard.serializer()), b.reviewCards)))
+        put("mistakes", JSONArray(UserDataJson.encodeToString(ListSerializer(MistakeRecord.serializer()), b.mistakes)))
     }
 
     private fun backupFromJson(o: JSONObject): BackupData {
-        val p = progressFromJson(o.getJSONObject("progress"))
+        val p = o.getJSONObject("progress")
+        val cards = o.optJSONArray("reviewCards") ?: JSONArray()
+        val mistakes = o.optJSONArray("mistakes") ?: JSONArray()
         return BackupData(
             version = o.optInt("version", 1),
             timestamp = o.optLong("timestamp"),
-            xpTotal = p.xpTotal,
-            completedLessons = p.completedLessons,
-            solvedKeys = p.solvedKeys,
-            streakDays = p.streakDays,
-            longestStreak = p.longestStreak,
-            totalActiveDays = p.totalActiveDays,
-            lastActiveEpochDay = p.lastActiveEpochDay,
-            dailyDate = p.dailyDate,
-            dailyCount = p.dailyCount,
-            firstRunDone = p.firstRunDone,
-            nightOwl = p.nightOwl,
-            terminalHead = p.terminalHead,
-            badges = p.badges,
-            reviewCards = reviewCardsFromJson(o.getJSONArray("reviewCards")),
-            mistakes = mistakesFromJson(o.getJSONArray("mistakes"))
+            xpTotal = p.optInt("xpTotal"),
+            completedLessons = setFromJson(p.optJSONArray("completedLessons") ?: JSONArray()),
+            solvedKeys = setFromJson(p.optJSONArray("solvedKeys") ?: JSONArray()),
+            streakDays = p.optInt("streakDays"),
+            longestStreak = p.optInt("longestStreak"),
+            totalActiveDays = p.optInt("totalActiveDays"),
+            lastActiveEpochDay = p.optLong("lastActiveEpochDay", -1L),
+            dailyDate = p.optLong("dailyDate", -1L),
+            dailyCount = p.optInt("dailyCount"),
+            firstRunDone = p.optBoolean("firstRunDone"),
+            nightOwl = p.optBoolean("nightOwl"),
+            terminalHead = p.optBoolean("terminalHead"),
+            badges = setFromJson(p.optJSONArray("badges") ?: JSONArray()),
+            reviewCards = UserDataJson.decodeFromString(
+                ListSerializer(ReviewCard.serializer()),
+                cards.toString()
+            ),
+            mistakes = UserDataJson.decodeFromString(
+                ListSerializer(MistakeRecord.serializer()),
+                mistakes.toString()
+            )
         )
     }
 
-    // File I/O helpers：与 ViewModels 共用 UserDataFiles 的 store，别再各写一套。
-    private fun loadReviewCardsFromFile(context: Context): List<ReviewCard> =
-        UserDataFiles.reviewCardsStore(context).read()
-
-    private fun loadMistakesFromFile(context: Context): List<MistakeRecord> =
-        UserDataFiles.mistakesStore(context).read()
-
-    private fun saveReviewCardsToFile(context: Context, cards: List<ReviewCard>) {
-        UserDataFiles.reviewCardsStore(context).write(cards)
-    }
-
-    private fun saveMistakesToFile(context: Context, mistakes: List<MistakeRecord>) {
-        UserDataFiles.mistakesStore(context).write(mistakes)
-    }
-
-    private fun saveToStorage(context: Context, jsonString: String, fileName: String): Uri =
-        saveToMediaStoreQ(context, jsonString, fileName)
-
-    private fun saveToMediaStoreQ(context: Context, jsonString: String, fileName: String): Uri {
+    private fun saveBackup(context: Context, json: String, fileName: String): Uri {
         val resolver = context.contentResolver
         val values = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, fileName)
@@ -222,20 +172,14 @@ object BackupUtil {
             put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/CodeLearning")
             put(MediaStore.Downloads.IS_PENDING, 1)
         }
-
         val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
             ?: throw IllegalStateException("创建文件失败")
 
         try {
-            val outputStream = resolver.openOutputStream(uri)
+            resolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
                 ?: throw IllegalStateException("无法打开输出流")
-            try {
-                outputStream.write(jsonString.toByteArray())
-            } finally {
-                outputStream.close()
-            }
         } catch (e: Exception) {
-            // 写入失败时删除半成品，避免 MediaStore 里留下 pending 的空文件
+            // 写失败就把 MediaStore 里的半成品删掉，别留下空文件。
             runCatching { resolver.delete(uri, null, null) }
             throw e
         }
@@ -243,11 +187,9 @@ object BackupUtil {
         values.clear()
         values.put(MediaStore.Downloads.IS_PENDING, 0)
         resolver.update(uri, values, null, null)
-        // MediaStore 写入完成后系统自动索引，无需手动发扫描广播
         return uri
     }
 
-    // Launch file picker for import
     fun launchImportPicker(activity: Activity, requestCode: Int) {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)

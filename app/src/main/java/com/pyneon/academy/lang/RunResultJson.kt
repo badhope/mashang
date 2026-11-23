@@ -3,21 +3,14 @@ package com.pyneon.academy.lang
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * 解析 Python / SQL 引擎返回的统一 JSON 契约。
- *
- * 2026-11 去重：PyBridge 与 SqlBridge 曾各写一份字段映射，SqlBridge 还漏掉了
- * `variables`（目前 SQL 恒为空，但契约应一致）。这里作为唯一解析入口。
- */
+// Python 和 SQL 引擎都返回这个结构，统一在这里解析。
 fun parseRunResultJson(raw: String): RunResult {
     val obj = JSONObject(raw)
     val errorObj = obj.optJSONObject("error")
     val varsJson = obj.optJSONArray("variables") ?: JSONArray()
-    val variables = buildList {
-        for (i in 0 until varsJson.length()) {
-            val v = varsJson.getJSONObject(i)
-            add(VarInfo(v.getString("name"), v.getString("type"), v.getString("value")))
-        }
+    val variables = List(varsJson.length()) { i ->
+        val v = varsJson.getJSONObject(i)
+        VarInfo(v.getString("name"), v.getString("type"), v.getString("value"))
     }
     return RunResult(
         ok = obj.getBoolean("ok"),

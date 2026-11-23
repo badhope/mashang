@@ -16,12 +16,6 @@ import com.pyneon.academy.ui.effects.GlitchText
 import com.pyneon.academy.ui.theme.AppTypography
 import com.pyneon.academy.ui.theme.LocalNeonTokens
 
-/**
- * 带 Glitch 标题的 Material3 顶栏。
- *
- * 2026-11 去重：错题本与连击台曾各写一份 TopAppBar + navigationIcon + colors，
- * 返回按钮的 contentDescription 与触摸热区容易再次漂移；统一收敛到这里。
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NeonTopBar(

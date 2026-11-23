@@ -21,11 +21,7 @@ import com.pyneon.academy.ui.theme.TextDim
 import com.pyneon.academy.ui.theme.TextMid
 
 /**
- * 二级页面统一头部：48dp 返回热区 + 标题 + 可选副标题。
- *
- * 2026-11 去重：备份 / 历史 / 路线 / 复习 / 诊断 / 设置 / 许可 / 关于 / 帮助 / 隐私
- * 十处曾各写一份 Row + Icon + Column，触摸目标与文案层级已经出现漂移。
- * 这里作为单一实现，后续页面只能通过它加头部，避免再复制。
+ * 二级页面的返回头，返回键按 48dp 触摸区域做。
  */
 @Composable
 fun ScreenHeader(
@@ -42,10 +38,9 @@ fun ScreenHeader(
             contentDescription = "返回",
             tint = TextMid,
             modifier = Modifier
-                // 视觉 28dp + 四周 10dp padding = 48dp 无障碍最小触摸目标
-                .padding(10.dp)
-                .size(28.dp)
+                .size(48.dp)
                 .clickable(onClick = onBack)
+                .padding(10.dp)
         )
         Column(Modifier.padding(start = 12.dp)) {
             if (useGlitch) {

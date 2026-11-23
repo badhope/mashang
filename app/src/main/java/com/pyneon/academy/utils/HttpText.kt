@@ -8,11 +8,7 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 
 /**
- * 统一 HTTP 文本/字节读取。
- *
- * 2026-11 去重：ContentCenter 与 UpdateChecker 曾各写一份 HttpURLConnection，
- * 超时、UA、响应码、5MB 上限与流式读取的细节并不一致。这里收敛为一个入口，
- * 所有下载都必须显式给出超时与体积上限，禁止无界 readText()。
+ * 内容中心和检查更新共用的小 HTTP 客户端，限制超时和响应大小。
  */
 object HttpText {
     const val DEFAULT_USER_AGENT = "CodeLearning-Android"
@@ -51,7 +47,6 @@ object HttpText {
         }
     }
 
-    /** 按字节流式读取并设上限；超限立即断开并抛错，避免 OOM。 */
     private fun readCapped(stream: InputStream, maxBytes: Int, url: String): ByteArray {
         val buf = ByteArray(64 * 1024)
         var total = 0
@@ -61,9 +56,7 @@ object HttpText {
             if (n < 0) break
             total += n
             if (total > maxBytes) {
-                throw IOException(
-                    "HTTP 响应超过 ${maxBytes / (1024 * 1024)}MB 上限，已断开以防 OOM ($url)"
-                )
+                throw IOException("HTTP 响应超过 ${maxBytes / (1024 * 1024)}MB，已断开 ($url)")
             }
             out.write(buf, 0, n)
         }
