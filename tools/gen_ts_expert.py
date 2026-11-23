@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
-"""生成 TypeScript「专业篇」课程包（8 讲，ts31–ts38）。
+"""生成 TypeScript 专业篇 8 讲，编号 ts31 到 ts38。
 
 运行：python tools/gen_ts_expert.py
 输出：content_packs/ts-expert.json
 
-运行时边界与 ts-basics / ts-core / ts-advanced 一致：所有 runnable 代码只使用
-TypeScriptTranspiler 能擦除的子集（类型标注、interface、type 别名、泛型参数表、
-as、非空断言、enum）。不使用 class、装饰器、命名空间、展开运算符、默认参数、
-async/await、可选链、空值合并、import/export。类型级语法（条件类型、infer、
-映射类型、keyof、泛型约束）只出现在 runnable:false 的参考块里，并标注
-「仅演示，本运行时无法执行」。
+runnable 代码只用转译器擦得掉的语法：类型标注、interface、type 别名、泛型参数、
+as、非空断言、enum。class、装饰器、命名空间、展开、默认参数、async/await、
+可选链、空值合并、import/export 都不要用。条件类型、infer、映射类型、keyof、
+泛型约束只放在 runnable:false 的参考块里，并注明“仅演示，本运行时无法执行”。
 
-脚本自带结构自检：讲数 / id / order / chapter、块数、3 个 text 块、
-正文汉字数 900–1600、可运行块数量、quiz 下标、exercise 用例数量，
-以及 runnable 代码的禁用语法扫描。任何一项不满足都直接抛错，不写文件。
+脚本会检查讲数、id、order、章节、块数、三个 text 块、正文汉字数、可运行块数量、
+quiz 下标、exercise 用例数量和禁用语法。有一项不对就抛错，不写文件。
 """
 
 import json
@@ -148,7 +145,7 @@ def lesson(lid, order_no, title, subtitle, xp, blocks, ex):
     }
 
 
-# ============================================================ ts31 高级泛型
+# ts31 高级泛型
 
 TS31 = lesson(
     "ts31", BASE_ORDER,
@@ -308,7 +305,7 @@ TS31 = lesson(
     ),
 )
 
-# ============================================================ ts32 类型级编程
+# ts32 类型级编程
 
 TS32 = lesson(
     "ts32", BASE_ORDER + 1,
@@ -468,7 +465,7 @@ TS32 = lesson(
     ),
 )
 
-# ============================================================ ts33 声明合并
+# ts33 声明合并
 
 TS33 = lesson(
     "ts33", BASE_ORDER + 2,
@@ -639,7 +636,7 @@ TS33 = lesson(
     ),
 )
 
-# ============================================================ ts34 数据层
+# ts34 数据层
 
 TS34 = lesson(
     "ts34", BASE_ORDER + 3,
@@ -928,7 +925,7 @@ TS34 = lesson(
     ),
 )
 
-# ============================================================ ts35 领域建模
+# ts35 领域建模
 
 TS35 = lesson(
     "ts35", BASE_ORDER + 4,
@@ -1140,7 +1137,7 @@ TS35 = lesson(
     ),
 )
 
-# ============================================================ ts36 迁移实战
+# ts36 迁移实战
 
 TS36 = lesson(
     "ts36", BASE_ORDER + 5,
@@ -1288,7 +1285,7 @@ TS36 = lesson(
     ),
 )
 
-# ============================================================ ts37 工程化
+# ts37 工程化
 
 TS37 = lesson(
     "ts37", BASE_ORDER + 6,
@@ -1439,7 +1436,7 @@ TS37 = lesson(
     ),
 )
 
-# ============================================================ ts38 综合项目
+# ts38 综合项目
 
 TS38 = lesson(
     "ts38", BASE_ORDER + 7,
@@ -1824,7 +1821,7 @@ TS38 = lesson(
 PACK = [TS31, TS32, TS33, TS34, TS35, TS36, TS37, TS38]
 
 
-# ============================================================ 自检
+# 自检
 
 def prose_cjk(item):
     """只统计 text 块的汉字数，与仓库验证器的口径一致。"""

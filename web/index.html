@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>CodeLearning · 码上 — 网页版学习终端</title>
-  <meta name="description" content="CodeLearning · 码上 网页版：浏览器内运行 CPython 3.13，六门语言、共 244 讲课程，assert 自动判题、变量快照与进度存档。与 Android 端共用同一套课程与判题引擎。" />
+  <title>CodeLearning 网页版</title>
+  <meta name="description" content="CodeLearning 网页版：浏览器里运行 CPython 3.13，六门语言共 245 讲，带自动判题、变量快照和进度存档，课程与判题引擎跟 Android 端共用。" />
   <meta name="theme-color" content="#07090F" />
-  <meta property="og:title" content="CodeLearning · 码上 — 网页版学习终端" />
-  <meta property="og:description" content="浏览器里跑 CPython 3.13：244 讲课程、assert 判题、变量快照、进度本地存档。" />
+  <meta property="og:title" content="CodeLearning 网页版" />
+  <meta property="og:description" content="浏览器里跑 CPython 3.13，245 讲课程，自动判题，变量快照，进度存在本机。" />
   <meta property="og:type" content="website" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 108 108'%3E%3Crect width='108' height='108' rx='24' fill='#0A0E17'/%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M41 32 L27 54 L41 76' stroke='#00E5FF' stroke-width='8'/%3E%3Cpath d='M67 32 L81 54 L67 76' stroke='#00E5FF' stroke-width='8'/%3E%3Cpath d='M40 74 L40 64 L51 64 L51 54 L62 54 L62 44' stroke='#00FF9C' stroke-width='8'/%3E%3C/g%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
@@ -35,32 +35,31 @@
   </div>
 
   <header class="hud-top">
-    <a class="logo" href="#/home" aria-label="CodeLearning 首页">CodeLearning<span class="slash">_</span> <span class="logo-sub">码上 · 网页版</span></a>
-    <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="main-nav" aria-label="打开导航">☰</button>
+    <a class="logo" href="#/home" aria-label="CodeLearning 首页">CodeLearning<span class="slash">_</span> <span class="logo-sub">码上网页版</span></a>
+    <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="main-nav" aria-label="打开导航">菜单</button>
     <nav class="nav" id="main-nav" aria-label="主导航">
-      <a class="nav-btn" data-tab="home" href="#/home">指挥台</a>
+      <a class="nav-btn" data-tab="home" href="#/home">首页</a>
       <a class="nav-btn" data-tab="lessons" href="#/lessons">课程</a>
       <a class="nav-btn" data-tab="terminal" href="#/terminal">终端</a>
-      <a class="nav-btn" data-tab="arena" href="#/arena">角斗场</a>
+      <a class="nav-btn" data-tab="arena" href="#/arena">挑战</a>
       <a class="nav-btn nav-dl" href="https://github.com/badhope/mashang#download--install" target="_blank" rel="noopener">下载 App</a>
     </nav>
     <div class="status" title="浏览器内 Python 运行时">
       <span id="py-status" class="dot off" aria-hidden="true"></span>
       <span id="py-text">引擎离线</span>
     </div>
-    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换明暗主题" title="切换明暗主题">◐</button>
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换明暗主题" title="切换明暗主题">明暗</button>
   </header>
 
   <main id="view" class="view" tabindex="-1"></main>
 
   <footer class="foot">
     <div class="foot-row">
-      <span>CodeLearning · 码上 — <b id="foot-version">v0.7.1</b> · MIT</span>
-      <span class="sep">/</span>
+      <span>CodeLearning（码上）<b id="foot-version">v0.7.1</b>，MIT 协议</span>
       <a href="https://github.com/badhope/mashang" target="_blank" rel="noopener">GitHub</a>
       <a href="https://gitcode.com/badhope/mashang" target="_blank" rel="noopener">GitCode</a>
       <a href="https://gitee.com/badhope/mashang" target="_blank" rel="noopener">Gitee</a>
-      <a href="https://badhope.github.io/mashang/" target="_blank" rel="noopener">官网 / 下载</a>
+      <a href="https://badhope.github.io/mashang/" target="_blank" rel="noopener">官网和下载</a>
       <button type="button" class="link-btn" id="reset-progress">重置本地进度</button>
     </div>
     <p class="fine">学习数据仅保存在本机浏览器 localStorage，不上传任何服务器。课程内容与 Android 端同源；判题引擎为同一份 runner.py。</p>

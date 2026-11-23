@@ -138,7 +138,7 @@ class EngineEdgeTests(unittest.TestCase):
         )
         result = runner.run_code(code)
         b = next(v for v in result["variables"] if v["name"] == "b")
-        self.assertEqual(b["value"], "<unrepresentable>")
+        self.assertEqual(b["value"], "<无法显示>")
 
     # ---- W2: recursive __repr__ must not hang (RecursionError is caught) ----
     def test_snapshot_repr_recursion_safe(self):
@@ -151,7 +151,7 @@ class EngineEdgeTests(unittest.TestCase):
         )
         result = runner.run_code(code)
         n = next(v for v in result["variables"] if v["name"] == "n")
-        self.assertEqual(n["value"], "<unrepresentable>")
+        self.assertEqual(n["value"], "<无法显示>")
 
     # ---- W2: oversized object is skipped via getsizeof guard ----
     def test_snapshot_oversized_safe(self):

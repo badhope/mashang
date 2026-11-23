@@ -100,7 +100,7 @@ object CoachEngine {
                 "print('hello')   # 半角括号与引号"
             )
         }
-        // NameError
+        // 名字没定义
         if (type.contains("NameError")) {
             val name = Regex("'([^']+)'").find(message)?.groupValues?.get(1) ?: "这个变量"
             return tip(
@@ -114,7 +114,7 @@ object CoachEngine {
                 "score = 100\nprint(score)   # 别把 score 写成 scroe"
             )
         }
-        // TypeError
+        // 类型对不上
         if (type.contains("TypeError")) {
             return tip(
                 "类型错误：不同类型的值不能直接运算",
@@ -127,7 +127,7 @@ object CoachEngine {
                 "'1' + 1 改成 int('1') + 1，或者 '1' + '1'"
             )
         }
-        // IndexError
+        // 下标越界
         if (type == "IndexError") {
             return tip(
                 "下标越界：容器没那么多位置",
@@ -140,7 +140,7 @@ object CoachEngine {
                 "x = [1, 2, 3]\nprint(x[2])   # 合法；x[3] 越界"
             )
         }
-        // KeyError
+        // 键不存在
         if (type == "KeyError") {
             val key = Regex("'([^']+)'").find(message)?.groupValues?.get(1) ?: "这个键"
             return tip(
@@ -154,7 +154,7 @@ object CoachEngine {
                 "d = {'a': 1}\nprint(d.get('b', 0))   # 返回 0 而不是报错"
             )
         }
-        // ZeroDivisionError
+        // 除以零
         if (type == "ZeroDivisionError") {
             return tip(
                 "除数为 0：数学上不允许",
@@ -167,7 +167,7 @@ object CoachEngine {
                 "if y != 0:\n    result = x / y\nelse:\n    result = None"
             )
         }
-        // AttributeError
+        // 属性不存在
         if (type.contains("AttributeError")) {
             return tip(
                 "对象上没有这个成员",
@@ -180,7 +180,7 @@ object CoachEngine {
                 "s = 'neon'\ns.strip()   # 方法记得加 ()"
             )
         }
-        // ValueError
+        // 值不合法
         if (type == "ValueError") {
             return tip(
                 "值不合法：转换或拆包失败",
@@ -193,7 +193,7 @@ object CoachEngine {
                 "if s.isdigit():\n    n = int(s)"
             )
         }
-        // FileNotFoundError
+        // 文件找不到
         if (type == "FileNotFoundError") {
             return tip(
                 "文件不存在：路径写错了或文件还没创建",
@@ -206,7 +206,7 @@ object CoachEngine {
                 "with open('data.txt', 'w') as f:\n    f.write('hello')   # 先写后读"
             )
         }
-        // ImportError
+        // 导入失败
         if (type == "ImportError" || type == "ModuleNotFoundError") {
             return tip(
                 "导入失败：模块不存在或拼写错误",
@@ -219,7 +219,7 @@ object CoachEngine {
                 "import random   # 内置模块，直接可用"
             )
         }
-        // RecursionError
+        // 递归太深
         if (type == "RecursionError") {
             return tip(
                 "递归太深：函数无限调用自己",

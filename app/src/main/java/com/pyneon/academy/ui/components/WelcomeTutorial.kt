@@ -86,10 +86,10 @@ fun WelcomeTutorial(onComplete: () -> Unit) {
             Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Top spacer
+            // 顶部留白
             Spacer(Modifier.height(60.dp))
 
-            // Title
+            // 标题
             Text(
                 "欢迎使用 CodeLearning",
                 style = MaterialTheme.typography.headlineMedium,
@@ -104,7 +104,7 @@ fun WelcomeTutorial(onComplete: () -> Unit) {
 
             Spacer(Modifier.height(40.dp))
 
-            // Pager
+            // 翻页容器
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.weight(1f)
@@ -112,7 +112,7 @@ fun WelcomeTutorial(onComplete: () -> Unit) {
                 WelcomePageContent(pages[page])
             }
 
-            // Page indicators
+            // 页码
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(vertical = 16.dp)
@@ -130,7 +130,7 @@ fun WelcomeTutorial(onComplete: () -> Unit) {
                 }
             }
 
-            // Navigation buttons
+            // 底部按钮
             Row(
                 Modifier
                     .fillMaxWidth()

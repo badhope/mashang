@@ -1,10 +1,6 @@
-/* CodeLearning · 码上 — 网页版 (web/app.js)
- * 浏览器内 CPython 3.13（Pyodide 0.29.5），与 Android 端共用同一份 runner.py。
- * 设计要点：
- *  - 所有用户/课程文本走 textContent（el()），不做 HTML 字符串拼接，杜绝 DOM XSS。
- *  - 执行放在 Web Worker：死循环 / C 阻塞可 terminate，主线程永不冻结。
- *  - 进度、XP、完成状态存 localStorage；hash 路由可刷新/分享。
- *  - 与 App 相同的判题契约：assert + 变量快照 + __stdout__ 断言。
+/* CodeLearning 网页版，浏览器里跑 CPython 3.13（Pyodide 0.29.5）。
+ * 课程 JSON 和 runner.py 都跟 Android 端共用，判题结果和变量快照能对上。
+ * 用户代码放 Web Worker 里，死循环可以直接 terminate，页面不会卡住。
  */
 (function () {
   "use strict";
@@ -36,7 +32,7 @@
   var replHistory = [];
   var replHistoryIdx = -1;
 
-  // ---------- 基础工具 ----------
+  // 基础工具
   function el(tag, cls, text) {
     var e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -47,14 +43,11 @@
     while (node.firstChild) node.removeChild(node.firstChild);
   }
   function icon(name) {
-    var map = {
-      play: "▶", check: "✓", lock: "▣", back: "‹", fire: "◉", bolt: "⚡",
-      clock: "◷", code: "</>", book: "▤", terminal: "▸_", trophy: "♛"
-    };
-    return map[name] || "•";
+    var map = { play: "学", check: "完", lock: "锁" };
+    return map[name] || "";
   }
 
-  // ---------- 进度存档 ----------
+  // 进度存档
   function defaultProgress() {
     return { version: 1, xp: 0, completed: {}, solved: {}, lastRoute: "#/home" };
   }
@@ -101,8 +94,7 @@
   }
   function coreLessons() { return lessons.filter(function (l) { return (l.lang || "python") === "python"; }); }
 
-  // 网页端只有 Pyodide（CPython）。其他语言的课程可读、可看答案与讲解，
-  // 但代码不能在此运行——明确标注，而不是假装能跑或干脆隐藏内容。
+  // 网页端只装了 Pyodide，别的语言能看讲解和答案，但跑不了，界面上直接说明。
   var RUNNABLE_LANGS = { python: true };
   function langRunnable(lang) { return !!RUNNABLE_LANGS[lang || "python"]; }
   function langLabel(lang) {
@@ -110,7 +102,7 @@
     return m[lang || "python"] || (lang || "python");
   }
 
-  // ---------- 引擎：Web Worker 优先 ----------
+  // 引擎，优先用 Web Worker
   function setStatus(text, ok) {
     var d = document.getElementById("py-status");
     var t = document.getElementById("py-text");
@@ -177,7 +169,7 @@
               settled = true;
               clearTimeout(bootTimer);
               engineMode = "worker";
-              setStatus("引擎在线 · CPython " + msg.version, true);
+              setStatus("引擎在线，CPython " + msg.version, true);
               resolve(msg.version);
               return;
             }
@@ -249,7 +241,7 @@
         if (window.REPL_HELPER_PY) pyodide.runPython(window.REPL_HELPER_PY);
         engineMode = "main";
         var ver = pyodide.runPython("import sys; sys.version.split(' ')[0]");
-        setStatus("引擎在线 · CPython " + ver, true);
+        setStatus("引擎在线，CPython " + ver, true);
         return ver;
       } catch (err) {
         lastErr = err;
@@ -308,10 +300,10 @@
     return callEngine("repl-reset", {});
   }
 
-  // ---------- 结果渲染（全部 textContent） ----------
+  // 结果渲染，一律 textContent
   function snapshotNode(vars) {
     var s = el("div", "snap");
-    s.appendChild(el("div", "snap-title", "◢ 变量快照"));
+    s.appendChild(el("div", "snap-title", "变量快照"));
     var g = el("div", "snap-grid");
     if (!vars || !vars.length) g.appendChild(el("span", "dim", "（无变量）"));
     (vars || []).forEach(function (v) {
@@ -349,22 +341,22 @@
       wrap.appendChild(snapshotNode(r.variables || []));
       return wrap;
     }
-    wrap.appendChild(el("div", "verdict " + (r.passed ? "pass" : "fail"), r.passed ? "✓ 全部用例通过！" : "✗ 判题未通过"));
+    wrap.appendChild(el("div", "verdict " + (r.passed ? "pass" : "fail"), r.passed ? "全部用例通过" : "判题未通过"));
     if (r.test_output) wrap.appendChild(el("div", "term-out", r.test_output));
     if (!r.passed && r.error && r.error.message) wrap.appendChild(el("div", "quiz-explain", r.error.message));
     wrap.appendChild(snapshotNode(r.variables || []));
     return wrap;
   }
 
-  // ---------- 可运行代码卡 ----------
+  // 可运行代码卡
   function codeCard(code, expected, stdin, lang) {
     lang = lang || "python";
     var card = el("div", "code-card");
     if (!langRunnable(lang)) {
-      // 非 Python 语言：只读代码 + 明确说明在 App 内可运行
+      // 非 Python 语言只展示代码，运行去手机端。
       card.appendChild(el("pre", "term", code));
       card.appendChild(el("div", "run-tag",
-        langLabel(lang) + " · 网页端仅有 Python 引擎，此代码请在「CodeLearning」App 内运行"));
+        langLabel(lang) + "：网页端只有 Python 引擎，这段代码请到 CodeLearning App 里运行"));
       return card;
     }
     var ta = el("textarea", "code-area");
@@ -373,7 +365,7 @@
     ta.setAttribute("aria-label", "可编辑代码");
     card.appendChild(ta);
     var bar = el("div", "code-bar");
-    var run = el("button", "btn-run", "▶ 运行");
+    var run = el("button", "btn-run", "运行");
     run.type = "button";
     var tag = el("span", "run-tag", "");
     bar.appendChild(run);
@@ -395,7 +387,7 @@
         out.appendChild(runResultNode(r));
         if (expected != null) {
           var ok = (r.stdout || "").trim() === String(expected).trim();
-          out.appendChild(el("div", "verdict " + (ok ? "pass" : "fail"), ok ? "✓ 输出与预期一致" : "✗ 输出与预期不一致（对照上方预览）"));
+          out.appendChild(el("div", "verdict " + (ok ? "pass" : "fail"), ok ? "输出和预期一致" : "输出和预期不一致，对照上面的预览"));
         }
         live.textContent = r.error ? "运行失败" : "运行完成";
       }).catch(function (e) {
@@ -404,13 +396,13 @@
         live.textContent = "运行失败";
       }).finally(function () {
         run.disabled = false;
-        run.textContent = "▶ 运行";
+        run.textContent = "运行";
       });
     };
     return card;
   }
 
-  // ---------- 内容块 ----------
+  // 内容块
   function renderTable(b) {
     var wrap = el("div", "table-wrap");
     var t = el("table", "neon");
@@ -443,7 +435,7 @@
         Array.prototype.forEach.call(opts.children, function (x) { x.classList.remove("correct", "wrong"); });
         lab.classList.add(i === b.answer ? "correct" : "wrong");
         if (i !== b.answer && opts.children[b.answer]) opts.children[b.answer].classList.add("correct");
-        fb.textContent = (i === b.answer ? "✓ 正确。" : "✗ 不对。") + (b.explain || "");
+        fb.textContent = (i === b.answer ? "正确。" : "不对。") + (b.explain || "");
       };
       opts.appendChild(lab);
     });
@@ -483,7 +475,7 @@
     paint();
     c.appendChild(list);
     var bar = el("div", "code-bar");
-    var run = el("button", "btn-run", "▶ 运行拼接结果");
+    var run = el("button", "btn-run", "运行拼接结果");
     run.type = "button";
     var out = el("div", "out");
     run.onclick = function () {
@@ -496,7 +488,7 @@
         out.appendChild(el("div", "term-out err", e.message));
       }).finally(function () {
         run.disabled = false;
-        run.textContent = "▶ 运行拼接结果";
+        run.textContent = "运行拼接结果";
       });
     };
     bar.appendChild(run);
@@ -510,12 +502,12 @@
     c.appendChild(el("div", "quiz-q", b.title || "随堂练习"));
     c.appendChild(el("div", "hint", "预期输出："));
     c.appendChild(el("pre", "term preview", b.output || ""));
-    if (b.hint) c.appendChild(el("div", "hint", "💡 " + b.hint));
+    if (b.hint) c.appendChild(el("div", "hint", "提示：" + b.hint));
     c.appendChild(codeCard(b.code, b.output, b.stdin || []));
     return c;
   }
 
-  // 填空题：与 App 的 FillCard 语义一致 —— 输入缺失片段，答错两次给答案与解析
+  // 填空题，和 App 的 FillCard 一样，答错两次给答案和解析。
   function renderFill(b) {
     var c = el("div", "card fill-card");
     c.appendChild(el("div", "quiz-q", b.goal || "补全代码"));
@@ -539,7 +531,7 @@
       var val = (input.value || "").trim();
       if (!val) { fb.textContent = "先输入答案再提交。"; return; }
       if (val === String(b.answer || "").trim()) {
-        fb.textContent = "✓ 正确。" + (b.explain || "");
+        fb.textContent = "正确。" + (b.explain || "");
         input.classList.add("ok");
         input.disabled = true;
         btn.disabled = true;
@@ -547,8 +539,8 @@
         tries++;
         input.classList.add("bad");
         fb.textContent = tries >= 2
-          ? "✗ 还不对。正确答案是「" + b.answer + "」。" + (b.explain || "")
-          : "✗ 不对，再试一次。（答错两次会给出答案与解析）";
+          ? "还不对。正确答案是「" + b.answer + "」。" + (b.explain || "")
+          : "不对，再试一次。答错两次会给答案和解析。";
       }
     }
     btn.onclick = submit;
@@ -558,19 +550,18 @@
 
   function renderExercise(b, lesson) {
     var c = el("div", "card exercise-card");
-    c.appendChild(el("div", "blk-heading", "◢ 实战判题 · " + (b.title || "")));
+    c.appendChild(el("div", "blk-heading", "实战判题：" + (b.title || "")));
     if (b.brief) c.appendChild(el("div", "brief", b.brief));
 
-    // 非 Python 语言：网页端没有对应运行时，判题会调用错误的引擎。
-    // 改为只读展示参考答案 + 明确指引，绝不给出假判题结果。
+    // 非 Python 语言没有对应运行时，别拿 Python 引擎硬判，只展示起始代码并提示去 App。
     var exLang = (lesson && lesson.lang) || "python";
     if (!langRunnable(exLang)) {
       var pre = el("pre", "term");
       pre.textContent = b.starterCode || "";
       c.appendChild(pre);
-      if (b.hint) c.appendChild(el("div", "hint", "💡 " + b.hint));
+      if (b.hint) c.appendChild(el("div", "hint", "提示：" + b.hint));
       c.appendChild(el("div", "run-tag",
-        langLabel(exLang) + " · 网页端仅有 Python 引擎，判题请在「CodeLearning」App 内进行"));
+        langLabel(exLang) + "：网页端只有 Python 引擎，判题请到 CodeLearning App 里做"));
       return c;
     }
     var ta = el("textarea", "code-area");
@@ -580,7 +571,7 @@
     ta.setAttribute("aria-label", "判题代码");
     c.appendChild(ta);
     var bar = el("div", "code-bar");
-    var run = el("button", "btn-run", "▶ 运行判题");
+    var run = el("button", "btn-run", "运行判题");
     run.type = "button";
     bar.appendChild(run);
     var doneTag = el("span", "run-tag", lesson && isLessonDone(lesson.id) ? "已通关" : "");
@@ -591,7 +582,7 @@
     live.setAttribute("aria-live", "polite");
     c.appendChild(out);
     c.appendChild(live);
-    if (b.hint) c.appendChild(el("div", "hint", "💡 " + b.hint));
+    if (b.hint) c.appendChild(el("div", "hint", "提示：" + b.hint));
     run.onclick = function () {
       if (engineMode === "browse") { clear(out); out.textContent = "仅浏览模式：请刷新页面并加载引擎后再判题。"; return; }
       run.disabled = true;
@@ -616,7 +607,7 @@
         live.textContent = "判题失败";
       }).finally(function () {
         run.disabled = false;
-        run.textContent = "▶ 运行判题";
+        run.textContent = "运行判题";
       });
     };
     return c;
@@ -626,7 +617,7 @@
     switch (b.type) {
       case "heading": return el("h2", "blk-heading", b.text);
       case "text": return el("div", "blk-text", b.text);
-      case "tip": return el("div", "blk-tip", "💡 " + b.text);
+      case "tip": return el("div", "blk-tip", "提示：" + b.text);
       case "warn": return el("div", "blk-warn", "⚠ " + b.text);
       case "task": return el("div", "blk-task", b.text);
       case "steps": {
@@ -649,7 +640,7 @@
     }
   }
 
-  // ---------- 多语言对照 / 过程可视化 ----------
+  // 多语言对照和过程可视化
   function renderCompare(b) {
     var wrap = el("div", "blk-compare");
     if (b.title) wrap.appendChild(el("div", "blk-heading", b.title));
@@ -689,9 +680,9 @@
       counter.textContent = (idx + 1) + " / " + frames.length;
     }
     var bar = el("div", "code-bar");
-    var prev = el("button", "btn-ghost", "◀");
+    var prev = el("button", "btn-ghost", "上一帧");
     prev.type = "button";
-    var next = el("button", "btn-ghost", "▶");
+    var next = el("button", "btn-ghost", "下一帧");
     next.type = "button";
     var reset = el("button", "btn-ghost", "重置");
     reset.type = "button";
@@ -705,7 +696,7 @@
     return wrap;
   }
 
-  // ---------- 页面：首页 ----------
+  // 首页
   function statCard(label, value, sub, accent) {
     var c = el("div", "stat-card " + (accent || ""));
     c.appendChild(el("div", "stat-value", value));
@@ -731,9 +722,9 @@
 
     var hero = el("section", "home-hero");
     var titleWrap = el("div", "hero-copy");
-    titleWrap.appendChild(el("div", "eyebrow", "CODELEARNING · WEB TERMINAL"));
-    titleWrap.appendChild(el("h1", "hero-title", "码上，就是马上。"));
-    titleWrap.appendChild(el("p", "hero-sub", "六门语言、共 244 讲，assert 自动判题、变量快照。与手机端同源，打开浏览器就能写。"));
+    titleWrap.appendChild(el("div", "eyebrow", "CodeLearning 网页版"));
+    titleWrap.appendChild(el("h1", "hero-title", "打开浏览器就能写 Python。"));
+    titleWrap.appendChild(el("p", "hero-sub", "六门语言、共 " + lessons.length + " 讲，自动判题，运行后能看到变量快照。"));
     var actions = el("div", "hero-actions");
     var startBtn = el("a", "btn-primary", next.lesson ? (done === 0 ? "开始第 1 讲" : "继续第 " + next.lesson.order + " 讲") : "回顾课程");
     startBtn.href = next.lesson ? "#/lesson/" + next.lesson.id : "#/lessons";
@@ -747,7 +738,7 @@
     var ring = el("div", "hero-ring");
     ring.appendChild(el("div", "ring-value", done + "/" + core.length));
     ring.appendChild(el("div", "ring-label", "主线课程"));
-    ring.appendChild(el("div", "ring-rank", rank.name + " · " + progress.xp + " XP"));
+    ring.appendChild(el("div", "ring-rank", rank.name + "，" + progress.xp + " XP"));
     hero.appendChild(ring);
     view.appendChild(hero);
 
@@ -758,10 +749,10 @@
     stats.appendChild(statCard("段位", rank.name, "按 XP 进阶", "yel"));
     view.appendChild(stats);
 
-    view.appendChild(el("h2", "section-title", "本日行动"));
+    view.appendChild(el("h2", "section-title", "继续学习"));
     var focus = el("div", "focus-card");
     if (next.lesson) {
-      focus.appendChild(el("div", "focus-kicker", next.locked ? "LOCKED" : "NEXT UP"));
+      focus.appendChild(el("div", "focus-kicker", next.locked ? "未解锁" : "下一讲"));
       focus.appendChild(el("div", "focus-title", next.lesson.title));
       focus.appendChild(el("div", "focus-sub", next.locked
         ? "先完成「" + (next.prev ? next.prev.title : "上一课") + "」即可解锁。"
@@ -772,7 +763,7 @@
     }
     view.appendChild(focus);
 
-    view.appendChild(el("h2", "section-title", "能力矩阵"));
+    view.appendChild(el("h2", "section-title", "这里能做什么"));
     var grid = el("div", "feature-grid");
     [
       ["真离线执行", "Pyodide 把 CPython 3.13 编译成 WebAssembly，在浏览器本地运行。", "cyan"],
@@ -789,13 +780,13 @@
     setActiveNav("home");
   }
 
-  // ---------- 页面：课程列表 ----------
+  // 课程列表
   function renderLessons() {
     clear(view);
     var head = el("div", "page-head");
-    head.appendChild(el("div", "eyebrow", "CURRICULUM"));
-    head.appendChild(el("h1", "page-title", "课程 // LESSONS"));
-    head.appendChild(el("p", "page-sub", "按章节解锁 · 完成判题即通关 · 共 " + lessons.length + " 讲（含内容中心扩展包）"));
+    head.appendChild(el("div", "eyebrow", "课程"));
+    head.appendChild(el("h1", "page-title", "课程"));
+    head.appendChild(el("p", "page-sub", "按章节解锁，判题通过就算通关，共 " + lessons.length + " 讲，含扩展包。"));
     view.appendChild(head);
 
     var filter = el("div", "chip-row");
@@ -840,7 +831,7 @@
         row.appendChild(el("div", "lesson-num", pad2(l.order)));
         var main = el("div", "lesson-main");
         main.appendChild(el("div", "lesson-title", l.title));
-        main.appendChild(el("div", "lesson-sub", (l.subtitle || "") + (lang !== "python" ? " · " + lang.toUpperCase() : "")));
+        main.appendChild(el("div", "lesson-sub", (l.subtitle || "") + (lang !== "python" ? "，" + langLabel(lang) : "")));
         row.appendChild(main);
         var side = el("div", "lesson-side");
         side.appendChild(el("span", "lesson-xp", "+" + (l.xp || 0)));
@@ -856,17 +847,17 @@
     setActiveNav("lessons");
   }
 
-  // ---------- 页面：课程详情 ----------
+  // 课程详情
   function renderLesson(ls) {
     clear(view);
-    var back = el("a", "back-btn", "‹ 返回课程列表");
+    var back = el("a", "back-btn", "返回课程列表");
     back.href = "#/lessons";
     view.appendChild(back);
 
     var head = el("div", "lesson-head");
-    head.appendChild(el("div", "eyebrow", (ls.chapterName || "") + " · " + (ls.lang || "python").toUpperCase()));
+    head.appendChild(el("div", "eyebrow", (ls.chapterName || "") + "，" + langLabel(ls.lang)));
     head.appendChild(el("h1", null, ls.title));
-    head.appendChild(el("div", "sub", (ls.subtitle || "") + " · +" + (ls.xp || 0) + " XP" + (isLessonDone(ls.id) ? " · 已通关" : "")));
+    head.appendChild(el("div", "sub", (ls.subtitle || "") + "，+" + (ls.xp || 0) + " XP" + (isLessonDone(ls.id) ? "，已通关" : "")));
     view.appendChild(head);
 
     var body = el("article", "lesson-body");
@@ -877,12 +868,12 @@
     var foot = el("div", "lesson-foot");
     var idx = lessons.indexOf(ls);
     if (idx > 0) {
-      var prev = el("a", "btn-ghost", "‹ " + lessons[idx - 1].title);
+      var prev = el("a", "btn-ghost", "上一讲：" + lessons[idx - 1].title);
       prev.href = "#/lesson/" + lessons[idx - 1].id;
       foot.appendChild(prev);
     }
     if (idx >= 0 && idx < lessons.length - 1) {
-      var nxt = el("a", "btn-primary", lessons[idx + 1].title + " ›");
+      var nxt = el("a", "btn-primary", "下一讲：" + lessons[idx + 1].title);
       nxt.href = "#/lesson/" + lessons[idx + 1].id;
       foot.appendChild(nxt);
     }
@@ -891,13 +882,13 @@
     window.scrollTo(0, 0);
   }
 
-  // ---------- 页面：终端 ----------
+  // 终端
   function renderTerminal() {
     clear(view);
     var head = el("div", "page-head");
-    head.appendChild(el("div", "eyebrow", "NEURAL INTERFACE"));
-    head.appendChild(el("h1", "page-title", "终端 // TERMINAL"));
-    head.appendChild(el("p", "page-sub", "有状态 CPython 会话：变量、函数跨行保留；↑/↓ 历史，Shift+Enter 换行。"));
+    head.appendChild(el("div", "eyebrow", "终端"));
+    head.appendChild(el("h1", "page-title", "终端"));
+    head.appendChild(el("p", "page-sub", "有状态的 CPython 会话，变量和函数跨行保留。方向键翻历史，Shift+Enter 换行。"));
     view.appendChild(head);
 
     var term = el("div", "repl-term");
@@ -918,10 +909,10 @@
     view.appendChild(row);
 
     var bar = el("div", "code-bar");
-    var reset = el("button", "btn-ghost", "⟲ 重置会话");
+    var reset = el("button", "btn-ghost", "重置会话");
     reset.type = "button";
     bar.appendChild(reset);
-    bar.appendChild(el("span", "run-tag", "Ctrl+L 清屏 · ↑/↓ 历史"));
+    bar.appendChild(el("span", "run-tag", "Ctrl+L 清屏，方向键翻历史"));
     view.appendChild(bar);
 
     function print(text, cls) {
@@ -941,9 +932,9 @@
         if (r.error) print((r.error.type || "Error") + ": " + (r.error.message || ""), "term-out err");
         else if (r.stdout) print(r.stdout.replace(/\n$/, ""), "term-out");
         if (r.variables && r.variables.length) {
-          print("// 变量: " + r.variables.map(function (v) { return v.name + ":" + v.type + "=" + v.value; }).join("   "), "dim");
+          print("变量：" + r.variables.map(function (v) { return v.name + "：" + v.type + "=" + v.value; }).join("   "), "dim");
         }
-        if (!r.error && !r.stdout && (!r.variables || !r.variables.length)) print("// （无输出）", "dim");
+        if (!r.error && !r.stdout && (!r.variables || !r.variables.length)) print("（无输出）", "dim");
       }).catch(function (e) {
         print(e.message, "term-out err");
       });
@@ -979,19 +970,19 @@
     reset.onclick = function () {
       replReset().then(function () {
         clear(term);
-        print("// 会话已重置", "dim");
+        print("会话已重置", "dim");
       }).catch(function (e) { print(e.message, "term-out err"); });
     };
-    print("// 神经接口已连接 · " + (engineMode === "browse" ? "仅浏览模式" : "CPython 3.13 · 浏览器本地执行"), "dim");
-    print("// 试试：1 + 1、import math、math.sqrt(2)", "dim");
+    print(engineMode === "browse" ? "仅浏览模式" : "已连接，CPython 3.13 在浏览器里跑", "dim");
+    print("试试：1 + 1、import math、math.sqrt(2)", "dim");
     setActiveNav("terminal");
   }
 
-  // ---------- 页面：角斗场 ----------
+  // 角斗场
   // 网页端只有 Python 引擎；javascript 挑战展示为「App 内体验」卡片。
   function splitChallenges(list) {
-    const python = [];
-    const appOnly = [];
+    var python = [];
+    var appOnly = [];
     (list || []).forEach(function (ch) {
       if ((ch.lang || "python") === "python") python.push(ch);
       else appOnly.push(ch);
@@ -1002,18 +993,18 @@
   function renderArena() {
     clear(view);
     var head = el("div", "page-head");
-    head.appendChild(el("div", "eyebrow", "ARENA"));
-    head.appendChild(el("h1", "page-title", "角斗场 · 编程挑战（" + challenges.length + "）"));
-    head.appendChild(el("p", "page-sub", "6 道 Python 挑战可直接判题；2 道 JavaScript 挑战请在 App 内体验。"));
+    head.appendChild(el("div", "eyebrow", "挑战"));
+    head.appendChild(el("h1", "page-title", "编程挑战（" + challenges.length + "）"));
+    head.appendChild(el("p", "page-sub", "Python 挑战能直接判题，其他语言请到 App 里做。"));
     view.appendChild(head);
 
-    const split = splitChallenges(challenges);
+    var split = splitChallenges(challenges);
     var grid = el("div", "arena-list");
     split.python.forEach(function (ch) {
       var c = el("a", "arena-card" + (progress.solved["chal:" + ch.id] ? " done" : ""));
       c.href = "#/challenge/" + ch.id;
       c.appendChild(el("div", "at", ch.title));
-      c.appendChild(el("div", "ad", "难度 " + (ch.difficulty || "") + " · +" + (ch.xp || 0) + " XP" + (progress.solved["chal:" + ch.id] ? " · 已通过" : "")));
+      c.appendChild(el("div", "ad", "难度 " + (ch.difficulty || "") + "，+" + (ch.xp || 0) + " XP" + (progress.solved["chal:" + ch.id] ? "，已通过" : "")));
       c.appendChild(el("div", "ab", ch.brief));
       grid.appendChild(c);
     });
@@ -1022,9 +1013,9 @@
       var title = el("div", "at", ch.title);
       title.appendChild(el("span", "badge", "App 内体验"));
       c.appendChild(title);
-      c.appendChild(el("div", "ad", (ch.lang || "javascript") + " · 难度 " + (ch.difficulty || "") + " · +" + (ch.xp || 0) + " XP"));
+      c.appendChild(el("div", "ad", langLabel(ch.lang) + "，难度 " + (ch.difficulty || "") + "，+" + (ch.xp || 0) + " XP"));
       c.appendChild(el("div", "ab", ch.brief));
-      c.appendChild(el("div", "ab dim", "JavaScript 挑战需要手机端多语言运行时，请在「CodeLearning」App 内打开。"));
+      c.appendChild(el("div", "ab dim", "这个语言的运行时只在手机端，请到 CodeLearning App 里打开。"));
       grid.appendChild(c);
     });
     view.appendChild(grid);
@@ -1033,18 +1024,18 @@
 
   function renderChallenge(ch) {
     clear(view);
-    var back = el("a", "back-btn", "‹ 返回角斗场");
+    var back = el("a", "back-btn", "返回挑战列表");
     back.href = "#/arena";
     view.appendChild(back);
     if ((ch.lang || "python") !== "python") {
       var notice = el("div", "card");
-      notice.appendChild(el("div", "blk-heading", ch.title + " · " + ch.lang));
-      notice.appendChild(el("div", "brief", "此挑战为 " + ch.lang + " 语言，网页端仅有 Python 引擎，请在「CodeLearning」App 内体验。"));
+      notice.appendChild(el("div", "blk-heading", ch.title + "：" + langLabel(ch.lang)));
+      notice.appendChild(el("div", "brief", "这是 " + langLabel(ch.lang) + " 挑战，网页端只有 Python 引擎，请到 CodeLearning App 里做。"));
       view.appendChild(notice);
       return;
     }
     var c = el("div", "card");
-    c.appendChild(el("div", "blk-heading", ch.title + " · 难度 " + (ch.difficulty || "")));
+    c.appendChild(el("div", "blk-heading", ch.title + "，难度 " + (ch.difficulty || "")));
     c.appendChild(el("div", "brief", ch.brief));
     var ta = el("textarea", "code-area");
     ta.value = ch.starterCode || "";
@@ -1053,7 +1044,7 @@
     ta.setAttribute("aria-label", "挑战代码");
     c.appendChild(ta);
     var bar = el("div", "code-bar");
-    var run = el("button", "btn-run", "▶ 运行判题");
+    var run = el("button", "btn-run", "运行判题");
     run.type = "button";
     bar.appendChild(run);
     c.appendChild(bar);
@@ -1062,7 +1053,7 @@
     live.setAttribute("aria-live", "polite");
     c.appendChild(out);
     c.appendChild(live);
-    if (ch.hint) c.appendChild(el("div", "hint", "💡 " + ch.hint));
+    if (ch.hint) c.appendChild(el("div", "hint", "提示：" + ch.hint));
     run.onclick = function () {
       if (engineMode === "browse") { clear(out); out.textContent = "仅浏览模式：请刷新页面并加载引擎后再判题。"; return; }
       run.disabled = true;
@@ -1082,14 +1073,14 @@
         out.appendChild(el("div", "term-out err", e.message));
       }).finally(function () {
         run.disabled = false;
-        run.textContent = "▶ 运行判题";
+        run.textContent = "运行判题";
       });
     };
     view.appendChild(c);
     setActiveNav("arena");
   }
 
-  // ---------- 段位与杂项 ----------
+  // 段位和杂项
   var RANKS = [
     { name: "脚本小子", min: 0 }, { name: "数据幽灵", min: 150 }, { name: "网络浪人", min: 400 },
     { name: "义体黑客", min: 900 }, { name: "街头传奇", min: 1600 }, { name: "系统架构师", min: 2600 }
@@ -1115,7 +1106,7 @@
     });
   }
 
-  // ---------- 路由 ----------
+  // 路由
   function parseRoute() {
     var hash = location.hash || "#/home";
     var m = hash.match(/^#\/([a-z-]+)(?:\/(.+))?$/);
@@ -1160,13 +1151,13 @@
     }
   }
 
-  // ---------- 启动 ----------
+  // 启动
   function showBootError(err) {
     engineMode = "failed";
     setStatus("引擎离线", false);
     bootEl.classList.remove("hidden");
     clear(bootLine);
-    bootLine.appendChild(document.createTextNode("> 引擎载入失败：" + (err && err.message ? err.message : "未知错误")));
+    bootLine.appendChild(document.createTextNode("引擎载入失败：" + (err && err.message ? err.message : "未知错误")));
     bootLine.appendChild(document.createElement("br"));
     bootLine.appendChild(document.createTextNode("已尝试 jsdelivr / fastly / unpkg。可重试，或先浏览课程内容。"));
     bootActions.hidden = false;
@@ -1189,7 +1180,7 @@
   }
 
   document.getElementById("boot-retry").onclick = function () {
-    bootLine.textContent = "> 重试载入 CPython 内核…";
+    bootLine.textContent = "正在重新载入 CPython…";
     bootActions.hidden = true;
     if (worker) { try { worker.terminate(); } catch (_) {} worker = null; }
     engineMode = "loading";

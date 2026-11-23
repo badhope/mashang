@@ -367,7 +367,7 @@ class WebMultiLanguageTests(unittest.TestCase):
         js = _read(os.path.join(ROOT, "web", "app.js"))
         seg = js[js.index("function codeCard"):][:600]
         self.assertIn("langRunnable", seg, "codeCard 必须按语言判断是否可运行")
-        self.assertIn("App 内运行", seg, "必须提示该代码需在 App 内运行")
+        self.assertIn("App 里运行", seg, "必须提示该代码需在 App 里运行")
 
     def test_exercise_blocks_guard_non_python_languages(self):
         """非 Python 课程的判题不得调用 Pyodide（会给出错误结果）。
@@ -378,7 +378,7 @@ class WebMultiLanguageTests(unittest.TestCase):
         js = _read(os.path.join(ROOT, "web", "app.js"))
         seg = js[js.index("function renderExercise"):][:800]
         self.assertIn("langRunnable", seg, "renderExercise 必须按语言判断")
-        self.assertIn("App 内进行", seg, "必须提示改到 App 内判题")
+        self.assertIn("App 里做", seg, "必须提示改到 App 里判题")
 
     def test_web_renders_compare_and_visualize(self):
         js = _read(os.path.join(ROOT, "web", "app.js"))

@@ -63,7 +63,7 @@ fun StreakScreen(
     val streak by viewModel.streak.collectAsState()
     var dueCount by remember { mutableStateOf(0) }
 
-    // Load due count
+    // 读取今日到期数量
     LaunchedEffect(Unit) {
         dueCount = viewModel.getDueReviewCount()
     }
@@ -82,7 +82,7 @@ fun StreakScreen(
 
             androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(16.dp))
 
-            // Main streak card
+            // 连击主卡
             NeonCard(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -133,7 +133,7 @@ fun StreakScreen(
 
             androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
 
-            // Badges
+            // 徽章
             NeonCard(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -158,7 +158,7 @@ fun StreakScreen(
 
             androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
 
-            // Locked badges preview
+            // 未解锁徽章预览
             NeonCard(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -258,5 +258,5 @@ val BADGE_DEFS = listOf(
     BadgeDef("centurion", "百日统领", Icons.Default.MilitaryTech, DarkTokens.gold)
 )
 
-// Drawable resource for fire icon
-// Create app/src/main/res/drawable/ic_fire.xml if needed
+// 火焰图标用 drawable 资源
+// 缺文件就补 ic_fire.xml

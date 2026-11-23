@@ -48,7 +48,7 @@ class SnapshotEdgeTests(unittest.TestCase):
         out = runner.run_code(code)
         self.assertTrue(out["ok"], out)
         snap = {v["name"]: v for v in out["variables"]}
-        self.assertEqual(snap["bad"]["value"], "<unrepresentable>")
+        self.assertEqual(snap["bad"]["value"], "<无法显示>")
 
     def test_long_repr_is_truncated(self):
         out = runner.run_code("s = 'x' * 500")

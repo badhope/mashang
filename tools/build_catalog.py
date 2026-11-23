@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""重建 catalog.json：登记 content_packs/ 下的全部课程包并重算自签名。
+"""重建 catalog.json，登记 content_packs 下的课程包，重算签名。
 
-为什么需要独立脚本：课程包会随内容扩容新增/变更，catalog 里的 sha256、
-讲数、体积都必须从仓库现算。手改容易踩「顶层自签名把第一个包哈希覆盖掉」
-这个坑（2026-11 实测），所以固定流程：
-  1. 顶层 sha256 放在 JSON 第一处，用 64 个 0 占位；
-  2. 对所有包算真实 sha256 / 讲数 / 体积；
-  3. 用「顶层占位替换为空串」后的原文算签名，再回填。
+课程包会增删，catalog 里的哈希、讲数、体积都得现算。手改容易踩一个坑：
+顶层自签名会把第一个包的哈希盖掉。流程固定：
+1. 顶层 sha256 先用 64 个 0 占位；
+2. 给每个包算真实哈希、讲数和体积；
+3. 把顶层占位替换成空串后算签名，再回填。
 
 用法：python tools/build_catalog.py
 """
@@ -24,7 +23,7 @@ PACKS = ROOT / "content_packs"
 PLACEHOLDER = "0" * 64
 SHA_FIELD = re.compile(r'"sha256"\s*:\s*"[0-9a-f]{64}"')
 
-# 包 id → (展示名, 简介, 语言, 层级)
+# 包 id 对应展示名、简介、语言和层级
 META = {
     "bonus-builtin": ("彩蛋课 · 内置函数巡礼", "Python 城市公共服务一次逛完：len/sorted/enumerate/zip/any/all…附随堂一问与判题实战。", "python", ""),
     "dsa-basics": ("增补包 · DSA 算法基础", "复杂度直觉 / 双指针 / 哈希表 / 栈与队列 / 递归记忆化：5 讲算法入门，每讲含判题。", "python", ""),

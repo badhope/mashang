@@ -49,9 +49,10 @@ class TranspilerContractTests(unittest.TestCase):
     def test_transpiler_declares_its_limits(self):
         """必须显式写明不支持哪些特性，避免被当成完整 tsc。"""
         text = _read("TypeScriptTranspiler.kt")
-        self.assertIn("教学子集", text)
-        self.assertIn("不支持", text)
-        self.assertIn("宁可少转、不可错转", text)
+        self.assertIn("不是完整 tsc", text)
+        self.assertIn("装饰器", text)
+        self.assertIn("条件类型", text)
+        self.assertIn("宁可少转", text)
 
     def test_ts_bridge_reuses_js_sandbox(self):
         """TS 必须复用 Rhino 沙箱，不得另起一个引擎（否则沙箱边界会不一致）。"""
@@ -76,7 +77,7 @@ class TranspilerContractTests(unittest.TestCase):
         with open(lang, encoding="utf-8") as f:
             text = f.read()
         self.assertIn('TYPESCRIPT = "typescript"', text)
-        self.assertIn('"typescript" -> "TypeScript"', text)
+        self.assertIn("TYPESCRIPT -> \"TypeScript\"", text)
 
 
 @unittest.skipUnless(NODE, "未安装 node，跳过真实执行验证")

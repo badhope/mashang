@@ -209,7 +209,7 @@ fun MistakeItem(
 
             androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(12.dp))
 
-            // User code
+            // 用户代码
             NeonCard(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = 1.dp,
@@ -227,7 +227,7 @@ fun MistakeItem(
 
             androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(8.dp))
 
-            // Expected vs Actual
+            // 预期和实际
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)

@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-00E5FF.svg)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-10.0%2B-00E5FF.svg)]()
 [![Languages](https://img.shields.io/badge/Languages-6-00FF9C.svg)]()
-[![Lessons](https://img.shields.io/badge/Lessons-230%2B-F7FF00.svg)]()
+[![Lessons](https://img.shields.io/badge/Lessons-245-F7FF00.svg)]()
 [![Download](https://img.shields.io/badge/Download-APK-FF2D78.svg)](https://github.com/badhope/mashang/releases/latest)
 
 [English](README.md) | [中文](README.zh-CN.md) | [日本語](README.ja-JP.md)

@@ -549,8 +549,8 @@ class DebugDiagnosticsTests(unittest.TestCase):
     def test_debug_log_is_bounded_and_private(self):
         text = _read(JAVA, "debug", "DebugLog.kt")
         self.assertIn("MAX_ENTRIES", text, "日志必须有内存上限")
-        self.assertIn("MAX_FILE_BYTES", text, "日志文件必须有体积上限")
-        self.assertIn("不记录用户代码", text, "必须明确不记录用户代码")
+        self.assertIn("MAX_FILE_CHARS", text, "日志文件必须有体积上限")
+        self.assertIn("不记用户代码", text, "必须明确不记用户代码")
         # 不得出现任何网络上报
         for bad in ("HttpURLConnection", "OkHttp", "URL("):
             self.assertNotIn(bad, text, f"日志不得联网上报：{bad}")

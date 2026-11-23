@@ -16,7 +16,7 @@ object ReviewScheduler {
         val lapses: Int
     )
 
-    /** Minimal card interface for scheduling — decoupled from persistence. */
+    // 调度只看这几个字段，跟存储层解耦。
     interface SchedulableCard {
         val difficulty: Float
         val interval: Int
@@ -114,7 +114,7 @@ object ReviewScheduler {
             }
         }
 
-        // Exercise as a review card
+        // 练习题也做成复习卡
         if (lesson.exercise != null) {
             cards.add(ReviewCard(
                 id = "${lesson.id}:exercise:0",
@@ -131,7 +131,7 @@ object ReviewScheduler {
     }
 }
 
-// Make ReviewCard implement SchedulableCard
+// ReviewCard 实现调度接口
 fun ReviewCard.toSchedulable(): ReviewScheduler.SchedulableCard = object : ReviewScheduler.SchedulableCard {
     override val difficulty: Float get() = this@toSchedulable.difficulty
     override val interval: Int get() = this@toSchedulable.interval

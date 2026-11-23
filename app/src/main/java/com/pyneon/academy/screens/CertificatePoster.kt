@@ -87,10 +87,10 @@ object CertificatePoster {
         val bitmap = Bitmap.createBitmap(WIDTH, HEIGHT, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        // Background
+        // 背景
         canvas.drawColor(DarkTokens.surfaceDark.toArgb())
 
-        // Grid lines
+        // 网格线
         val gridPaint = Paint().apply {
             color = DarkTokens.primary.toArgb()
             alpha = 30
@@ -103,7 +103,7 @@ object CertificatePoster {
             canvas.drawLine(MARGIN.toFloat(), y.toFloat(), (WIDTH - MARGIN).toFloat(), y.toFloat(), gridPaint)
         }
 
-        // Neon border
+        // 霓虹边框
         val borderPaint = Paint().apply {
             color = DarkTokens.primary.toArgb()
             style = Paint.Style.STROKE
@@ -115,7 +115,7 @@ object CertificatePoster {
             24f, 24f, borderPaint
         )
 
-        // Inner glow border
+        // 内发光边框
         val glowPaint = Paint().apply {
             color = DarkTokens.primary.toArgb()
             style = Paint.Style.STROKE
@@ -127,7 +127,7 @@ object CertificatePoster {
             20f, 20f, glowPaint
         )
 
-        // Title
+        // 标题
         val titlePaint = Paint().apply {
             color = DarkTokens.primary.toArgb()
             textSize = 48f
@@ -137,7 +137,7 @@ object CertificatePoster {
         }
         canvas.drawText("毕业证书", WIDTH / 2f, MARGIN + 120f, titlePaint)
 
-        // Subtitle
+        // 副标题
         val subPaint = Paint().apply {
             color = DarkTokens.textDim.toArgb()
             textSize = 24f
@@ -147,7 +147,7 @@ object CertificatePoster {
         }
         canvas.drawText("CodeLearning（码上）", WIDTH / 2f, MARGIN + 160f, subPaint)
 
-        // Divider
+        // 分隔线
         val dividerPaint = Paint().apply {
             color = DarkTokens.primary.toArgb()
             alpha = 100
@@ -159,7 +159,7 @@ object CertificatePoster {
             dividerPaint
         )
 
-        // Get progress data
+        // 取进度数据
         val progress = withContext(Dispatchers.IO) { ProgressStore.snapshot(context) }
         val lessons = LessonRepository.lessons(context)
         val totalLessons = lessons.size
@@ -169,7 +169,7 @@ object CertificatePoster {
             lessons.find { it.id == id }?.xp ?: 0
         }
 
-        // Stats
+        // 统计
         val statPaint = Paint().apply {
             color = DarkTokens.textHi.toArgb()
             textSize = 32f
@@ -185,7 +185,7 @@ object CertificatePoster {
         val percent = if (totalLessons > 0) (completedLessons * 100 / totalLessons) else 0
         canvas.drawText("通关进度: $percent%", WIDTH / 2f, (statY + 100).toFloat(), statPaint.apply { color = DarkTokens.primary.toArgb() })
 
-        // Progress bar
+        // 进度条
         val barWidth = (WIDTH - 2 * MARGIN - 100).toFloat()
         val barHeight = 12f
         val barX = (MARGIN + 50).toFloat()
@@ -204,7 +204,7 @@ object CertificatePoster {
         }
         canvas.drawRoundRect(barX, barY, barX + fillWidth, barY + barHeight, 6f, 6f, fillPaint)
 
-        // Date
+        // 日期
         val dateStr = SimpleDateFormat("yyyy年MM月dd日", Locale.CHINA).format(Date())
         val datePaint = Paint().apply {
             color = DarkTokens.textDim.toArgb()
@@ -214,7 +214,7 @@ object CertificatePoster {
         }
         canvas.drawText("颁发日期: $dateStr", WIDTH / 2f, (barY + 80).toFloat(), datePaint)
 
-        // Nickname placeholder
+        // 昵称占位
         val namePaint = Paint().apply {
             color = DarkTokens.gold.toArgb()
             textSize = 36f
@@ -224,14 +224,14 @@ object CertificatePoster {
         }
         canvas.drawText("NEO", WIDTH / 2f, (barY + 180).toFloat(), namePaint)
 
-        // QR Code
+        // 二维码
         val qrData = "https://gitcode.com/badhope/mashang\n完成度: $percent% | XP: $earnedXp"
         val qrBitmap = generateQRCode(qrData, 300)
         val qrX = (WIDTH - qrBitmap.width) / 2
         val qrY = (barY + 240).toInt()
         canvas.drawBitmap(qrBitmap, qrX.toFloat(), qrY.toFloat(), null)
 
-        // QR Label
+        // 二维码下方文字
         val qrLabelPaint = Paint().apply {
             color = DarkTokens.textDim.toArgb()
             textSize = 18f
@@ -240,7 +240,7 @@ object CertificatePoster {
         }
         canvas.drawText("扫码验证：赛博朋克学院", WIDTH / 2f, (qrY + qrBitmap.height + 40).toFloat(), qrLabelPaint)
 
-        // Footer
+        // 页脚
         val footerPaint = Paint().apply {
             color = DarkTokens.textDim.toArgb()
             textSize = 16f
@@ -250,7 +250,7 @@ object CertificatePoster {
         canvas.drawText("CodeLearning，离线优先，零上传", WIDTH / 2f, (HEIGHT - MARGIN - 40).toFloat(), footerPaint)
         canvas.drawText("gitcode.com/badhope/mashang", WIDTH / 2f, (HEIGHT - MARGIN - 15).toFloat(), footerPaint)
 
-        // Glitch accent lines
+        // 故障风格的装饰线
         val glitchPaint = Paint().apply {
             color = DarkTokens.secondary.toArgb()
             alpha = 80
