@@ -65,10 +65,10 @@ Build from source:
 
 ## License
 
-MIT. Third-party licenses are listed in-app under About 里的 Open Source Licenses.
+MIT. Third-party licenses are listed in the app under About, in the Open Source Licenses section.
 
-[Privacy](PRIVACY_POLICY.md)、[Terms](TERMS_OF_SERVICE.md)
+[Privacy](PRIVACY_POLICY.md), [Terms](TERMS_OF_SERVICE.md)
 
 ---
 
-<sub>Mirrors: [GitHub](https://github.com/badhope/mashang)、[GitCode](https://gitcode.com/badhope/mashang)、[Gitee](https://gitee.com/badhope/mashang)</sub>
+<sub>Mirrors: [GitHub](https://github.com/badhope/mashang), [GitCode](https://gitcode.com/badhope/mashang), [Gitee](https://gitee.com/badhope/mashang)</sub>
