@@ -10,11 +10,7 @@ sealed class Block {
     data class Paragraph(val text: String) : Block()
     data class Tip(val text: String) : Block()
     data class Warn(val text: String) : Block()
-    /**
-     * 代码块。
-     * @param lang 代码语言；为空表示继承所属课程的 lang（绝大多数情况）。
-     *             显式指定可用于"同一讲里对比两门语言"的教学片段。
-     */
+    // 代码块。lang 空着就跟着课程走，写明可以在同一讲里对比另一门语言。
     data class CodeBlock(
         val code: String,
         val runnable: Boolean,
@@ -36,12 +32,7 @@ sealed class Block {
         val explain: String
     ) : Block()
 
-    /**
-     * 多语言对照块：同一件事在 2–3 门语言里怎么写。
-     *
-     * 教学价值：学习者最容易建立「概念是共通的、语法才是差异」的认知。
-     * 每栏可独立运行（runnable），由各自语言的运行时执行。
-     */
+    // 多语言对照，同一件事用 2 到 3 门语言各写一遍。每栏能单独跑。
     data class Compare(
         val title: String,
         val columns: List<CompareColumn>
@@ -54,24 +45,19 @@ sealed class Block {
         val runnable: Boolean = true
     )
 
-    /**
-     * 可视化块：把抽象过程画成可逐步播放的动画。
-     *
-     * 用途：变量变化、循环迭代、数组移动、递归调用栈——这些用文字描述
-     * 很吃力，但一帧一帧看就明白了。每帧是一组「标签 → 值」快照，
-     * 播放器按顺序高亮变化项。
-     */
+    // 可视化块。变量变化、循环、数组移动、递归栈这些东西光看文字费劲，
+    // 拆成一帧一帧就清楚了。
     data class Visualize(
         val title: String,
         val caption: String = "",
-        /** 每帧：一行说明 + 若干「名字 → 值」项 */
+        // 一帧就是一行说明加几个名字和值。
         val frames: List<VisualFrame>
     ) : Block()
 
     data class VisualFrame(
         val label: String,
         val items: List<VisualItem> = emptyList(),
-        /** 高亮哪些项发生了变化（按 name 匹配） */
+        // 按名字匹配，标出这一帧变了哪些。
         val highlight: List<String> = emptyList()
     )
 
@@ -98,7 +84,7 @@ data class Lesson(
     val xp: Int,
     val blocks: List<Block>,
     val exercise: Exercise?,
-    /** 课程语言，见 LanguageIds；缺省 python 以保持旧课程 JSON 完全兼容 */
+    // 课程语言，默认 python，老 JSON 不写也能读。
     val lang: String = LanguageIds.PYTHON
 )
 
@@ -153,11 +139,8 @@ object LessonRepository {
 
     fun lesson(context: Context, id: String): Lesson? = lessons(context).firstOrNull { it.id == id }
 
-    /**
-     * 主线课程 = APK 内置的 39 讲 Python（id 形如 l01..l39，l39 为综合项目）。
-     * 不能用 lang=="python" 判断：语言中心下载的 DSA / 彩蛋包同样是 python，
-     * 会把「课程进度 x/39」变成 x/50，毕业口径随之失真（实测）。
-     */
+    // 主线就是 APK 自带的 39 讲 Python，id 是 l01 到 l39。
+    // 不能按 lang 判断，DSA 和彩蛋包也是 python，算进来进度就从 x/39 变 x/50 了。
     fun mainline(context: Context): List<Lesson> =
         lessons(context).filter { Regex("""^l\d{2}$""").matches(it.id) }
 
@@ -331,14 +314,11 @@ object LessonRepository {
         lang = obj.optString("lang", LanguageIds.PYTHON).ifBlank { LanguageIds.PYTHON }
     )
 
-    /**
-     * 课程里出现过的语言 id 列表（按出现顺序去重）。
-     * 用于多语言切换器：只展示有内容的语言，避免切进空课程列表。
-     */
+    // 有内容的语言。切换器只列这些，免得点进去一片空白。
     fun languages(context: Context): List<String> =
         lessons(context).map { it.lang }.distinct()
 
-    /** 按语言过滤课程；传 null 返回全部 */
+    // 按语言筛课，传 null 就全给。
     fun lessonsByLang(context: Context, lang: String?): List<Lesson> {
         val all = lessons(context)
         return if (lang == null) all else all.filter { it.lang == lang }

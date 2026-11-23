@@ -88,16 +88,14 @@ fun AppRoot() {
     val currentRoute = backStack?.destination?.route ?: "boot"
     val showBar = TOP_DESTS.any { it.route == currentRoute }
     
-    // Track if welcome tutorial has been shown in this session
+    // 记录这次启动是不是第一次，欢迎页只看一次。
     val context = LocalContext.current
     val showWelcome = remember { mutableStateOf(AppPrefs.isFirstLaunch(context)) }
-    // 首次启动必须明示同意隐私政策（华为/工信部合规）
+    // 首次启动要先拿到隐私同意。
     var showConsent by remember { mutableStateOf(!AppPrefs.isPrivacyConsented(context)) }
-    // 同意后要让 BootScreen 以 consented=true 重来一遍，否则运行时永远不初始化。
-    // 旧实现只把 showConsent 置 false，而 BootScreen 的 LaunchedEffect 早已在
-    // consented=false 时跑完并导航离开，Python/SQL 从此不会 start，判题全部报错
-    // （2026-11 审查发现，发布阻断级）。做法：同意时把回退栈清回 boot，并用
-    // consentEpoch 作为 key 强制重建 BootScreen。
+    // 同意后要让 BootScreen 用 consented=true 重走一遍。只把 showConsent 置 false
+    // 没用，原来那次 LaunchedEffect 已经跑完离开了，运行时就再也不会初始化。
+    // 所以同意时清回 boot，再用 consentEpoch 强制重建。
     var consentEpoch by remember { mutableIntStateOf(0) }
 
     // 崩溃后首次启动提示：CrashHandler 在崩溃时已把记录写入本机，
@@ -109,8 +107,7 @@ fun AppRoot() {
     Scaffold(
         containerColor = Bg0,
         bottomBar = {
-            // 键盘弹出时隐藏底部导航：否则它要么被键盘盖住点不到，要么和输入框
-            // 争夺垂直空间把输入区挤没（终端/练习页实测）。输入期间不需要切 Tab。
+            // 键盘弹出时藏起底栏，不然会被键盘盖住，还挤占输入区。
             if (showBar && !WindowInsets.isImeVisible) {
                 NavigationBar(containerColor = Bg1) {
                     TOP_DESTS.forEach { dest ->
@@ -160,8 +157,7 @@ fun AppRoot() {
             }
         ) {
             composable("boot") {
-                // 合规：未同意隐私政策前不初始化运行时、不写任何学习数据。
-                // BootScreen 内部据此跳过预热与连击记录（个保法 / 商店审核要求）。
+                // 没同意就不初始化、不写数据，BootScreen 自己会跳过。
                 androidx.compose.runtime.key(consentEpoch) {
                     BootScreen(
                         consented = !showConsent,
@@ -181,8 +177,7 @@ fun AppRoot() {
             }
             
             composable("welcome") {
-                // Mark as seen immediately when entering welcome screen
-                // This prevents showing it again if user presses back button
+                // 进欢迎页就标记看过，按返回也不会再弹。
                 LaunchedEffect(Unit) {
                     AppPrefs.markFirstLaunchComplete(context)
                 }
@@ -218,7 +213,7 @@ fun AppRoot() {
                 LessonDetailScreen(
                     lessonId = id,
                     onBack = { navController.popBackStack() },
-                    // U4: 学完一课直接进入下一课（替换当前页，避免栈无限增长）
+                    // 学完直接进下一课，替换当前页，别让回退栈一直长。
                     onNextLesson = { nextId ->
                         navController.navigate("lesson/$nextId") {
                             popUpTo("lesson/$id") { inclusive = true }
@@ -250,8 +245,7 @@ fun AppRoot() {
             ) }
             composable("contenthub") { ContentHubScreen(onBack = { navController.popBackStack() }) }
             composable("langcenter") { LanguageCenterScreen(onBack = { navController.popBackStack() }) }
-            // 「备份/恢复」入口此前只在 ProfileScreen 里 navigate("backup")，但导航图
-            // 从未注册该路由 → 点击必崩（IllegalArgumentException: route backup not found）。
+            // 备份入口之前没注册，点了会崩，这里补上。
             composable("backup") { BackupScreen(onBack = { navController.popBackStack() }) }
             composable("certificate") { CertificateScreen(onBack = { navController.popBackStack() }) }
             composable("streak") {

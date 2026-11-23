@@ -281,7 +281,7 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
             }
 
             if (exercise != null) {
-                SectionHeader("实战演练 · ${exercise.title}", accent = NeonMagenta)
+                SectionHeader("实战演练：${exercise.title}", accent = NeonMagenta)
                 NeonCard(accent = if (alreadySolved) NeonGreen else NeonMagenta, filled = false) {
                     Text(exercise.brief, style = MaterialTheme.typography.bodyLarge, color = TextMid)
 

@@ -83,7 +83,7 @@ fun SettingsScreen(
     ) {
         ScreenHeader(
             title = "系统设置",
-            subtitle = "外观 · 数据 · 更新 · 关于",
+            subtitle = "外观、数据、更新、关于",
             accent = NeonGreen,
             onBack = onBack
         )
@@ -127,12 +127,12 @@ fun SettingsScreen(
                             )
                         }
                         if (currentStyle == style) {
-                            Text("✓", color = NeonCyan, style = MaterialTheme.typography.titleMedium)
+                            Text("已选", color = NeonCyan, style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
                 Text(
-                    "配色主题见上方「配色主题」区块，7 套预设 + 自定义主色可自由搭配。",
+                    "配色主题在上面的区块里，7 套预设，也能自己配主色。",
                     style = MaterialTheme.typography.labelSmall,
                     color = TextDim
                 )
@@ -143,7 +143,7 @@ fun SettingsScreen(
         NeonCard(accent = NeonYellow) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "只放大课程正文与说明文字，代码块保持原字号——避免缩进和对齐被破坏。",
+                    "只放大课程正文和说明文字，代码块保持原字号，免得缩进和对齐乱掉。",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextMid
                 )

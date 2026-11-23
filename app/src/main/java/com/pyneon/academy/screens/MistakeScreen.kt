@@ -81,7 +81,7 @@ fun MistakeScreen(
             verticalArrangement = Arrangement.Top
         ) {
             NeonTopBar(
-                title = lessonId?.let { "错题本·$it" } ?: "错题本",
+                title = lessonId?.let { "错题本 $it" } ?: "错题本",
                 onBack = onBack
             ) {
                 if (displayMistakes.isNotEmpty()) {
@@ -91,9 +91,7 @@ fun MistakeScreen(
                 }
             }
 
-            // 筛选条目：用可横向滚动的 Row + 自绘 chip，不用 Material3 TabRow
-            // —— TabRow 的 indicator/container 在深色主题下会被 Ambient 色染成
-            // 一条贯屏实心色块（实测 1080px 宽 × 120px 高），改自绘最稳。
+            // 筛选条用横向 Row 自己画。TabRow 在深色主题下会被环境色染成一条实心块。
             if (weakConcepts.isNotEmpty()) {
                 val options = listOf<String?>(null) + weakConcepts.map { it.first }
                 androidx.compose.foundation.lazy.LazyRow(
@@ -146,11 +144,11 @@ fun MistakeScreen(
                         ) {
                             Icon(Icons.Default.BugReport, contentDescription = "", tint = LocalNeonTokens.current.textDim, modifier = Modifier.size(48.dp))
                             androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        if (lessonId != null) "该课暂无错题" else "太棒了，暂无错题！",
-                        style = AppTypography.bodyMedium,
-                        color = LocalNeonTokens.current.textDim
-                    )
+                            Text(
+                                if (lessonId != null) "该课暂无错题" else "还没有错题，继续保持。",
+                                style = AppTypography.bodyMedium,
+                                color = LocalNeonTokens.current.textDim
+                            )
                         }
                     }
                 }
@@ -189,7 +187,7 @@ fun MistakeItem(
             ) {
                 val blockLabel = if (mistake.blockIndex >= 0) "l${mistake.blockIndex + 1}" else "练习"
                 Text(
-                    "$blockLabel · ${mistake.blockType.uppercase()}",
+                    "$blockLabel，${mistake.blockType.uppercase()}",
                     style = AppTypography.titleMedium,
                     color = LocalNeonTokens.current.primary
                 )

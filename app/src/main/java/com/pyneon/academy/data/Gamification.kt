@@ -39,12 +39,8 @@ enum class Achievement(val title: String, val desc: String) {
     ARENA_WINNER("角斗士", "通过任意一个挑战")
 }
 
-/**
- * 计算已解锁成就。
- *
- * @param totalLessons 毕业所需课时数——必须传「内置主线 38 讲」，不能传全部课程数。
- *   传全部会让「30 讲 Python + 8 讲 JS」凑够 38 就提前解锁毕业徽章（2026-11 实测）。
- */
+// 算已解锁的成就。totalLessons 只传 Python 主线的 39 讲，
+// 传全部课程数的话，学 30 讲 Python 加 8 讲 JS 就提前毕业了。
 fun unlockedAchievements(progress: Progress, totalLessons: Int): Set<Achievement> {
     val unlocked = mutableSetOf<Achievement>()
     if (progress.firstRunDone) unlocked += Achievement.CODE_RUNNER
@@ -64,12 +60,7 @@ fun unlockedAchievements(progress: Progress, totalLessons: Int): Set<Achievement
     return unlocked
 }
 
-/**
- * 每日任务是否已完成。
- *
- * 必须同时校验日期：只判断 dailyCount > 0 会让昨天完成的任务在今天依然打勾，
- * 任务面板与实际状态脱节（2026-11 审查发现）。todayEpochDay 默认取系统当天，
- * 便于测试注入固定日期。
- */
+// 每日任务完成没有。日期也得对，只看 dailyCount 会让昨天的任务今天还打勾。
+// todayEpochDay 默认取今天，测试可以传固定日期。
 fun dailyMissionDone(progress: Progress, todayEpochDay: Long = Clock.todayEpochDay()): Boolean =
     progress.dailyCount > 0 && progress.dailyDate == todayEpochDay

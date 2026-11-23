@@ -149,8 +149,7 @@ fun ProfileScreen(
         }
 
         SectionHeader("毕业认证", accent = NeonYellow)
-        // 毕业口径 = 内置主线课程（Python 39 讲）；扩展包不计入，
-        // 否则通关主线后仍显示未毕业（实测显示 "0/44"）。
+        // 毕业只看 Python 主线 39 讲。扩展包算进来，通关主线也会显示 0/44。
         val coreDone = remember(progress, coreLessons) {
             coreLessons.count { it.id in progress.completedLessons }
         }
@@ -162,9 +161,9 @@ fun ProfileScreen(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Icon(Icons.Outlined.EmojiEvents, contentDescription = null, tint = if (allDone) NeonYellow else TextDim, modifier = Modifier.size(28.dp))
                 Column {
-                    Text("GRADUATION · 毕业证书", style = MaterialTheme.typography.titleSmall, color = if (allDone) TextHi else TextDim)
+                    Text("毕业证书", style = MaterialTheme.typography.titleSmall, color = if (allDone) TextHi else TextDim)
                     Text(
-                        if (allDone) "已达成！点击查看并分享你的证书" else "通关全部 ${coreLessons.size} 讲后解锁（$coreDone/${coreLessons.size}）",
+                        if (allDone) "已达成，点这里查看并分享证书" else "通关全部 ${coreLessons.size} 讲后解锁（$coreDone/${coreLessons.size}）",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextDim
                     )
@@ -216,9 +215,9 @@ fun ProfileScreen(
 
         SectionHeader("系统信息", accent = NeonGreen)
         NeonCard(accent = NeonGreen) {
-            InfoRow("运行时", "${runtime.displayName} $pythonVersion · 设备端嵌入")
+            InfoRow("运行时", "${runtime.displayName} $pythonVersion，设备端嵌入")
             InfoRow("版本", "${AppConstants.APP_NAME_CN} v${AppConstants.VERSION_NAME}")
-            InfoRow("网络", "离线优先 · 联网仅拉取新课程")
+            InfoRow("网络", "离线优先，联网只拉新课程")
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 NeonButton(label = "语言中心", accent = NeonCyan, onClick = onOpenLanguageCenter, modifier = Modifier.weight(1f))

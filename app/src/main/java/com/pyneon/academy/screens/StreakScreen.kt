@@ -190,12 +190,11 @@ fun StatItem(label: String, value: String, icon: ImageVector) {
 
 @Composable
 fun BadgeGrid(badges: List<String>, locked: Boolean = false) {
-    // 徽章是 100dp 方形格子：原来用 LazyColumn 会变成一列竖排 100dp 卡片，
-    // 在大屏上留下大片空白（实测 1080×2400 只占左上角）。改成自适应行网格。
+    // 徽章是 100dp 方块。以前用 LazyColumn 排成一列，大屏上只占左上角，改成自适应网格。
     val defs = badges.mapNotNull { id -> BADGE_DEFS.firstOrNull { it.id == id } }
     if (defs.isEmpty()) return
-    // 列数按实际可用宽度算（每格最小 92dp），并让每格等宽填满一行：
-    // 写死列数 + 固定宽度会在窄屏溢出被裁、在宽屏右侧留一大片空白。
+    // 列数按可用宽度算，每格至少 92dp，等宽铺满一行。
+    // 写死列数的话，窄屏会溢出，宽屏右边空一片。
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val columns = ((maxWidth + 8.dp) / 100.dp).toInt().coerceAtLeast(1)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -216,8 +215,8 @@ fun BadgeItem(def: BadgeDef, locked: Boolean, modifier: Modifier = Modifier) {
     } else {
         def.icon to def.color
     }
-    // 注意：NeonCard 内部自带 16dp padding，这里不能再叠加，否则 118dp 高度里
-    // 只剩不到 24dp 留给文字，徽章名会被裁掉半截（实测「初登基地」只剩上半）。
+    // NeonCard 自带 16dp padding，这里别再叠。118dp 里没剩多少，
+    // 再叠文字就不够，徽章名会被裁掉半截。
     NeonCard(
         modifier = modifier.height(118.dp),
         elevation = if (locked) 0.dp else 4.dp,

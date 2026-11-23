@@ -72,7 +72,7 @@ fun TracksScreen(
     ) {
         ScreenHeader(
             title = "课程路线",
-            subtitle = "只列真实内容 · 已通关 $totalDone/$totalLessons 讲",
+            subtitle = "只列真实内容，已通关 $totalDone/$totalLessons 讲",
             accent = NeonCyan,
             onBack = onBack
         )
@@ -97,7 +97,7 @@ private fun TrackCategorySection(
 ) {
     val readyCount = category.tracks.count { it.status == TrackStatus.READY }
     SectionHeader(
-        "${category.name} · ${category.tracks.size} 条路线",
+        "${category.name}，${category.tracks.size} 条路线",
         accent = if (readyCount > 0) NeonGreen else NeonCyan
     )
     category.tracks.forEach { track ->

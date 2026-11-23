@@ -10,15 +10,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * SQL 运行时：复用内嵌 CPython 的 sqlite3 模块，在内存库上执行脚本。
+ * SQL 运行时直接用内嵌 CPython 的 sqlite3，在内存库上跑。
  *
- * 为什么不做独立 SQL 引擎：
- * - Android 自带 SQLite，CPython 的 sqlite3 已经链接它，零额外体积；
- * - 与 Python 运行时共用 Chaquopy 桥，不引入新的原生依赖；
- * - 执行与判题语义统一走 `sql_runner.py` 的 JSON 契约，与 runner.py 同构。
+ * Android 自带 SQLite，CPython 的 sqlite3 已经链上了，不用再带一个引擎，
+ * 也继续用 Chaquopy 这座桥。执行和判题都走 sql_runner.py 的 JSON，和 runner.py 一样。
  *
- * 安全边界：`sql_runner._authorizer` 拒绝 ATTACH / DETACH，数据库固定为
- * `:memory:`，脚本不能打开或写入设备上的任何文件。
+ * sql_runner 的 authorizer 会拒 ATTACH/DETACH，库固定是 :memory:，
+ * 脚本碰不到设备上的文件。
  */
 object SqlBridge : LanguageRuntime {
 
@@ -27,7 +25,7 @@ object SqlBridge : LanguageRuntime {
     override val fileExtension: String = "sql"
     override val grammarScope: String = "source.sql"
 
-    /** 判题超时（秒）：与 runner.py / JsBridge 的默认值对齐。 */
+    // 判题超时，和 runner.py、JsBridge 默认值一致。
     private const val DEFAULT_TIMEOUT = 8.0
     override val version: String
         get() = try {
@@ -65,8 +63,7 @@ object SqlBridge : LanguageRuntime {
         val payload = JSONObject().apply {
             put("code", code)
             put("tests", JSONArray(tests))
-            // 判题超时与 runCode 一致：死循环 CTE 必须在执行阶段就被中断，
-            // 否则 UI 会永远停在「运行中」（2026-11 审查发现）。
+            // 判题也得带超时。死循环 CTE 要在执行时掐掉，不然界面一直转圈。
             put("timeout", DEFAULT_TIMEOUT)
         }
         return parse(module().callAttr("check_sql_json", payload.toString()).toString())

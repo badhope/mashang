@@ -34,19 +34,10 @@ import com.pyneon.academy.ui.theme.TextMid
 import com.pyneon.academy.utils.AppConstants
 import com.pyneon.academy.utils.ShareHelper
 
-/**
- * 开源许可页（应用内合规必备）。
- *
- * 为什么必须有：
- * - **LGPL-2.1**（sora-editor 代码编辑器）要求分发时提供许可文本，并能获取其源码；
- * - **MPL-2.0**（Rhino）要求声明源码可得；
- * - **Apache-2.0**（AndroidX / Compose / ZXing）要求保留 NOTICE；
- * - 各应用商店审核也会检查「是否展示第三方组件许可」。
- *
- * 因此这里列出全部第三方组件、许可证、用途与源码地址，并内嵌完整 MIT 许可正文
- * （本项目自身许可）。完整 LGPL/MPL/Apache 正文较长，给出官方链接与源码地址，
- * 符合各许可证「提供获取方式」的要求。
- */
+// 开源许可页。商店审核要看，LGPL、MPL、Apache 也各有各的要求：
+// sora-editor 是 LGPL-2.1，得给许可文本和源码地址；Rhino 是 MPL-2.0；
+// AndroidX、Compose、ZXing 是 Apache-2.0，要保留 NOTICE。
+// 页面里列组件、许可证、用途和源码，MIT 正文直接放在这里。
 @Composable
 fun LicensesScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -128,7 +119,7 @@ fun LicensesScreen(onBack: () -> Unit) {
 
         SectionHeader("第三方组件", accent = NeonYellow)
         Text(
-            "以下组件以依赖方式引入，未修改其源码。点击可在浏览器中查看各自的项目与许可。",
+            "这些组件都是按依赖引入的，源码没改过。点下面的按钮可以看各自的项目和许可。",
             style = MaterialTheme.typography.bodySmall,
             color = TextDim
         )
@@ -138,7 +129,7 @@ fun LicensesScreen(onBack: () -> Unit) {
                     Column(Modifier.weight(1f)) {
                         Text(lib.name, style = MaterialTheme.typography.bodyLarge, color = TextHi)
                         Text(
-                            "${lib.license} · ${lib.purpose}",
+                            "${lib.license}，${lib.purpose}",
                             style = MaterialTheme.typography.labelSmall,
                             color = TextMid
                         )
@@ -158,9 +149,9 @@ fun LicensesScreen(onBack: () -> Unit) {
         NeonCard(accent = NeonGreen) {
             Text(
                 "本应用使用了 sora-editor（LGPL-2.1）。LGPL 要求：\n\n" +
-                    "1. 以动态链接方式使用该库（本应用通过 Gradle 依赖引入，未静态合并其源码）；\n" +
-                    "2. 提供该库的完整源码或获取方式 —— 见上方「sora-editor」条目；\n" +
-                    "3. 允许用户替换为该库的其他版本 —— 由于是标准 Gradle 依赖，重新构建即可替换。\n\n" +
+                    "1. 以独立依赖库的形式使用，没有把它的源码并进应用；\n" +
+                    "2. 提供完整源码或获取方式，见上方 sora-editor 条目；\n" +
+                    "3. 允许用户换成该库的其他版本，重新构建即可。\n\n" +
                     "本应用未修改 sora-editor 源码。",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextMid

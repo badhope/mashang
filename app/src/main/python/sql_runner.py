@@ -1,9 +1,8 @@
-"""SQL 执行与判题引擎（设备端 SQLite 内存库）。
+"""设备端 SQLite 内存库的 SQL 执行和判题。
 
-超时策略（2026-11 修复）：SQLite 的 execute 是同步阻塞调用，死循环 CTE
-（如漏写终止条件的 WITH RECURSIVE）会把调用线程永久占住，UI 卡在「运行中」。
-这里用 sqlite3 的 set_progress_handler 做指令级看门狗：每 N 条虚拟机指令回调
-一次，超过截止时间就返回非 0，SQLite 会中断当前语句并抛 OperationalError。
+SQLite 的 execute 是同步阻塞的，死循环 CTE（比如漏了终止条件的 WITH RECURSIVE）
+会把线程占死，界面一直转。这里用 set_progress_handler 做指令级看门狗：
+每 1000 条虚拟机指令看一眼时间，超了返回非 0，SQLite 自己中断并抛错。
 """
 import json
 import sqlite3
@@ -116,7 +115,7 @@ def _execute(sql, timeout=None):
             else:
                 out.append("OK (%d rows affected)" % cursor.rowcount)
         conn.commit()
-    except BaseException:  # aqg: top-level boundary
+    except BaseException:  # 任何异常都要转成结构化结果，别让桥接层崩。
         try:
             conn.rollback()  # 未提交的事务在报错时必须撤销，避免半成品状态
         except Exception:
@@ -124,8 +123,8 @@ def _execute(sql, timeout=None):
         etype, evalue, tb = __import__("sys").exc_info()
         trimmed = tb.tb_next if tb is not None else None
         if timed_out["hit"]:
-            # SQLite 被中断时抛的是 OperationalError('interrupted')；对外统一报超时，
-            # 否则用户只会看到一句看不懂的 interrupted（2026-11 审查发现）。
+            # SQLite 中断时抛的是 OperationalError('interrupted')，对外统一报超时，
+            # 不然用户只看到一句看不懂的 interrupted。
             error = {
                 "type": "Timeout",
                 "message": "执行超过 %.1f 秒上限，已中断（疑似死循环或超大查询）" % budget,
@@ -190,7 +189,7 @@ def check_sql(sql, tests, timeout=None):
             exec(compile(test, "<sql-test-%d>" % index, "exec"), namespace)
         except AssertionError as exc:
             failures.append(str(exc) or "断言未通过")
-        except BaseException:  # aqg: top-level boundary
+        except BaseException:  # 任何异常都要转成结构化结果，别让桥接层崩。
             etype, evalue, _tb = __import__("sys").exc_info()
             failures.append("%s: %s" % (getattr(etype, "__name__", "Error"), evalue))
     passed = not failures

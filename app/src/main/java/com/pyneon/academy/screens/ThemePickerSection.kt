@@ -41,13 +41,7 @@ import com.pyneon.academy.ui.theme.TextHi
 import com.pyneon.academy.ui.theme.TextMid
 import com.pyneon.academy.utils.ThemePreference
 
-/**
- * 配色主题选择器。
- *
- * 抽成独立组件的原因：设置页与「我的」页都要用它。此前只存在于「我的」页，
- * 导致用户在设置里找不到换肤入口（2026-11 用户反馈）。现在两处复用同一实现，
- * 行为与视觉完全一致，不会再出现「两个地方各写一套」的漂移。
- */
+// 配色主题选择器。设置页和「我的」页都用这一份，省得两边各写一套。
 @Composable
 fun ThemePickerSection(
     modifier: Modifier = Modifier,
@@ -86,7 +80,6 @@ fun ThemePickerSection(
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 主题颜色预览圆点
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Box(
                                 modifier = Modifier
@@ -105,7 +98,6 @@ fun ThemePickerSection(
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
-                        // 主题名称
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = theme.name,
@@ -113,20 +105,19 @@ fun ThemePickerSection(
                                 color = if (currentThemeId == theme.id) theme.primary else TextHi
                             )
                         }
-                        // 选中标记
                         if (currentThemeId == theme.id) {
-                            Text("✓", color = theme.primary, style = MaterialTheme.typography.titleMedium)
+                            Text("已选", color = theme.primary, style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
 
-                // ===== 自定义色调 =====
+                // 自定义颜色
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
                             currentThemeId = AppThemes.CUSTOM_THEME_ID
-                            // 之前应用过的合法主色立即生效，无需重复点「应用」
+                            // 输入合法就直接生效，不用再点应用。
                             if (AppThemes.parseHex(customColorInput) != null) {
                                 ThemePreference.saveCustomColor(context, customColorInput.trim())
                                 ThemePreference.saveTheme(context, AppThemes.CUSTOM_THEME_ID)
@@ -157,12 +148,12 @@ fun ThemePickerSection(
                         modifier = Modifier.weight(1f)
                     )
                     if (currentThemeId == AppThemes.CUSTOM_THEME_ID) {
-                        Text("✓", color = AppThemes.parseHex(customColorInput) ?: TextDim, style = MaterialTheme.typography.titleMedium)
+                        Text("已选", color = AppThemes.parseHex(customColorInput) ?: TextDim, style = MaterialTheme.typography.labelMedium)
                     }
                 }
                 if (currentThemeId == AppThemes.CUSTOM_THEME_ID) {
                     Text(
-                        "点选下方色板或输入 #RRGGBB 主色，整套界面即时跟随；主色偏暗时自动切亮色背景保护可读性。",
+                        "点下面的色板，或者输入 #RRGGBB。整套界面会立即跟着变；主色太暗会自动换亮底，保证看得清。",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextDim
                     )

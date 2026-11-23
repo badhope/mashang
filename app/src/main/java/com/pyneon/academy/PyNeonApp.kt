@@ -24,7 +24,7 @@ class PyNeonApp : Application() {
         LanguageRegistry.register(LuaBridge)
         LanguageRegistry.register(SqlBridge)
         DebugLog.i("App", "启动 v" + com.pyneon.academy.utils.AppConstants.VERSION_NAME +
-            " · 已注册运行时 " + LanguageRegistry.ids().joinToString(","))
+            "，已注册运行时 " + LanguageRegistry.ids().joinToString(","))
         // 不在 Application.onCreate 里启动 CPython。
         //
         // 原因：Python.start() 是同步的，会在这里阻塞主线程加载 5.4MB 的

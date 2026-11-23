@@ -23,15 +23,13 @@ import com.pyneon.academy.ui.theme.TextMid
 import com.pyneon.academy.utils.AppConstants
 import com.pyneon.academy.utils.ShareHelper
 
-/**
- * 首次启动的隐私政策同意弹窗。华为/工信部要求：在收集或处理任何数据前取得明示同意。
- * 不可通过点击外部取消；拒绝则退出应用。
- */
+// 首次启动弹隐私同意。处理数据前要拿到明示同意，
+// 不能点外面糊弄过去，拒绝就退出。
 @Composable
 fun PrivacyConsentDialog(onConsent: () -> Unit, onDecline: () -> Unit) {
     val context = LocalContext.current
     AlertDialog(
-        onDismissRequest = { /* 必须明确选择，禁止外部点击取消 */ },
+        onDismissRequest = { /* 必须明确选一个，点外面不算。 */ },
         containerColor = SurfaceDark,
         title = { Text("隐私政策同意", color = NeonCyan, style = MaterialTheme.typography.titleLarge) },
         text = {
@@ -43,10 +41,10 @@ fun PrivacyConsentDialog(onConsent: () -> Unit, onDecline: () -> Unit) {
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    "· 我们不收集、不上传任何个人信息；\n" +
-                        "· 你的学习数据仅保存在本设备本地；\n" +
-                        "· 联网权限仅用于手动下载课程拓展包；\n" +
-                        "· 同意后方可使用全部功能。",
+                    "1. 不收集、不上传任何个人信息。\n" +
+                        "2. 学习数据只存在本设备上。\n" +
+                        "3. 联网权限只用于手动下载课程拓展包。\n" +
+                        "4. 同意后才能使用全部功能。",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextMid
                 )

@@ -42,14 +42,7 @@ import com.pyneon.academy.ui.theme.TextDim
 import com.pyneon.academy.ui.theme.TextHi
 import com.pyneon.academy.ui.theme.TextMid
 
-/**
- * 课程内容块里的「多卡片可视化」组件：compare（多语言并排对照）与
- * visualize（过程逐帧播放）。
- *
- * 从 LessonBlockCards.kt 拆出（2026-11 技术债清理）：该文件此前 634 行、
- * 同时承载 14 种块的渲染；这两块是后加的、自成一体，拆出后两边都更清晰。
- * 纯文件移动，无任何行为改动。
- */
+// 多语言对照和过程可视化，两块单独放这里，页面文件只留骨架。
 
 @Composable
 internal fun CompareCard(
@@ -95,7 +88,7 @@ internal fun CompareCard(
             if (col.runnable) {
                 Spacer(Modifier.height(6.dp))
                 NeonButton(
-                    label = if (runningKey == index) "运行中…" else "▶ 运行 $langName",
+                    label = if (runningKey == index) "运行中…" else "运行 $langName",
                     accent = NeonGreen,
                     enabled = runningKey == null,
                     onClick = { onRun(index, col) }
@@ -112,14 +105,9 @@ internal fun CompareCard(
     }
 }
 
-/**
- * 过程可视化卡：把抽象过程逐帧播放出来。
- *
- * 交互：上一帧 / 下一帧 / 自动播放 / 重置。变化项用霓虹高亮标出，
- * 让「哪个变量在这一步变了」一眼可见——这是纯文字讲解做不到的。
- *
- * 简洁风格下自动播放会关闭（避免持续动画），但仍可手动翻帧。
- */
+// 过程拆帧播放。上一帧、下一帧、自动播放、重置都能点。
+// 变化项会高亮，哪个变量动了看一眼就知道。
+// 简洁风格关掉自动播放，手动翻帧还在。
 @Composable
 internal fun VisualizeCard(block: Block.Visualize) {
     if (block.frames.isEmpty()) return
@@ -194,18 +182,18 @@ internal fun VisualizeCard(block: Block.Visualize) {
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             NeonButton(
-                label = "◀",
+                label = "上一帧",
                 accent = NeonCyan,
                 enabled = frame > 0,
                 onClick = { playing = false; frame -= 1 }
             )
             NeonButton(
-                label = "▶",
+                label = "下一帧",
                 accent = NeonCyan,
                 enabled = frame < block.frames.lastIndex,
                 onClick = { playing = false; frame += 1 }
             )
-            // 简洁风格不做自动播放（避免持续动画干扰阅读）
+            // 简洁风格不自动播，免得一直动。
             if (style.pressAnimationEnabled) {
                 NeonButton(
                     label = if (playing) "暂停" else "自动播放",

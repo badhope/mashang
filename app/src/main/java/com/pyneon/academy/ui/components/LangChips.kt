@@ -18,13 +18,8 @@ import androidx.compose.ui.unit.dp
 import com.pyneon.academy.ui.theme.Bg0
 import com.pyneon.academy.ui.theme.TextMid
 
-/**
- * 语言运行时选择 chips（终端 / 课程列表共用）。
- *
- * @param options 语言列表（id → 显示名），来自 LanguageRegistry.all() 或
- *                LessonRepository.languages()
- * @param selected 当前选中的语言 id；null 表示「全部」
- */
+// 语言选择条，终端和课程列表共用。
+// options 里是 id 和显示名，selected 为 null 表示全部。
 @Composable
 fun LangChipRow(
     options: List<Pair<String?, String>>,

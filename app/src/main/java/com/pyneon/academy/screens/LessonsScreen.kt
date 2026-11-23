@@ -58,8 +58,7 @@ fun LessonsScreen(openLesson: (String) -> Unit) {
     val allLessons = remember { LessonRepository.lessons(context) }
     // 语言过滤：null = 全部；选项来自课程数据里实际出现过的语言
     var langFilter by remember { mutableStateOf<String?>(null) }
-    // 搜索：匹配标题 / 副标题 / 章节名。79 讲规模下找「装饰器」「JOIN」
-    // 这类关键词，逐个翻列表不可接受（2026-11 技术债清理）。
+    // 搜索匹配标题、副标题和章节名。课程多了以后翻列表找「装饰器」「JOIN」太慢。
     var query by rememberSaveable { mutableStateOf("") }
     val lessons = remember(langFilter, query, allLessons) {
         var r = if (langFilter == null) allLessons else allLessons.filter { it.lang == langFilter }
@@ -77,12 +76,8 @@ fun LessonsScreen(openLesson: (String) -> Unit) {
         allLessons.map { it.lang }.distinct().map { it to com.pyneon.academy.lang.LanguageIds.displayNameOf(it) }
     }
 
-    // 每讲的「章节内序号」与「章节内上一讲」一次性预计算，按 lesson.id 索引。
-    //
-    // 为什么不能用列表下标：列表会被语言筛选、搜索过滤，过滤后的下标与全量列表
-    // 完全对不上。旧实现用 orderInChapter[index] + lessons[index-1]，一旦切到
-    // 「只看 JavaScript」，序号会变成错乱的 01/07/19…，锁定判断还会拿上一门语言
-    // 的最后一讲当解锁条件（2026-11 审查发现）。按 id 预计算后，过滤不影响语义。
+    // 章节序号和上一讲按 id 一次算好。列表会被筛选和搜索改短，拿下标查会错位：
+    // 切到只看 JavaScript 时序号会变成 01/07/19，锁定还会拿上一门语言的最后一讲当前置。
     val chapterPos = remember(allLessons) { buildChapterPositions(allLessons) }
 
     Column(
@@ -95,9 +90,9 @@ fun LessonsScreen(openLesson: (String) -> Unit) {
                 .statusBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
-            GlitchText("课程 // LESSONS", style = MaterialTheme.typography.headlineSmall, color = NeonCyan)
+            GlitchText("课程", style = MaterialTheme.typography.headlineSmall, color = NeonCyan)
             Text(
-                "按顺序解锁 · 完成练习即通关",
+                "按顺序解锁，完成练习即通关",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextDim,
                 modifier = Modifier.padding(top = 4.dp)
@@ -107,7 +102,7 @@ fun LessonsScreen(openLesson: (String) -> Unit) {
                 onValueChange = { query = it },
                 singleLine = true,
                 placeholder = {
-                    Text("搜索课程：标题 / 主题（如 装饰器、JOIN）",
+                    Text("搜索课程：标题或主题（如 装饰器、JOIN）",
                         style = MaterialTheme.typography.bodySmall, color = TextDim)
                 },
                 leadingIcon = {
@@ -144,15 +139,12 @@ fun LessonsScreen(openLesson: (String) -> Unit) {
         ) {
             items(lessons.size, key = { lessons[it].id }) { index ->
                 val lesson = lessons[index]
-                // 章节名来自课程数据本身（chapterName），不再依赖 UI 硬编码映射，
-                // 新增课程包（DSA/彩蛋等）也能正确分组。
+                // 章节名直接用数据里的，新增课程包也能自己分组。
                 val showHeader = index == 0 || lessons[index - 1].chapterName != lesson.chapterName
 
-                // 解锁与序号都按「章节（=课程包）」内部计算，并且以 lesson.id 为键。
-                // 原因一：各内容包的 order 是跳跃的（DSA 100 / 彩蛋 200 / JS 300 / …），
-                //   用全局 index 会导致「下载了 C 语言，第一讲却被 Python 的 l38 锁住」，
-                //   每门语言必须先学完上一门——这与「六门语言任选」的定位矛盾。
-                // 原因二：列表会因语言筛选/搜索变短，下标随之漂移；按 id 查位置才稳定。
+                // 解锁和序号都按课程包内部算，键用 lesson.id。
+                // 各包的 order 是跳的，用全局下标会让 C 语言第一讲被 Python 的 l38 锁住；
+                // 列表筛选后下标也会变，按 id 查才稳。
                 val pos = chapterPos[lesson.id]
                 val indexInChapter = pos?.index ?: 1
                 val prevId = pos?.prevId
@@ -183,7 +175,7 @@ fun LessonsScreen(openLesson: (String) -> Unit) {
                     },
                     onClick = {
                         if (locked) {
-                            // 解锁条件显式化：告诉用户具体是哪一课挡住了
+                            // 被锁时告诉用户卡在哪一课。
                             val target = prevLesson?.title ?: "上一课"
                             Toast.makeText(context, "先完成「$target」即可解锁本节", Toast.LENGTH_SHORT).show()
                         } else {
@@ -250,15 +242,11 @@ private fun LessonRow(
     }
 }
 
-/** 章节内位置：index 从 1 开始，prevId 是同章上一讲（章节第一讲为 null）。 */
+// 章节内位置。index 从 1 开始，prevId 是同章上一讲，第一章为 null。
 internal data class ChapterPos(val index: Int, val prevId: String?)
 
-/**
- * 按 [chapterName] 切章，算出每讲在自己章节内的序号与上一讲 id。
- *
- * 之所以独立成函数：课程列表会被语言筛选与搜索裁剪，用列表下标定位必然错位；
- * 以 lesson.id 为键的映射对过滤天然免疫，也便于单测覆盖（见 LessonChapterPosTest）。
- */
+// 按 chapterName 切章，算每讲的章节序号和上一讲 id。
+// 列表会被筛选和搜索裁剪，拿下标定位会错，所以按 id 建映射。
 internal fun buildChapterPositions(lessons: List<com.pyneon.academy.data.Lesson>): Map<String, ChapterPos> {
     val result = HashMap<String, ChapterPos>(lessons.size)
     var i = 0

@@ -7,12 +7,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 
-/**
- * 根据 AppTheme 创建 ColorScheme（亮色主题使用 lightColorScheme）。
- *
- * 2026-11 去重：亮/暗两套 19 个槽位曾经逐行重复，只差 error 色与构造器；
- * 现在先取基底再 copy 覆盖，新增槽位时只改一处。
- */
+// 按 AppTheme 生成 Material 配色。亮暗只差基底和 error，其余统一 copy 覆盖。
 private fun createColorScheme(theme: AppTheme): ColorScheme {
     val base = if (theme.isLight) lightColorScheme() else darkColorScheme()
     return base.copy(
@@ -38,9 +33,7 @@ private fun createColorScheme(theme: AppTheme): ColorScheme {
     )
 }
 
-/**
- * 默认赛博霓虹主题（保持向后兼容；非组合上下文，直接取深色常量）
- */
+// 默认赛博霓虹配色。给预览和旧调用点用，直接取深色常量。
 private val PyNeonColorScheme = darkColorScheme(
     primary = DarkTokens.primary,
     onPrimary = DarkTokens.bg0,
@@ -63,9 +56,7 @@ private val PyNeonColorScheme = darkColorScheme(
     onError = DarkTokens.bg0
 )
 
-/**
- * 默认主题（保持向后兼容）
- */
+// 默认主题，不跟系统切换。
 @Composable
 fun PyNeonTheme(content: @Composable () -> Unit) {
     MaterialTheme(
@@ -76,11 +67,7 @@ fun PyNeonTheme(content: @Composable () -> Unit) {
     )
 }
 
-/**
- * 自定义主题（支持动态切换深色/亮色）。
- * 通过 CompositionLocalProvider 同时驱动全局 Token（Bg0/TextHi/NeonCyan…），
- * 使所有界面代码无需感知主题切换。
- */
+// 支持运行时切明暗。颜色 Token 和视觉风格都从这里下发，界面代码不用自己判断。
 @Composable
 fun PyNeonTheme(
     appTheme: AppTheme,

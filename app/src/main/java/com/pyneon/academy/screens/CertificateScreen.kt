@@ -68,7 +68,7 @@ fun CertificateScreen(onBack: () -> Unit) {
             .statusBarsPadding()
             .padding(16.dp)
     ) {
-        NeonButton(label = "◄ 返回", accent = TextMid, onClick = onBack)
+        NeonButton(label = "返回", accent = TextMid, onClick = onBack)
         Spacer(Modifier.height(14.dp))
 
         Box(
@@ -92,14 +92,14 @@ fun CertificateScreen(onBack: () -> Unit) {
                     modifier = Modifier.size(44.dp)
                 )
                 GlitchText("CodeLearning", style = MaterialTheme.typography.titleLarge, color = NeonCyan)
-                Text("CodeLearning · 码上 · 毕业认证", style = MaterialTheme.typography.titleMedium, color = TextMid)
+                Text("CodeLearning（码上）毕业认证", style = MaterialTheme.typography.titleMedium, color = TextMid)
                 Box(Modifier.fillMaxWidth().height(1.dp).background(NeonYellow.copy(alpha = 0.4f)))
                 Spacer(Modifier.height(4.dp))
                 Text("兹证明 本机学习者", style = MaterialTheme.typography.bodyLarge, color = TextMid)
                 Text("已完成全部课程闯关并通过判题实战", style = MaterialTheme.typography.bodyLarge, color = TextHi)
                 Text("特此授予 毕业成就认证", style = MaterialTheme.typography.bodyLarge, color = TextMid)
                 Spacer(Modifier.height(6.dp))
-                Text("段位 · ${rank.name}", style = MaterialTheme.typography.labelLarge, color = rank.color)
+                Text("段位：${rank.name}", style = MaterialTheme.typography.labelLarge, color = rank.color)
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                     CertStat("${progress.xpTotal}", "XP")
@@ -108,13 +108,13 @@ fun CertificateScreen(onBack: () -> Unit) {
                 }
                 Spacer(Modifier.height(12.dp))
                 Text(dateText, style = MaterialTheme.typography.labelSmall, color = TextDim)
-                Text("CERTIFIED // OFFLINE FIRST // ON-DEVICE RUNTIME", style = MaterialTheme.typography.labelSmall, color = NeonGreen.copy(alpha = 0.7f))
+                Text("离线学习，设备端运行", style = MaterialTheme.typography.labelSmall, color = NeonGreen.copy(alpha = 0.7f))
             }
         }
 
         Spacer(Modifier.height(16.dp))
         Text(
-            "截图分享你的证书，让整座霓虹城都知道：CodeLearning，码上就是马上。",
+            "这张证书只存在本机，截图就能分享。",
             style = MaterialTheme.typography.bodySmall,
             color = TextDim,
             textAlign = TextAlign.Center,

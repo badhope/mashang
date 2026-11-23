@@ -98,7 +98,7 @@ fun TerminalScreen() {
         runtime.ensureStarted(context)
         withContext(Dispatchers.Default) { runtime.replStart() }
         lines.clear()
-        lines.add(TermLine("sys", "CodeLearning 终端 v${AppConstants.VERSION_NAME} · ${runtime.displayName} ${runtime.version}"))
+        lines.add(TermLine("sys", "CodeLearning 终端 v${AppConstants.VERSION_NAME}，${runtime.displayName} ${runtime.version}"))
         lines.add(TermLine("sys", "逐行输入代码语句；多行块以空行结束。"))
     }
 
@@ -114,13 +114,13 @@ fun TerminalScreen() {
                 }
             "coach" -> {
                 if (lastErr.isBlank()) {
-                    "🤖 教练：还没有可诊断的报错。先运行一段会发生错误的代码，再输入 /coach。"
+                    "教练：还没有可诊断的报错。先运行一段会报错的代码，再输入 /coach。"
                 } else {
                     val type = Regex("""(\w+Error|Timeout|InputError|TestFailed)""").find(lastErr)?.value
                         ?: "Error"
                     val tip = CoachEngine.analyze(type, lastErr, null, "")
                     buildString {
-                        appendLine("🤖 教练：${tip.title}")
+                        appendLine("教练：${tip.title}")
                         appendLine(tip.summary)
                         tip.steps.forEachIndexed { i, s -> appendLine("${i + 1}) $s") }
                         tip.example?.let { appendLine("示例："); appendLine(it) }
@@ -278,12 +278,9 @@ fun TerminalScreen() {
                     textStyle = com.pyneon.academy.ui.theme.MonoCode.copy(color = TextHi),
                     cursorBrush = Brush.verticalGradient(listOf(NeonGreen, NeonGreen)),
                     singleLine = true,
-                    // 关闭 IME 自动首字母大写与自动纠错：代码是大小写敏感的，
-                    // 实测输入 len(nums) 被 IME 改成 Len(nums) → NameError。
-                    // inputType 必须是 TYPE_TEXT_FLAG_NO_SUGGESTIONS(0x80000) +
-                    // VISIBLE_PASSWORD(0x80) 组合：只设 KeyboardType.Ascii 时
-                    // Compose 仍发 TYPE_CLASS_TEXT|CAP_SENTENCES，Gboard 会把
-                    // 句首字母自动大写（实测 len( 被改成 Len( → NameError）。
+                    // 代码区分大小写，IME 自动大写会把 len 改成 Len，直接报 NameError。
+                    // 只设 Ascii 时 Compose 仍会带上 CAP_SENTENCES，Gboard 照样大写，
+                    // 所以这里用 Password 类型压住。
                     keyboardOptions = KeyboardOptions(
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
                         imeAction = ImeAction.Done,

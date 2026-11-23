@@ -1,44 +1,26 @@
 package com.pyneon.academy.c
 
 /**
- * C 语言教学子集解释器（纯 Kotlin，无 NDK、无外部工具链）。
+ * 给课程用的 C 子集解释器，纯 Kotlin，不依赖 NDK。
  *
- * 为什么是解释器而不是编译器
- * --------------------------
- * Android 上离线运行 C 需要 clang + 系统头文件 + 链接器，体积 200–400 MB，
- * 且无法链接 Android 的 bionic libc——对学习场景不成立。因此这里实现一个
- * **直接解释执行 C 源码**的子集解释器：语义与 gcc 一致的部分照做，不支持
- * 的部分明确报错（不是静默错误答案）。
+ * Android 上装 clang 要两三百 MB，还链不上系统的 bionic，学习场景不划算，
+ * 所以这里直接解释执行源码。gcc 是怎么算的就跟着怎么算，没实现的语法直接报错，
+ * 不猜一个看起来对的结果。
  *
- * 支持的子集（课程内容严格限定在此范围）
- * ------------------------------------
- *   类型      int / double / char / void，unsigned/short/long 按 int 处理，
- *             const 接受但忽略，一维/二维数组，结构体（含 typedef、嵌套一层）
- *   语句      声明、赋值、if/else、while、for、do-while、switch/case/default、
- *             break、continue、return、复合语句
- *   表达式    算术、比较、逻辑、位运算、复合赋值、自增自减、三元 ?:、
- *             取地址 &、解引用 *、成员 . 与 ->、sizeof、函数调用、下标
- *   指针      单级指针、指针与数组、指针作参数、NULL；不支持函数指针、二级指针
- *   函数      定义、调用、递归、参数按值传递（结构体按值拷贝）
- *   输入输出  printf（%d %i %f %.Nf %c %s %% %x）、puts、putchar
- *   内置      strlen strcpy strcat strcmp memset sprintf atoi toupper tolower
- *             isalpha isdigit fabs floor ceil abs pow sqrt，assert/assertOutput 仅判题
+ * 类型只有 int、double、char、void；unsigned/short/long 当 int，const 收下但不管。
+ * 数组最多二维，结构体支持 typedef 和一层嵌套。
+ * 语句支持声明、赋值、分支、循环、switch、break/continue/return。
+ * 运算符、单级指针、函数、递归、printf/puts/putchar 和常用字符串数学函数都在。
+ * goto、宏、函数指针、二级指针、union/enum、scanf 不支持。
  *
- * 明确不支持（遇到即报错，绝不静默错答）
- * ------------------------------------
- *   goto、#include/#define、函数指针、二级指针、union/enum、scanf、可变参数函数
- *
- * sizeof 采用**教学模型**，不是宿主平台真实 ABI：int 4、double 8、char 1、
- * 指针 8、数组 = 元素大小 × 长度、结构体 = 成员大小之和向上对齐到 8 的倍数。
- * 课程里所有 sizeof 题都应按这个模型讲解，不能按 x86/ARM 的真实布局出题。
- *
- * 设计取舍：整数一律用 Long 承载（避免 Int 溢出与 C 的 int 宽度歧义），
- * char 用 Long 存储其码点；double 用 Kotlin Double。运算时按「有 double 则浮点，
- * 否则整型」提升，与 C 的常规算术转换一致。
+ * sizeof 按教学模型算，不是宿主机的 ABI：int 4、double 8、char 1、指针 8，
+ * 数组是元素大小乘长度，结构体成员大小求和后补到 8 的倍数。
+ * 整数统一用 Long，char 存码点，浮点用 Double；运算时有 double 就按浮点走。
  */
+
 object CInterpreter {
 
-    // ===== 值模型 =====
+    // 值模型
 
     private sealed class Value {
         data class Num(val v: Long) : Value()
@@ -134,7 +116,7 @@ object CInterpreter {
         return s
     }
 
-    // ===== 词法 =====
+    // 词法
 
     private enum class T { NUM, REAL, STR, CHARLIT, IDENT, KEYWORD, OP, PUNCT, EOF }
 
@@ -268,7 +250,7 @@ object CInterpreter {
         }
     }
 
-    // ===== 语法树 =====
+    // 语法树
 
     private sealed class Expr {
         data class NumLit(val v: Long) : Expr()
@@ -321,7 +303,7 @@ object CInterpreter {
 
     class CError(val type: String, message: String) : RuntimeException(message)
 
-    // ===== 解析器 =====
+    // 解析器
 
     private class Parser(
         private val tokens: List<Token>,
@@ -342,13 +324,8 @@ object CInterpreter {
         /** 会话模式解析结果：函数定义与顶层语句分开返回 */
         class SessionParse(val funcs: Map<String, FuncDef>, val statements: List<Stmt>)
 
-        /**
-         * 会话模式：一段输入里可以既有函数定义、结构体/typedef 声明，也有直接语句。
-         *
-         * 判定规则：类型开头且 `名字 (...)` 后紧跟 `{` 的视为函数定义，否则按语句解析。
-         * typedef 与 struct 的符号表在 Session 里跨 push 保留，所以第二行还能用
-         * 第一行定义的类型。
-         */
+        // 会话模式下函数定义、typedef、struct 和普通语句可能混在一起。
+        // 类型开头、名字后面跟 `{` 的算函数，其余按语句走。类型留在 Session 里，下一行还能用。
         fun parseProgramInSession(): SessionParse {
             val stmts = mutableListOf<Stmt>()
             while (!atEnd()) {
@@ -362,12 +339,7 @@ object CInterpreter {
             return SessionParse(funcs.toMap(), stmts)
         }
 
-        /**
-         * 前瞻判断「类型 名字 ( ... ) {」或「类型 名字 ( ... );」是否为函数声明。
-         *
-         * 2026-11 去重：原型与定义的两份扫描逻辑曾经逐行重复，只差最后是 `;` 还是 `{`；
-         * 合并为一个声明扫描器，避免以后加存储类/限定符时只改一份、另一份漂移。
-         */
+        // 看一段是不是函数声明。原型和定义只差结尾，共用一套扫描，别写两份。
         private fun looksLikeFunctionDecl(): Boolean {
             var i = p
             var sawType = false
@@ -467,9 +439,8 @@ object CInterpreter {
             if (matchPunct(";")) return
             val body = parseBlock()
             if (funcs.containsKey(nameTok.text)) {
-                // C 不允许同一翻译单元内重定义函数。这里报错而不是静默覆盖：
-                // 否则「用户写了空 main + 测试也带 main」会让测试的 main 顶替用户代码，
-                // 造成判题假通过（2026-11 实测漏洞）。
+                // 同一翻译单元里不能重定义。用户写个空 main、测试也带 main 时，
+                // 覆盖会让测试的 main 顶掉用户代码，判题就成了假通过。
                 throw CError("语法错误", "函数 '${nameTok.text}' 重复定义（第 ${nameTok.line} 行）")
             }
             funcs[nameTok.text] = FuncDef(nameTok.text, ret, params, body)
@@ -971,7 +942,7 @@ object CInterpreter {
         }
     }
 
-    // ===== 运行时 =====
+    // 运行时
 
     private class BreakSignal : RuntimeException()
     private class ContinueSignal : RuntimeException()
@@ -1015,7 +986,7 @@ object CInterpreter {
         /**
          * 会话式执行：把一段语句（不是完整程序）当作 main 的函数体跑。
          *
-         * REPL 需要这个入口——用户在终端里敲 `int x = 5;` 时不该被迫写
+         * REPL 需要这个入口。用户在终端里敲 `int x = 5;` 时，不该被迫写
          * `int main() { ... }`，也不该每行都重新开始（变量必须跨行保留）。
          */
         fun runStatements(stmts: List<Stmt>) {
@@ -1701,9 +1672,7 @@ object CInterpreter {
                     }
                     return Value.Num(0)
                 }
-                // 输出断言：判题时用来检查用户代码真实打印了什么。
-                // 没有它，测试只能自己 printf，于是「用户什么都没写」也能通过
-                // （2026-11 实测漏洞）。
+                // 判题靠它检查用户真的打印了什么。没有它，用户什么都不写也能过。
                 "assertOutput" -> {
                     if (e.args.size < 2) {
                         throw CError("运行时错误", "assertOutput(期望输出, 提示) 需要两个参数")
@@ -1865,7 +1834,7 @@ object CInterpreter {
         }
 
         /**
-         * memset 按 C 的**字节**语义计数：教学模型里 int 是 4 字节，
+         * memset 按字节算，不是按元素。教学模型里 int 是 4 字节，
          * 所以 memset(a, 0, sizeof(a)) 对 int a[5] 正好清 5 个元素。
          * 这是课程里最常见的写法，按元素数实现会误报越界。
          */
@@ -2105,7 +2074,7 @@ object CInterpreter {
         }
     }
 
-    // ===== 对外接口 =====
+    // 对外接口
 
     data class Result(
         val ok: Boolean,
@@ -2149,9 +2118,8 @@ object CInterpreter {
     /**
      * 判题：先跑用户代码（必须有 main），再依次执行每条测试。
      *
-     * 测试是独立的 C 片段，可以调用用户定义的函数——因此把用户代码与测试
-     * **拼成同一个翻译单元**再解析，符合 C 的「函数先定义后使用」语义，
-     * 也让测试能断言用户的函数。
+     * 测试是独立片段，但可以调用用户函数，所以把两段拼成一个翻译单元再解析。
+     * 这样符合 C 先定义后使用的规则，测试也能直接断言用户函数。
      */
     fun check(source: String, tests: List<String>): Result {
         val failures = mutableListOf<String>()
@@ -2182,7 +2150,7 @@ object CInterpreter {
         }
     }
 
-    /** 遇到不支持的语法直接抛 CError("不支持", …)，而不是让解析器报「意外标记」。 */
+    // 不支持的语法早点拦住，报清楚是哪一种，别让解析器吐一句「意外标记」。
     private fun rejectUnsupported(source: String) {
         val scan = stripCommentsAndLiterals(source)
         for ((pattern, label) in UNSUPPORTED_PATTERNS) {
@@ -2192,10 +2160,8 @@ object CInterpreter {
         }
     }
 
-    /**
-     * 把注释与字符串/字符字面量的内容替换成空格（换行保留），用于「不支持」扫描。
-     * 否则注释里写一句「union 不在范围内」就会被误判成不支持的代码。
-     */
+    // 扫描不支持语法前，先把注释和字符串内容抹成空格，换行留着。
+    // 不然注释里写一句「union 不在范围内」也会被当成代码。
     private fun stripCommentsAndLiterals(src: String): String {
         val sb = StringBuilder(src)
         fun blank(at: Int) { if (src[at] != '\n') sb.setCharAt(at, ' ') }
@@ -2228,13 +2194,8 @@ object CInterpreter {
         return sb.toString()
     }
 
-    /**
-     * 有状态会话（REPL 用）。
-     *
-     * 与 [run] 的区别：run 每次都是全新程序（要求有 main），会话则把每次输入
-     * 当作「追加到当前程序」——函数定义会保留，全局变量会保留，变量快照可查。
-     * 这正是 `LanguageRuntime.replPush` 契约要求的语义。
-     */
+    // REPL 用的会话。run 每次都是新程序、必须有 main；
+    // 会话把每次输入接到当前程序后面，函数和全局变量都留着。
     class Session {
         private val out = StringBuilder()
         private var funcs = linkedMapOf<String, FuncDef>()
@@ -2248,7 +2209,7 @@ object CInterpreter {
             val trimmed = source.trim()
             if (trimmed.isEmpty()) return false to ""
 
-            // 未闭合的花括号 → 请求续行
+            // 花括号没闭合就等下一行。
             val open = trimmed.count { it == '{' } - trimmed.count { it == '}' }
             if (open > 0) return true to ""
 

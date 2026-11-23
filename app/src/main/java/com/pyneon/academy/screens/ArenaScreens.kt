@@ -81,8 +81,8 @@ fun ArenaScreen(openChallenge: (String) -> Unit) {
                 .statusBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
-            GlitchText("挑战 // ARENA", style = MaterialTheme.typography.headlineSmall, color = NeonYellow)
-            Text("编程挑战 · assert 判题，通过得 XP", style = MaterialTheme.typography.bodySmall, color = TextDim, modifier = Modifier.padding(top = 4.dp))
+            GlitchText("挑战", style = MaterialTheme.typography.headlineSmall, color = NeonYellow)
+            Text("编程挑战，用断言判题，通过得 XP", style = MaterialTheme.typography.bodySmall, color = TextDim, modifier = Modifier.padding(top = 4.dp))
         }
         Column(
             Modifier
@@ -98,13 +98,13 @@ fun ArenaScreen(openChallenge: (String) -> Unit) {
                         Column(Modifier.weight(1f)) {
                             Text(c.title, style = MaterialTheme.typography.titleMedium, color = TextHi)
                             Text(
-                                "难度 ${c.difficulty} · ${c.xp} XP",
+                                "难度 ${c.difficulty}，${c.xp} XP",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = TextMid,
                                 modifier = Modifier.padding(top = 2.dp)
                             )
                         }
-                        Text("进入 →", style = MaterialTheme.typography.labelLarge, color = accent)
+                        Text("进入", style = MaterialTheme.typography.labelLarge, color = accent)
                     }
                 }
             }
@@ -148,7 +148,7 @@ fun ChallengeDetailScreen(challengeId: String, onBack: () -> Unit) {
             .padding(bottom = 40.dp)
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            NeonButton(label = "◄ 返回", accent = TextMid, onClick = onBack)
+            NeonButton(label = "返回", accent = TextMid, onClick = onBack)
             Spacer(Modifier.size(10.dp))
             GlitchText(challenge.title, style = MaterialTheme.typography.titleMedium, color = NeonYellow)
         }
@@ -179,10 +179,8 @@ fun ChallengeDetailScreen(challengeId: String, onBack: () -> Unit) {
                             scope.launch {
                                 busy = true
                                 result = null
-                                // 运行时异常必须兜住：旧实现在这里裸调用 checkExercise，
-                                // Python 未初始化、JNI 崩溃、JSON 解析失败都会让异常
-                                // 逃逸到主线程直接闪退，用户刚写的代码全部丢失。
-                                // 课程详情页有 try/catch，挑战页漏了（2026-11 审查发现）。
+                                // 运行时异常得接住。Python 没初始化、JNI 崩了、JSON 解析失败
+                                // 都会抛，裸调用会闪退，用户刚写的代码全丢。
                                 val r = try {
                                     withContext(Dispatchers.Default) {
                                         LanguageRegistry.get(challenge.lang)
@@ -219,7 +217,7 @@ fun ChallengeDetailScreen(challengeId: String, onBack: () -> Unit) {
                 }
                 if (hintOpen && challenge.hint.isNotEmpty()) {
                     Text(
-                        "HINT",
+                        "提示",
                         style = MaterialTheme.typography.labelMedium,
                         color = NeonCyan,
                         modifier = Modifier.padding(top = 10.dp)
@@ -231,7 +229,7 @@ fun ChallengeDetailScreen(challengeId: String, onBack: () -> Unit) {
                 }
                 if (alreadySolved) {
                     Text(
-                        "// 已通过 ✓ ${challenge.xp} XP 已入账",
+                        "已通过，${challenge.xp} XP 已入账",
                         style = MaterialTheme.typography.labelMedium,
                         color = NeonGreen,
                         modifier = Modifier.padding(top = 6.dp)

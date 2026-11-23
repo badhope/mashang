@@ -5,12 +5,7 @@ import com.pyneon.academy.lang.LanguageIds
 
 enum class TrackStatus { READY, NOT_INSTALLED }
 
-/**
- * 技术栈路线：只列真实存在的内容（内置主线 + 语言中心课程包）。
- *
- * 旧实现维护了 Java / React / 机器学习 等 20 条「开发中 5%」的占位轨道，
- * 进度百分比是编的、点进去只有一张「建设中」页 —— 属于虚假功能，已删除。
- */
+// 技术栈路线。只列真有内容的主线和语言中心课程包，不做占位。
 data class Track(
     val id: String,
     val title: String,
@@ -20,10 +15,10 @@ data class Track(
     val accentArgb: Long,
     val lessonCount: Int = 0,
     val doneCount: Int = 0,
-    /** 语言中心课程包 id；null 表示 APK 内置 */
+    // 语言中心的包 id。null 表示内容打在 APK 里。
     val packId: String? = null,
     val lang: String = LanguageIds.PYTHON,
-    /** 该路线由多个课程包组成时列出全部 id（单包路线与 packId 相同） */
+    // 多包路线把包 id 都列出来；单包路线和 packId 一样。
     val packIds: List<String> = emptyList()
 ) {
     val progressPercent: Int
@@ -31,8 +26,8 @@ data class Track(
 
     val progressHint: String
         get() = when {
-            status == TrackStatus.NOT_INSTALLED -> "$lessonCount 讲 · 需在语言中心下载"
-            else -> "$lessonCount 讲 · 已完成 $doneCount"
+            status == TrackStatus.NOT_INSTALLED -> "$lessonCount 讲，需在语言中心下载"
+            else -> "$lessonCount 讲，已完成 $doneCount"
         }
 }
 
@@ -60,10 +55,7 @@ object TrackRepository {
         val expectedCount: Int get() = ids.size
     }
 
-    /**
-     * 一门语言的课程按层级拆包：基础 / 核心 / 进阶 /（专业）。
-     * 语言中心与路线页共用这套命名，避免两边各写一份字符串。
-     */
+    // 一门语言按基础、核心、进阶、专家拆包。语言中心和路线页共用这套名字。
     private fun tiers(prefix: String): List<String> =
         listOf("$prefix-basics", "$prefix-core", "$prefix-advanced", "$prefix-expert")
 
@@ -115,13 +107,13 @@ object TrackRepository {
             packIds = tiers("sql")
         ),
         Spec(
-            "bonus-builtin", "彩蛋 · 内置函数巡礼", "1 讲：len / sorted / enumerate / zip / any / all",
+            "bonus-builtin", "彩蛋：内置函数巡礼", "1 讲：len / sorted / enumerate / zip / any / all",
             "语言扩展", PURPLE, "bonus-builtin", LanguageIds.PYTHON,
             setOf("bonus-27")
         )
     )
 
-    /** 只统计真实已装载的课程；done 为该用户的通关集合。 */
+    // 只统计真的装了的课程，done 是用户通关的讲次。
     fun tracks(context: Context, done: Set<String> = emptySet()): List<Track> {
         val installed = ContentCenter().installedVersions(context)
         val all = LessonRepository.lessons(context)
@@ -140,10 +132,9 @@ object TrackRepository {
                 category = s.category,
                 status = if (available) TrackStatus.READY else TrackStatus.NOT_INSTALLED,
                 accentArgb = s.accent,
-                // 分母固定为整门语言的总讲数（38），不能用「当前已装包里的讲数」：
-                // 否则只装基础篇时进度 10/10=100%，装了核心篇立刻跌回 10/20=50%，
-                // 用户会以为进度倒退（2026-11 审查发现）。
-                // 单包路线（DSA / 彩蛋）仍按实际内容数显示。
+                // 分母用整门语言的总讲数。按已装包算的话，只装基础篇是 10/10，
+                // 再装核心篇就变成 10/20，看着像进度倒退。
+                // DSA 和彩蛋是单包，按实际内容数算。
                 lessonCount = if (s.packIds.size > 1) s.expectedCount
                              else if (present.isEmpty()) s.expectedCount else present.size,
                 doneCount = present.count { it.id in done },
@@ -151,10 +142,9 @@ object TrackRepository {
                 lang = s.lang,
                 packIds = s.packIds
             ).let { t ->
-                // 只有真正装过至少一个包才提示「已装 x/y 包」，
-                // 否则全新安装每条路线都挂一句「已装 0/4 包」，噪音且误导。
+                // 装过包才提示「已装 x/y」，全新安装别每条都挂一句 0/4。
                 if (installedPacks > 0 && !complete) {
-                    t.copy(subtitle = t.subtitle + " · 已装 $installedPacks/${s.packIds.size} 包")
+                    t.copy(subtitle = t.subtitle + "，已装 $installedPacks/${s.packIds.size} 包")
                 } else t
             }
         }

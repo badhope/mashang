@@ -11,11 +11,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Python 运行时（Chaquopy 内嵌 CPython）。
- *
- * 多语言架构下它是 [LanguageRuntime] 的首个实现：UI 与判题逻辑只依赖接口，
- * 新增 JavaScript / Java 等语言时新增实现类并注册进 LanguageRegistry 即可，
- * 本文件之外的调用方无需改动。
+ * Python 运行时，Chaquopy 内嵌 CPython。
+ * 它是 LanguageRuntime 的第一个实现，上层只认接口，
+ * 加别的语言时注册一个新实现就行，调用方不用动。
  */
 object PyBridge : LanguageRuntime {
 
@@ -44,17 +42,10 @@ object PyBridge : LanguageRuntime {
 
     private fun module(name: String) = Python.getInstance().getModule(name)
 
-    /**
-     * 执行互斥锁。
-     *
-     * runner.py 的一次运行会改写进程级全局 `sys.stdout` / `sys.stderr` /
-     * `builtins.input`，两次执行并发进入就会互相劫持缓冲区（实测：A 的 47 行
-     * 输出被写进 B 的输出、A 自己只剩 3 行）。Python 侧已有 `runner.EXEC_LOCK`
-     * 串行化，这里再加一层与 [com.pyneon.academy.js.JsBridge] /
-     * [com.pyneon.academy.lua.LuaBridge] 相同的 synchronized 门闩：
-     * 让阻塞发生在 JVM 侧，避免多线程同时压进 Chaquopy 的调用通道。
-     * 同一线程重入是安全的（JVM monitor 可重入，warmup → runCode 依赖这一点）。
-     */
+    // 执行互斥锁。runner.py 跑一次会改进程里的 sys.stdout、sys.stderr 和 input，
+    // 两个一起跑就会互相抢缓冲区，输出全串。Python 那边有 EXEC_LOCK，
+    // 这层再挡一次，把阻塞放在 JVM 侧，别让线程都挤进 Chaquopy。
+    // 同线程重入没问题，warmup 里调 runCode 就靠这个。
     private val execLock = Any()
 
     override fun runCode(

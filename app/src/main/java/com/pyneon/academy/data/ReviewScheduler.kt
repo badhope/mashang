@@ -76,8 +76,8 @@ object ReviewScheduler {
         lesson.blocks.forEachIndexed { idx, block ->
             when (block) {
                 is Block.Quiz -> {
-                    // B3: 一个 quiz 只生成一张卡（题目 + 正确选项），
-                    // 旧实现为每个选项生成一张，3 选项题会生成 3 张几乎相同的卡。
+                    // 一个 quiz 只生成一张卡，题目加正确选项。
+                    // 以前每个选项生成一张，三道选项就出三张差不多的卡。
                     cards.add(ReviewCard(
                         id = "${lesson.id}:quiz:$idx",
                         lessonId = lesson.id,

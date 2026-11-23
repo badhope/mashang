@@ -7,26 +7,18 @@ import android.os.Process
 import kotlin.system.exitProcess
 
 /**
- * 全局未捕获异常处理。
+ * 全局未捕获异常处理。应用一崩系统就杀进程，用户只看到「已停止运行」，
+ * 什么信息都拿不到。这里在进程死之前把类型、消息和堆栈前 40 行记下来，
+ * 一份进诊断日志，一份进 SharedPreferences，下次启动可以让用户反馈。
  *
- * 为什么必须有：离线 App 一旦崩溃，系统直接杀掉进程，用户只看到「应用已停止运行」，
- * 既不知道发生了什么，也无法向开发者提供有效信息。这里在进程死亡前：
- *
- *   1. 把异常类型、消息、堆栈摘要写入诊断日志（可被用户导出）
- *   2. 记录一条 [CrashRecord] 到 SharedPreferences，下次启动时可提示「上次异常退出」
- *   3. 交回系统默认处理器（保留系统的崩溃行为，不做静默吞掉）
- *
- * 设计边界：
- * - **不上传**（与「零数据上传」一致）
- * - **不吞异常**：仍然交由默认处理器终止，避免掩盖真实错误
- * - 堆栈只保留前 40 行，避免日志爆炸
+ * 只存本地，不上传。异常还是交回系统处理，不吞。
  */
 object CrashHandler {
 
     private const val PREFS = "crash_recovery"
     private const val KEY_LAST_CRASH = "last_crash"
 
-    /** 上次崩溃的摘要，供 UI 展示 */
+    // 上次崩溃的摘要，启动时给弹窗用。
     data class CrashRecord(
         val timestamp: Long,
         val type: String,
@@ -44,7 +36,7 @@ object CrashHandler {
             try {
                 record(app, throwable)
             } catch (_: Throwable) {
-                // 记录失败绝不能影响原始崩溃流程
+                // 记录失败也不能影响原来的崩溃流程。
             }
             previous?.uncaughtException(thread, throwable)
                 ?: run {
@@ -74,7 +66,7 @@ object CrashHandler {
             .apply()
     }
 
-    /** 读取上次崩溃记录（若有）；不影响正常流程 */
+
     fun lastCrash(context: Context): CrashRecord? {
         val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_LAST_CRASH, null) ?: return null
@@ -88,13 +80,8 @@ object CrashHandler {
         )
     }
 
-    /**
-     * 是否有尚未告知用户的崩溃记录。
-     *
-     * 「上次未正常退出」弹窗展示一次后即调 [clear]；
-     * 用户选择「查看诊断」时保留记录（诊断页仍可读），但弹窗不再出现——
-     * 由调用方用会话内状态保证，不在此处持久化「已展示」标记。
-     */
+    // 有没有还没告诉用户的崩溃。弹一次就清；点「查看诊断」时保留记录，
+    // 但由调用方在本次会话里记住已经弹过。
     fun hasPendingCrash(context: Context): Boolean = lastCrash(context) != null
 
     fun clear(context: Context) {
@@ -102,7 +89,7 @@ object CrashHandler {
             .edit().remove(KEY_LAST_CRASH).apply()
     }
 
-    /** 构造「反馈崩溃」的邮件内容（用户主动发送，应用不自动上传） */
+    // 拼崩溃反馈邮件的内容，用户自己决定发不发。
     fun crashReportText(context: Context): String {
         val c = lastCrash(context) ?: return "（无崩溃记录）"
         return buildString {
@@ -115,7 +102,7 @@ object CrashHandler {
         }
     }
 
-    /** 打开邮件客户端预填崩溃报告 */
+
     fun shareByEmail(context: Context, email: String) {
         val intent = Intent(Intent.ACTION_SENDTO).apply {
             data = android.net.Uri.parse("mailto:$email")

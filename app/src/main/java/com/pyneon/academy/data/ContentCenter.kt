@@ -15,15 +15,15 @@ data class ContentPack(
     val version: Int,
     val description: String,
     val sha256: String? = null,
-    /** 内容类型：course = 课程包（增补/语言），默认 course */
+    // course 就是课程包，增补和语言包都算。
     val kind: String = "course",
-    /** 该包课程所属语言 id；空表示不绑定语言（Python 增补包除外都应有值） */
+    // 课程语言。空表示不绑定，Python 增补包可以不填。
     val lang: String = "",
-    /** 讲数（catalog 提供，仅用于展示；缺失为 0 时 UI 不显示） */
+    // 讲数，目录里没给就显示 0，界面会跳过。
     val lessons: Int = 0,
-    /** 包体积（字节，catalog 提供；缺失为 0 时 UI 不显示） */
+    // 包大小，单位字节，没给就不显示。
     val bytes: Long = 0,
-    /** 难度层级：basics / core / advanced；空表示未分层 */
+    // 难度层级 basics/core/advanced，空就是没分层。
     val tier: String = ""
 )
 
@@ -36,17 +36,16 @@ class ContentCenter {
 
     companion object {
         private const val TIMEOUT_MS = 10000
-        // 目录只用来决定“去哪儿下载”，单个源不值得等 10 秒。
-        // 国内网络下 GitHub 可能先卡满 10 秒再失败，三个源最坏 20 秒才回落 GitCode。
-        // 2026-11：改为 GitCode 优先，目录源 4 秒超时，最坏 8 秒内拿到目录。
+        // 目录只是决定去哪儿下载，一个源不值得等太久。
+        // 国内 GitHub 可能先卡满再失败，所以 GitCode 放前面，单源 4 秒，最坏 8 秒。
         private const val CATALOG_TIMEOUT_MS = 4000
-        private const val MAX_RESPONSE_BYTES = 5 * 1024 * 1024 // C5: HTTP 响应体积上限 5MB
+        private const val MAX_RESPONSE_BYTES = 5 * 1024 * 1024 // 下载响应最多 5MB。
         private const val TAG = "ContentCenter"
-        // C3: 包 id 白名单，仅允许安全文件名字符，杜绝路径穿越
+        // 包 id 只允许字母、数字、下划线和横杠，挡路径穿越。
         private val SAFE_ID_REGEX = Regex("""^[a-zA-Z0-9_-]+$""")
 
-        // 国内优先：GitCode OpenAPI → GitHub raw（主仓）→ GitHub Pages（CDN）。
-        // 三个源都指向同一份 catalog.json（Pages 的副本由 tools/sync_pages_assets.py 生成并校验）。
+        // 国内优先 GitCode，再 GitHub raw，最后 Pages。
+        // 三个地址内容一样，Pages 那份由 sync_pages_assets.py 同步。
         private val CATALOG_URLS = listOf(
             "https://api.gitcode.com/api/v5/repos/badhope/mashang/raw/catalog.json",
             "https://raw.githubusercontent.com/badhope/mashang/main/catalog.json",
@@ -75,11 +74,11 @@ class ContentCenter {
             try {
                 val text = httpGet(url, CATALOG_TIMEOUT_MS)
                 val obj = JSONObject(text)
-                // C1: catalog 强制 sha256 校验（必须提供，缺失即拒绝）
+                // 目录必须带 sha256，没带就拒绝。
                 val catalogSha = obj.optString("sha256").takeIf { it.isNotBlank() }
                     ?: throw SecurityException("catalog 缺少 sha256 字段，拒绝加载（$url）")
-                // 自引用约束：签名目标是“剥离顶层 sha256 字段后的原文”，
-                // 这样目录自身的哈希可计算，且篡改任一字段都会导致校验失败。
+                // 签名的是去掉顶层 sha256 后的原文。这样目录能自己算自己，
+                // 改哪个字段都会对不上。
                 if (sha256Hex(stripSelfSha(text)) != catalogSha) {
                     throw SecurityException("catalog 完整性校验失败（sha256 不匹配）: $url")
                 }
@@ -88,7 +87,7 @@ class ContentCenter {
                 for (i in 0 until arr.length()) {
                     val p = arr.getJSONObject(i)
                     val id = p.optString("id", "")
-                    // C3: 非法 id 直接跳过，避免进入下载链路
+                    // id 不合法就跳过，不往下走。
                     if (!id.matches(SAFE_ID_REGEX)) {
                         Log.w(TAG, "跳过非法包 id（含非法字符）: '$id'")
                         continue
@@ -117,11 +116,11 @@ class ContentCenter {
     }
 
     fun download(context: Context, pack: ContentPack, baseUrl: String): File {
-        requireSafeId(pack.id) // C3: 强制白名单校验，非法 id 不落盘
+        requireSafeId(pack.id) // 非法 id 不许落盘。
         val packs = packsDir(context)
         val target = File(packs, "${pack.id}.v${pack.version}.json")
         val tmp = File(packs, "tmp_${pack.id}.v${pack.version}.json")
-        // C3: 规范化路径断言，防止写越出 courses/ 目录（纵深防御）
+        // 再查一遍规范化路径，别写出 courses 目录。
         val packsCanon = packs.canonicalPath
         for (f in listOf(target, tmp)) {
             val canon = f.canonicalPath
@@ -130,7 +129,7 @@ class ContentCenter {
             }
         }
         val text = httpGet("$baseUrl/content_packs/${pack.id}.json")
-        // C1: pack 强制 sha256 校验（必须提供，缺失即拒绝）
+        // 包也必须带 sha256，没有就不下。
         val expected = pack.sha256 ?: throw SecurityException("pack ${pack.id} 缺少 sha256 字段，拒绝下载")
         if (sha256Hex(text) != expected) {
             throw SecurityException("pack ${pack.id} 完整性校验失败（sha256 不匹配）")
@@ -167,12 +166,8 @@ class ContentCenter {
         return digest.digest(bytes).joinToString("") { "%02x".format(it) }
     }
 
-    /**
-     * 剥离顶层 `"sha256": "<64位hex>"` 字段，使目录自签名可计算。
-     * 注意：只替换第一次出现（count=1），即顶层字段；
-     * packs[].sha256 等子字段保留原值并进入签名覆盖范围——
-     * 若用正则替换全部 sha256 字段，目录对"篡改各包哈希"将失去校验能力。
-     */
+    // 只替换第一次出现的顶层 sha256。packs 里的 sha256 要留着参与签名，
+    // 全替换就挡不住别人改包哈希了。
     private fun stripSelfSha(text: String): String =
         text.replaceFirst(Regex("\"sha256\"\\s*:\\s*\"[0-9a-f]{64}\""), "\"sha256\": \"\"")
 }

@@ -73,7 +73,7 @@ fun ReviewScreen(
     ) {
         ScreenHeader(
             title = "复习台 // REVIEW",
-            subtitle = "间隔记忆 · 今日到期 ${dueCards.size} 张",
+            subtitle = "间隔记忆，今日到期 ${dueCards.size} 张",
             accent = NeonGreen,
             onBack = onBack
         )
@@ -136,7 +136,7 @@ private fun ReviewCardItem(
             }
             SectionHeader(card.question, accent = NeonYellow)
             Text(
-                "卡片难度 ${"%.1f".format(card.difficulty)} · 复习 ${card.repetitions} 次",
+                "卡片难度 ${"%.1f".format(card.difficulty)}，复习 ${card.repetitions} 次",
                 style = MaterialTheme.typography.labelSmall,
                 color = TextDim
             )

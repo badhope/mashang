@@ -4,11 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-/**
- * 一套完整的明暗 Token。界面代码统一通过 Bg0 / TextHi / NeonCyan 等名称读取，
- * 这些名称在 Compose 下解析为 `LocalNeonTokens.current`，从而支持运行时切换
- * 深色主题与亮色主题（paperLight），无需改动任何调用方。
- */
+// 界面颜色都从这里取。切主题就是换一套值，调用方不用动。
 data class NeonTokens(
     // 背景层级（从最深到最浅）
     val bg0: Color,          // 页面主背景
@@ -19,7 +15,7 @@ data class NeonTokens(
     val textHi: Color,       // 主文字
     val textMid: Color,      // 次级文字
     val textDim: Color,      // 弱化文字
-    // 强调色（按主题分别调优，保证文字/图标在对应背景下可读）
+    // 强调色，每套主题单独调过，保证在各自背景上看得清。
     val primary: Color,      // 主色（青）
     val secondary: Color,    // 辅助色（品红）
     val accent: Color,       // 强调色（黄）
@@ -27,16 +23,11 @@ data class NeonTokens(
     val danger: Color,       // 错误红
     val gold: Color,         // 金色（任务/奖励）
     val purple: Color,       // 紫色（进阶）
-    /**
-     * 是否为亮色主题。
-     *
-     * 代码编辑器需要据此切换配色——否则白纸模式下会出现深色代码框
-     * 浮在白色界面上（2026-11 实测）。
-     */
+    // 编辑器靠它选深色还是浅色配色。
     val isLight: Boolean = false
 )
 
-/** 深色（默认）Token：赛博霓虹深空配色 */
+// 默认深色，赛博霓虹。
 val DarkTokens = NeonTokens(
     bg0 = Color(0xFF0E1420),
     bg1 = Color(0xFF182232),
@@ -54,7 +45,7 @@ val DarkTokens = NeonTokens(
     purple = Color(0xFFC35DF5)
 )
 
-/** 亮色 Token：白纸主题（所有颜色按白底重新调优，保证对比度） */
+// 白纸主题，颜色按白底重新调过。
 val LightTokens = NeonTokens(
     bg0 = Color(0xFFF5F7FB),
     bg1 = Color(0xFFE9EEF5),
@@ -75,7 +66,7 @@ val LightTokens = NeonTokens(
 
 val LocalNeonTokens = staticCompositionLocalOf { DarkTokens }
 
-// ===== 背景层级 =====
+// 背景层级
 val Bg0: Color
     @Composable get() = LocalNeonTokens.current.bg0
 val Bg1: Color
@@ -85,7 +76,7 @@ val SurfaceDark: Color
 val SurfaceHigh: Color
     @Composable get() = LocalNeonTokens.current.surfaceHigh
 
-// ===== 文字层级 =====
+// 文字层级
 val TextHi: Color
     @Composable get() = LocalNeonTokens.current.textHi
 val TextMid: Color
@@ -93,7 +84,7 @@ val TextMid: Color
 val TextDim: Color
     @Composable get() = LocalNeonTokens.current.textDim
 
-// ===== 强调色 =====
+// 强调色
 val NeonCyan: Color
     @Composable get() = LocalNeonTokens.current.primary
 val NeonMagenta: Color

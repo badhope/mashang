@@ -96,7 +96,7 @@ fun WelcomeTutorial(onComplete: () -> Unit) {
                 color = NeonCyan
             )
             Text(
-                "码上 · 编程学院",
+                "码上编程学院",
                 style = MaterialTheme.typography.bodyMedium,
                 color = NeonMagenta,
                 modifier = Modifier.padding(top = 8.dp)

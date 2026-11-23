@@ -72,7 +72,7 @@ internal fun OutputPreview(text: String) {
             .border(1.dp, NeonGreen.copy(alpha = 0.35f), MaterialTheme.shapes.medium)
             .padding(14.dp)
     ) {
-        Text("OUTPUT · 运行结果", style = MaterialTheme.typography.labelSmall, color = NeonGreen.copy(alpha = 0.7f))
+        Text("运行结果", style = MaterialTheme.typography.labelSmall, color = NeonGreen.copy(alpha = 0.7f))
         Spacer(Modifier.height(4.dp))
         Text(
             text,
@@ -90,7 +90,7 @@ internal fun DiagramBox(text: String) {
             .border(1.dp, NeonCyan.copy(alpha = 0.4f), MaterialTheme.shapes.medium)
             .padding(14.dp)
     ) {
-        Text("DIAGRAM · 图示", style = MaterialTheme.typography.labelSmall, color = NeonCyan.copy(alpha = 0.75f))
+        Text("图示", style = MaterialTheme.typography.labelSmall, color = NeonCyan.copy(alpha = 0.75f))
         Spacer(Modifier.height(6.dp))
         Text(
             text,
@@ -131,7 +131,7 @@ internal fun NeonTable(headers: List<String>, rows: List<List<String>>) {
 internal fun QuizCard(quiz: Block.Quiz) {
     var selected by remember(quiz.question) { mutableStateOf<Int?>(null) }
     NeonCard(accent = if (selected == null) NeonYellow else if (selected == quiz.answerIndex) NeonGreen else NeonMagenta) {
-        Text("QUIZ · 随堂一问", style = MaterialTheme.typography.labelSmall, color = NeonYellow.copy(alpha = 0.85f))
+        Text("随堂一问", style = MaterialTheme.typography.labelSmall, color = NeonYellow.copy(alpha = 0.85f))
         Text(
             quiz.question,
             style = MaterialTheme.typography.bodyLarge,
@@ -191,7 +191,7 @@ internal fun QuizCard(quiz: Block.Quiz) {
                     .padding(10.dp)
             ) {
                 Text(
-                    if (selected == quiz.answerIndex) "✓ 答对了" else "✗ 正确答案是 ${'A' + quiz.answerIndex}",
+                    if (selected == quiz.answerIndex) "答对了" else "正确答案是 ${'A' + quiz.answerIndex}",
                     style = MaterialTheme.typography.labelMedium,
                     color = if (selected == quiz.answerIndex) NeonGreen else NeonYellow
                 )
@@ -206,7 +206,7 @@ internal fun Modifier.androidxClickable(onClick: () -> Unit): Modifier = this.cl
 @Composable
 internal fun StepsCard(items: List<String>) {
     NeonCard(accent = NeonGreen, filled = true) {
-        Text("STEPS · 解题步骤", style = MaterialTheme.typography.labelSmall, color = NeonGreen)
+        Text("解题步骤", style = MaterialTheme.typography.labelSmall, color = NeonGreen)
         Spacer(Modifier.height(8.dp))
         items.forEachIndexed { i, step ->
             if (i > 0) {
@@ -259,7 +259,7 @@ internal fun PracticeCard(
     onRun: (() -> Unit)? = null
 ) {
     NeonCard(accent = NeonCyan, filled = true) {
-        Text("PRACTICE · 跟做练习", style = MaterialTheme.typography.labelSmall, color = NeonCyan)
+        Text("跟做练习", style = MaterialTheme.typography.labelSmall, color = NeonCyan)
         Spacer(Modifier.height(4.dp))
         Text(practice.title, style = MaterialTheme.typography.titleSmall, color = TextHi)
         Spacer(Modifier.height(10.dp))
@@ -303,7 +303,7 @@ internal fun FillCard(fill: Block.Fill, lang: String = "python") {
     val correct = input.trim() == fill.answer.trim()
     val checked = attempts > 0
     NeonCard(accent = NeonYellow, filled = true) {
-        Text("FILL · 填空补全", style = MaterialTheme.typography.labelSmall, color = NeonYellow)
+        Text("填空补全", style = MaterialTheme.typography.labelSmall, color = NeonYellow)
         Spacer(Modifier.height(4.dp))
         Text(fill.goal, style = MaterialTheme.typography.bodyMedium, color = TextHi)
         Spacer(Modifier.height(8.dp))
@@ -343,7 +343,7 @@ internal fun FillCard(fill: Block.Fill, lang: String = "python") {
         if (checked) {
             Spacer(Modifier.height(6.dp))
             Text(
-                if (correct) "✓ 正确！" else "✗ 还不对，再试试",
+                if (correct) "正确" else "还不对，再试试",
                 style = MaterialTheme.typography.labelMedium,
                 color = if (correct) NeonGreen else NeonMagenta
             )
@@ -363,7 +363,7 @@ internal fun OrderPuzzleCard(order: Block.Order) {
         selection.map { shuffled[it] } == order.lines
     val verdict: Boolean? = if (selection.size == order.lines.size) solved else null
     NeonCard(accent = when (verdict) { true -> NeonGreen; false -> NeonMagenta; null -> NeonCyan }, filled = true) {
-        Text("ORDER · 代码排序", style = MaterialTheme.typography.labelSmall, color = NeonCyan)
+        Text("代码排序", style = MaterialTheme.typography.labelSmall, color = NeonCyan)
         Spacer(Modifier.height(4.dp))
         Text(order.title, style = MaterialTheme.typography.bodyMedium, color = TextHi)
         Spacer(Modifier.height(2.dp))
@@ -411,7 +411,7 @@ internal fun OrderPuzzleCard(order: Block.Order) {
                         )
                 ) {
                     Text(
-                        if (picked) "${pickOrder + 1}" else "·",
+                        if (picked) "${pickOrder + 1}" else "待选",
                         style = MaterialTheme.typography.labelMedium,
                         color = if (picked) Bg0 else TextMid
                     )
@@ -423,7 +423,7 @@ internal fun OrderPuzzleCard(order: Block.Order) {
         if (verdict != null) {
             Spacer(Modifier.height(6.dp))
             Text(
-                if (verdict) "✓ 顺序正确，程序逻辑成立！" else "✗ 顺序不对，点行可取消重选",
+                if (verdict) "顺序正确，程序逻辑成立" else "顺序不对，点行可取消重选",
                 style = MaterialTheme.typography.labelMedium,
                 color = if (verdict) NeonGreen else NeonMagenta
             )

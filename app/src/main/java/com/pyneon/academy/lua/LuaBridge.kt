@@ -21,16 +21,15 @@ import org.luaj.vm2.lib.jse.JseBaseLib
 import org.luaj.vm2.lib.jse.JseMathLib
 
 /**
- * Lua 运行时（LuaJ 3.0.1，Lua 5.2 语义）。
+ * Lua 运行时，用 LuaJ 3.0.1，按 Lua 5.2 的语义。
  *
- * 与 [com.pyneon.academy.js.JsBridge] 相同的设计约束：
- * - 纯 JVM 实现，无 NDK、无 ABI 分包，APK 增量约 350 KB；
- * - 沙箱只装 Base / Table / String / Math / Coroutine 五个标准库，
- *   不装 io / os / luajava / debug / require 的资源查找器，
- *   脚本无法读写文件、执行命令或访问 Java 类；
- * - 看门狗用 [DebugLib.onInstruction] 指令钩子，等价于 JS 侧的
- *   instructionObserverThreshold 与 Python 侧的 settrace 看门狗；
- * - 所有求值串行化在一把锁上（LuaJ Globals 非线程安全）。
+ * 纯 JVM，不要 NDK，APK 多 350KB 左右。
+ * 沙箱只装 base、table、string、math、coroutine 五个标准库，
+ * 不装 io、os、luajava，资源查找器也换成空实现。
+ * 脚本读不了文件、跑不了命令，也摸不到 Java 类。
+ *
+ * 超时靠 debug 的指令钩子，和 JS、Python 一个思路。
+ * Globals 不能多线程共用，所有求值串行。
  */
 object LuaBridge : LanguageRuntime {
 
@@ -60,10 +59,8 @@ object LuaBridge : LanguageRuntime {
         var test: StringBuilder? = null
     }
 
-    /**
-     * 指令钩子看门狗：每次读 LuaBridge.deadlineNanos 的当前值，而不是构造时
-     * 快照，否则同一 Globals 复用到第二次调用时会拿着旧的截止时间。
-     */
+    // 指令钩子看门狗。deadlineNanos 每次现取，不能在构造时存下来，
+    // 不然同一个 Globals 第二次调用会拿着旧截止时间。
     private class Watch : DebugLib() {
         override fun onInstruction(pc: Int, v: Varargs?, top: Int) {
             if (System.nanoTime() > deadlineNanos) throw LuaTimeout()
@@ -90,7 +87,7 @@ object LuaBridge : LanguageRuntime {
         false
     }
 
-    // ===== REPL：跨行累积，语法不完整时等待续行 =====
+    // REPL：跨行攒着，语法没写完就等下一行。
 
     private var replGlobals: Globals? = null
     private var replSink: OutputSink? = null
@@ -117,9 +114,8 @@ object LuaBridge : LanguageRuntime {
 
         deadlineNanos = System.nanoTime() + (DEFAULT_TIMEOUT * 1e9).toLong()
         try {
-            // 表达式回显：`1+2` 在 Lua 里不是合法语句。先按语句执行；若报的不是
-            // 「不完整」类错误，再按 `return <表达式>` 重试，与 Python REPL 的
-            // 表达式 repr 回显对齐。
+            // Lua 里 `1+2` 不算合法语句。先按语句跑，报的不是 incomplete
+            // 就加个 return 再试，和 Python REPL 的回显保持一致。
             val result = try {
                 globals.load(source, "<repl>").call()
             } catch (first: LuaError) {
@@ -146,7 +142,7 @@ object LuaBridge : LanguageRuntime {
         }
     }
 
-    // ===== 内部实现 =====
+    // 内部实现
 
     @Volatile
     private var deadlineNanos: Long = Long.MAX_VALUE

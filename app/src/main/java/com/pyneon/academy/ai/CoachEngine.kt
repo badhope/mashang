@@ -1,11 +1,10 @@
 package com.pyneon.academy.ai
 
 /**
- * L0 离线规则教练：不依赖网络与大模型，
- * 仅凭判题/运行引擎返回的错误类型与消息，给出「诊断 → 三步引导 → 可复用的修复片段」。
+ * 离线规则教练。不联网也不用模型，只看错误类型和消息，
+ * 给出问题判断、几步提示和一小段示例。
  *
- * 设计红线：只引导、不代写。语言级错误（NameError 等）给通用修法；
- * 判题不过（TestFailed）只给检查清单，绝不直接给作业答案。
+ * 原则是只提示不代写：语言报错给通用修法，判题不过只给检查清单，不直接给答案。
  */
 data class CoachTip(
     val title: String,
@@ -27,18 +26,18 @@ object CoachEngine {
     ): CoachTip {
         val type = (errorType ?: "").trim()
         val message = (errorMessage ?: "").trim()
-        // B1: 取第一个 "Line N"（用户代码帧）而非 lastOrNull——
-        // 旧实现取最后一个匹配，命中的往往是库内部帧而非用户出错的行。
+        // 抓第一个 Line N，通常就是用户代码那一帧。取最后一个容易抓到库内部。
         val lineRef = LINE_PATTERN.findAll(traceback ?: "").firstOrNull()
             ?.groupValues?.get(1)?.toIntOrNull()
-        // 让所有分支的 tip() 都能带上行号，无需逐个传参
-        currentLineRef = lineRef
+        // 行号只在这里算一次，下面统一由 tip 带上。
+        fun tip(title: String, summary: String, steps: List<String>, example: String?): CoachTip =
+            CoachTip(title, summary, steps, example, lineRef)
 
-        // 判题不过：只给自查清单，不给答案
+        // 判题不过就列自查项，不给答案。
         if (type == "TestFailed" || message.contains("用例未通过") || type == "AssertionError") {
             return tip(
                 "判题没过：先别改代码，先对答案",
-                "判题器用断言逐条检查你的函数。失败信息里是第一个没通过的断言——它就是你现在的目标。",
+                "判题器用断言逐条检查你的函数。失败信息里是第一个没通过的断言，它就是你现在的目标。",
                 listOf(
                     "读出最后一条断言期望什么（例如 assert xxx == 5），用 print() 打印你的函数实际返回值",
                     "把函数能想到的边界值单独试一遍：0、1、负数、空列表、重复元素",
@@ -57,7 +56,7 @@ object CoachEngine {
                     "找到正在执行的循环，问自己：它的退出条件一定会变成 False 吗？",
                     "循环体里有没有让条件逐步靠近 False 的语句（计数器 + 1、索引 + 1、更新变量）",
                     "把数据规模先换小（如输入 5）跑一遍，确认小数据能正常结束",
-                    "别急着重写——先在循环里 print(当前进度) 看它是否真的在推进"
+                    "别急着重写，先在循环里 print(当前进度)，看它到底有没有推进"
                 ),
                 "n = 5\nwhile n > 0:\n    print(n)\n    n -= 1   # 少了这行就是死循环"
             )
@@ -125,7 +124,7 @@ object CoachEngine {
                     "数字与字符串要转换：int() / str()，再运算",
                     "报 not subscriptable 说明你对不可以下标的类型用了 [i]"
                 ),
-                "'1' + 1   →   int('1') + 1 或 '1' + '1'"
+                "'1' + 1 改成 int('1') + 1，或者 '1' + '1'"
             )
         }
         // IndexError
@@ -163,7 +162,7 @@ object CoachEngine {
                 listOf(
                     "定位分母变量，想清楚它什么情况下会等于 0",
                     "除之前先判断：if y == 0: 给个默认结果",
-                    "或者用 try / except ZeroDivisionError 兜底并给提示"
+                    "或者用 try / except ZeroDivisionError 接住再给提示"
                 ),
                 "if y != 0:\n    result = x / y\nelse:\n    result = None"
             )
@@ -259,28 +258,4 @@ object CoachEngine {
         }
     }
 
-    /**
-     * 当前分析上下文里的出错行号。
-     *
-     * 为什么用字段而不是给每个调用点加参数：analyze 里有 15 个分支，
-     * 逐个传 lineRef 既啰嗦又容易漏（2026-11 实测：15 个调用点一个都没传，
-     * 导致「定位到第 N 行」的功能实际上从未生效）。
-     * analyze 是单线程同步调用，用一个 @Volatile 字段足够。
-     */
-    @Volatile
-    private var currentLineRef: Int? = null
-
-    private fun tip(
-        title: String,
-        summary: String,
-        steps: List<String>,
-        example: String?,
-        lineRef: Int? = null
-    ): CoachTip = CoachTip(
-        title = title,
-        summary = summary,
-        steps = steps,
-        example = example,
-        lineRef = lineRef ?: currentLineRef
-    )
 }

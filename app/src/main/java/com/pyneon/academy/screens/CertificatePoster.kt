@@ -145,7 +145,7 @@ object CertificatePoster {
             typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
             textAlign = Paint.Align.CENTER
         }
-        canvas.drawText("CodeLearning · 码上", WIDTH / 2f, MARGIN + 160f, subPaint)
+        canvas.drawText("CodeLearning（码上）", WIDTH / 2f, MARGIN + 160f, subPaint)
 
         // Divider
         val dividerPaint = Paint().apply {
@@ -238,7 +238,7 @@ object CertificatePoster {
             isAntiAlias = true
             textAlign = Paint.Align.CENTER
         }
-        canvas.drawText("扫码验证 · 赛博朋克学院", WIDTH / 2f, (qrY + qrBitmap.height + 40).toFloat(), qrLabelPaint)
+        canvas.drawText("扫码验证：赛博朋克学院", WIDTH / 2f, (qrY + qrBitmap.height + 40).toFloat(), qrLabelPaint)
 
         // Footer
         val footerPaint = Paint().apply {
@@ -247,7 +247,7 @@ object CertificatePoster {
             isAntiAlias = true
             textAlign = Paint.Align.CENTER
         }
-        canvas.drawText("CodeLearning · 离线优先 · 零上传", WIDTH / 2f, (HEIGHT - MARGIN - 40).toFloat(), footerPaint)
+        canvas.drawText("CodeLearning，离线优先，零上传", WIDTH / 2f, (HEIGHT - MARGIN - 40).toFloat(), footerPaint)
         canvas.drawText("gitcode.com/badhope/mashang", WIDTH / 2f, (HEIGHT - MARGIN - 15).toFloat(), footerPaint)
 
         // Glitch accent lines
@@ -295,7 +295,7 @@ object CertificatePoster {
         }
 
         // MediaStore 写入（清除 IS_PENDING）后系统自动索引到相册，无需手动扫描广播。
-        // 旧实现在这里发 ACTION_MEDIA_SCANNER_SCAN_FILE，该常量自 API 29 起已废弃。
+        // ACTION_MEDIA_SCANNER_SCAN_FILE 从 API 29 起废弃了，别再用。
         return uri
     }
 }

@@ -7,14 +7,13 @@ import com.pyneon.academy.lang.RunResult
 import com.pyneon.academy.lang.VarInfo
 
 /**
- * C 运行时（教学子集解释器，纯 Kotlin 实现）。
+ * C 运行时，用 Kotlin 写的教学子集解释器。
  *
- * 为什么不是真编译器：Android 离线场景下 clang + 头文件 + 链接器要 200–400 MB，
- * 且无法链接 bionic libc。本项目用 [CInterpreter] 直接解释执行 C 子集，
- * 语义与 gcc 一致的部分照做，不支持的部分明确报错。
+ * Android 离线装 clang 加头文件和链接器要两三百 MB，还链不上 bionic，
+ * 所以这里直接解释执行。gcc 能算的跟着算，不支持的明确报错。
  *
- * 与 Java/C++/Go/Rust 的区别：那四门在 [LanguageIds.PLANNED] 里标注「暂不支持」，
- * 而 C 有真实可用的运行时——学习者写 `printf` 能看到真实输出、能判题、能改错。
+ * Java、C++、Go、Rust 在 PLANNED 里显示暂不支持，C 是真的能跑：
+ * 写 printf 有输出，能判题，能改错。
  */
 object CBridge : LanguageRuntime {
 
@@ -23,7 +22,7 @@ object CBridge : LanguageRuntime {
     override val fileExtension: String = "c"
     override val grammarScope: String = "source.c"
 
-    /** 展示版本：明确标注是子集解释器，不冒充 gcc。 */
+    // 标清楚是子集解释器，别让人以为是 gcc。
     override val version: String get() = "教学子集（解释执行）"
 
     override fun isAvailable(): Boolean = true
@@ -53,15 +52,9 @@ object CBridge : LanguageRuntime {
 
     override fun warmup(): Boolean = true
 
-    /**
-     * C 的交互会话。
-     *
-     * 早期实现是「每行独立执行一次完整程序」，有两个致命问题：
-     *   1. 变量不跨行保留（`int x = 5;` 之后写 `x` 会报未声明）
-     *   2. 每行都要求有 main（`printf(...)` 直接报「缺少 main」）
-     * 这违反 LanguageRuntime.replPush 的会话语义。现改为有状态的
-     * [CInterpreter.Session]：函数定义保留、全局变量保留、未闭合花括号请求续行。
-     */
+    // C 的交互会话。以前每行都当完整程序跑，变量不跨行，
+    // 写个 printf 还要求有 main。现在用有状态的 Session：
+    // 函数和全局变量都留着，花括号没闭合就等下一行。
     @Volatile
     private var session: CInterpreter.Session? = null
 

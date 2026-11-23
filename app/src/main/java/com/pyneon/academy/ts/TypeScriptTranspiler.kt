@@ -1,36 +1,21 @@
 package com.pyneon.academy.ts
 
 /**
- * TypeScript → JavaScript 转译器（**教学子集**，不是完整实现）。
+ * 把 TypeScript 的类型标注擦掉，转成 Rhino 能跑的 JS。
  *
- * 定位与边界
- * ----------
- * 本项目要在 Android 上离线提供 TypeScript，但没有可用的完整 tsc：
- * 官方编译器是数 MB 的现代 JS 包，Rhino（ES5）跑不动它。因此这里实现一个
- * 只做「类型擦除」的轻量转译器——TypeScript 的类型系统本来就在运行时不存在，
- * 擦掉类型标注后的语义与 JS 完全一致，这正是 TS 的设计前提。
+ * 不是完整 tsc：官方编译器好几 MB，Rhino 的 ES5 环境跑不动。
+ * TS 的类型本来运行时就不存在，擦掉之后语义和 JS 一样。
  *
- * 支持的子集（课程内容严格限制在此范围内）：
- *   - 变量 / 参数 / 返回值的类型标注：`let x: number = 1`
- *   - 函数与箭头函数的参数、返回值标注
- *   - interface / type 别名（整段删除，仅作声明）
- *   - 泛型参数列表：`function id<T>(x: T): T`
- *   - 类型断言：`x as number`、`<number>x` 不处理（避免与比较运算符歧义）
- *   - 非空断言：`x!`
- *   - 访问修饰符：`public/private/protected/readonly`
- *   - enum（转成冻结对象）
+ * 支持变量、参数、返回值的类型标注，interface、type、泛型参数、
+ * as 断言、非空断言、访问修饰符和 enum。
+ * 装饰器、namespace、声明合并、抽象类、泛型约束、条件类型、映射类型、
+ * 尖括号断言都不做，遇到就原样交给 JS 报错。
  *
- * **不支持**（课程里不得出现，遇到会原样保留并交由 JS 报错）：
- *   - 装饰器、命名空间、声明合并、抽象类
- *   - 泛型约束 `extends`、条件类型、映射类型
- *   - `<T>x` 尖括号断言（与 `<` 比较歧义，故意不做）
- *
- * 设计原则：宁可少转、不可错转。所有擦除都基于字符扫描并跳过字符串 /
- * 模板字符串 / 注释，避免把字符串内容误当类型标注。
+ * 全部用字符扫描，跳过字符串、模板串和注释。宁可少转，也别转错。
  */
 object TypeScriptTranspiler {
 
-    /** 转译结果。`applied` 便于测试断言「确实做了擦除」而非原样返回。 */
+    // changed 用来确认真的擦过东西，不是原样返回。
     data class Result(val code: String, val changed: Boolean)
 
     fun transpile(source: String): Result {
@@ -48,8 +33,6 @@ object TypeScriptTranspiler {
 
         return Result(s, s != source)
     }
-
-    // ===== 各阶段实现 =====
 
     /**
      * 删除 `interface Name { ... }` / `interface Name extends X { ... }` 整块。
@@ -127,10 +110,7 @@ object TypeScriptTranspiler {
         src.split("\n").map { if (it.trimStart().startsWith("declare ")) "" else it }
             .joinToString("\n")
 
-    /**
-     * `enum Color { Red, Green = 5 }` → `var Color = Object.freeze({ Red: 0, Green: 5 })`
-     * 只支持数值/无初始化成员，够教学用。
-     */
+    // enum 转成冻结对象，比如 Color.Red -> 0。只处理数值成员。
     private fun convertEnums(src: String): String {
         val regex = Regex("""enum\s+(\w+)\s*\{([^}]*)}""")
         return regex.replace(src) { m ->
@@ -161,7 +141,7 @@ object TypeScriptTranspiler {
     private fun stripAccessModifiers(src: String): String =
         Regex("""\b(public|private|protected|readonly)\s+""").replace(src, "")
 
-    /** 去掉函数/类名后的泛型参数表：`function id<T>(` → `function id(`。 */
+    /** 去掉函数/类名后的泛型参数表：`function id<T>(` 改成 `function id(`。 */
     private fun stripGenericParams(src: String): String {
         val fn = Regex("""(function\s+\w+)\s*<[^<>()]*>\s*\(""")
         val cls = Regex("""(class\s+\w+)\s*<[^<>()]*>\s*(\{|extends)""")
@@ -178,20 +158,8 @@ object TypeScriptTranspiler {
     private fun stripNonNullAssertions(src: String): String =
         Regex("""([\w$\])])!(?=[.\[]|;|,|\)|\s|$)""").replace(src, "$1")
 
-    /**
-     * 核心：擦除类型标注。
-     *
-     * 用字符扫描而不是正则，因为必须正确跳过：
-     *   - 字符串 `'a: b'`、`"x: y"`、模板字符串
-     *   - 注释（行注释与块注释）
-     *   - 对象字面量的键值对 `{ name: 'V' }`（这里的 `:` 不是类型标注）
-     *   - 三元表达式 `cond ? a : b`
-     *
-     * 判定规则：`:` 之后进入「类型上下文」，一直吃到以下任一终止符（括号深度为 0 时）：
-     *   `=`、`;`、`,`、`)`、`{`、`}`、换行、`=>`
-     * 且类型文本必须匹配「类型形状」（标识符、尖括号、方括号、点、竖线、&、空格、字面量），
-     * 否则判定为对象键或三元表达式，保留原样。
-     */
+    // 核心就是找冒号，把后面的类型删掉。麻烦在于冒号也出现在对象键和三元里，
+    // 还得跳过字符串和注释，所以只能逐字符扫，正则容易误伤。
     private fun stripTypeAnnotations(src: String): String {
         val out = StringBuilder()
         var i = 0
@@ -202,7 +170,7 @@ object TypeScriptTranspiler {
         while (i < src.length) {
             val ch = src[i]
 
-            // --- 字符串 / 模板字符串：原样拷贝 ---
+            // 字符串和模板串整段照抄。
             if (ch == '\'' || ch == '"' || ch == '`') {
                 val quote = ch
                 out.append(ch)
@@ -220,13 +188,13 @@ object TypeScriptTranspiler {
                 continue
             }
 
-            // --- 单行注释：原样拷贝到行尾 ---
+            // 行注释照抄到行尾。
             if (ch == '/' && i + 1 < src.length && src[i + 1] == '/') {
                 while (i < src.length && src[i] != '\n') { out.append(src[i]); i++ }
                 continue
             }
 
-            // --- 块注释：整体拷贝 ---
+            // 块注释也照抄。
             if (ch == '/' && i + 1 < src.length && src[i + 1] == '*') {
                 out.append("/*"); i += 2
                 while (i + 1 < src.length && !(src[i] == '*' && src[i + 1] == '/')) {
@@ -243,24 +211,21 @@ object TypeScriptTranspiler {
                 ')' -> { if (parenDepth > 0) parenDepth--; out.append(ch); i++; lastSignificant = ch; continue }
             }
 
-            // --- 冒号：判断是否为类型标注 ---
+            // 冒号要分清是类型标注、对象键还是三元。
             if (ch == ':') {
                 // 三元的 `? ... : ...` 不处理
                 if (looksLikeTernaryColon(out)) {
                     out.append(ch); i++; lastSignificant = ch; continue
                 }
-                // 对象字面量键值对：`{ key: value }` —— 键是标识符且前面紧邻 '{' 或 ','
+                // 对象字面量键值对：`{ key: value }`，键是标识符，前面紧挨着 '{' 或 ','
                 if (isObjectKeyColon(out, braceDepth, parenDepth)) {
                     out.append(ch); i++; lastSignificant = ch; continue
                 }
-                // 形如 `: Type` 且后面紧跟类型形状 → 擦除
+                // 冒号后面是类型形状就擦掉。
                 val (typeText, endIdx) = readTypeText(src, i + 1)
                 if (typeText.isNotEmpty() && looksLikeType(typeText, lastSignificant)) {
-                    // 擦除策略：连「冒号前的空白」一起收掉，再按**下一个字符**决定是否补空格。
-                    //   `(x: T)`        → `(x)`      下一个是 ')' ，不补
-                    //   `f(a: T, b: T)` → `f(a, b)`  下一个是 ',' 或 ')' ，不补
-                    //   `n: T = 5`      → `n = 5`    下一个是 '=' ，补一个空格
-                    //   `a:T`           → `a`（与后续标识符相邻时才补，防止粘成一个词）
+                    // 冒号和前面多余的空格一起删。下一个字符是 '=' 就补空格，
+                    // 是字母数字也补一个，免得粘成一个词；是 ) , ; 就什么都不加。
                     while (out.isNotEmpty() && out.last() == ' ') out.setLength(out.length - 1)
                     val nextCh = if (endIdx < src.length) src[endIdx] else null
                     val wouldMerge = nextCh != null &&
@@ -279,15 +244,14 @@ object TypeScriptTranspiler {
             if (!ch.isWhitespace()) lastSignificant = ch
             i++
         }
-        // 清理「擦除后留下的多余空格」：`) :` → `)` 之类已由上面处理；
-        // 再收掉行尾空格与空行
+        // 最后收掉行尾空格。
         return out.toString().lines().joinToString("\n") { it.trimEnd() }
     }
 
     /** 读到类型结束位置；返回 (类型文本, 结束下标)。 */
     private fun readTypeText(src: String, start: Int): Pair<String, Int> {
         var i = start
-        // 跳过冒号后的前导空白（`a: T` 里 `: ` 的空格不应算进类型文本的结束位置之外的残留）
+        // 跳过冒号后的空格，不然类型文本里会多出一截。
         while (i < src.length && (src[i] == ' ' || src[i] == '\t')) i++
         var depth = 0
         val sb = StringBuilder()
@@ -344,7 +308,7 @@ object TypeScriptTranspiler {
 
     /** 判断 `:` 是不是对象字面量的键分隔符（`{ a: 1 }` 或 `, a: 1`）。 */
     private fun isObjectKeyColon(out: StringBuilder, braceDepth: Int, parenDepth: Int): Boolean {
-        // 参数里的类型标注形如 `function f(a: T)` —— 前面是 '(' 或 ','
+        // 参数类型形如 `function f(a: T)`，前面是 '(' 或 ','。
         if (parenDepth > 0) return false
         if (braceDepth <= 0) return false
         // 回看：跳过空白，取前一个 token
@@ -355,7 +319,7 @@ object TypeScriptTranspiler {
         if (end == i) return false
         var j = i
         while (j >= 0 && out[j].isWhitespace()) j--
-        // `{ a: 1` 或 `, a: 1` → 是对象键
+        // `{ a: 1` 或 `, a: 1`，说明是对象键。
         return j >= 0 && (out[j] == '{' || out[j] == ',')
     }
 

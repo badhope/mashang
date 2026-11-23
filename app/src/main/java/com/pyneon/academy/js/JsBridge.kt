@@ -19,23 +19,18 @@ import org.mozilla.javascript.Undefined
 import org.mozilla.javascript.WrappedException
 
 /**
- * JavaScript 运行时（Mozilla Rhino，解释模式）。
+ * JavaScript 运行时，用 Mozilla Rhino 解释执行。
  *
- * 多语言架构下第二个 [LanguageRuntime] 实现，与 Python 侧 runner.py 的结果
- * 契约保持一致（ok/stdout/stderr/error/duration_ms/variables/passed），
- * UI、判题与进度逻辑因此对语言零感知。
+ * 结果字段和 Python 侧一样：ok/stdout/stderr/error/duration_ms/variables/passed，
+ * 上层不用管底下是哪门语言。
  *
- * 工程决策（2026-10-20）：
- * - 选 Rhino 而非 QuickJS/V8：纯 Java 依赖、无 NDK、无 ABI 分包，APK 增量 <1MB，
- *   符合"离线优先、设备端执行"的产品约束。
- * - 必须运行在解释模式（optimizationLevel = -1）：Rhino 的类编译器产物是 JVM
- *   字节码，在 ART 上不可用，这是 Android 上的硬性要求。
- * - 语言版本设为 ES6（Rhino 部分支持）；课程内容仍按 ES5 风格编写以保证
- *   确定性，箭头函数/模板字符串/async 留给后续 QuickJS 后端。
- * - 看门狗用 ContextFactory.observeInstructionCount（指令计数中断），等价于
- *   Python 侧的 settrace 看门狗；Context 非线程安全，全部求值串行化在单锁上。
- * - runner.py 的判题语义（用例间共享状态、测试不污染快照）在 Rhino 无
- *   scope.copy 的情况下改为：快照先于测试采集，测试跑在同一作用域。
+ * 选 Rhino 是因为纯 Java，不用 NDK，也不用按 ABI 分包，APK 只多一点点。
+ * optimizationLevel 必须设 -1，它编译出来的是 JVM 字节码，ART 跑不了。
+ * 语言版本开 ES6，课程还是按 ES5 写，结果稳定。以后要箭头函数和 async 再换后端。
+ * 超时靠指令计数中断，Python 那边用的是 settrace。Context 不能多线程共用，求值全串行。
+ *
+ * runner.py 判题时用例共享状态，但测试不能改快照。Rhino 没有 scope.copy，
+ * 所以先拍快照再跑测试，测试和用户代码用同一个作用域。
  */
 object JsBridge : LanguageRuntime {
 
@@ -48,7 +43,7 @@ object JsBridge : LanguageRuntime {
     override fun isAvailable(): Boolean = true
     override fun ensureStarted(context: Context) = Unit
 
-    // ===== 限流常量：与 runner.py 逐项对齐 =====
+    // 限流参数，和 runner.py 保持一致。
     private const val DEFAULT_TIMEOUT = 8.0
     private const val TEST_TIMEOUT = 2.0
     private const val MAX_VARS = 40
@@ -58,7 +53,7 @@ object JsBridge : LanguageRuntime {
     private const val INPUT_EXHAUSTED_MSG =
         "运行台不支持交互式输入：请把测试数据直接写在代码里，或到「神经接口」终端中使用 input()"
 
-    // ===== 看门狗：指令计数超限即中断 =====
+    // 指令计数超了就中断。
     private class JsTimeoutException : RuntimeException("js sandbox timeout")
 
     private class InputExhaustedException(msg: String) : RuntimeException(msg)
@@ -72,11 +67,9 @@ object JsBridge : LanguageRuntime {
             cx.optimizationLevel = -1
             cx.languageVersion = JsContext.VERSION_ES6
             cx.instructionObserverThreshold = 2000
-            // 安全边界：Rhino 默认把 Java 包/类暴露给脚本（Packages.java.lang.Runtime
-            // 可直接 exec 系统命令）。这是用户可输入任意代码的 REPL/判题环境，
-            // 必须用 ClassShutter 全部拒绝 —— 只允许纯 JS 标准库。
-            // 实测 PoC（修复前）：Packages.java.lang.Runtime.getRuntime()
-            //   .exec(["id"]).waitFor() 返回 0，说明系统命令真的被执行了。
+            // Rhino 默认把 Java 包暴露给脚本，Packages.java.lang.Runtime 能直接 exec。
+            // 用户能随便写代码，这里必须全部拒掉，只留 JS 标准库。
+            // 以前验证过，不拦的话真能跑系统命令。
             cx.setClassShutter(ClassShutter { _ -> false })
             return cx
         }
@@ -89,14 +82,9 @@ object JsBridge : LanguageRuntime {
     // Context 非线程安全：所有求值串行化
     private val lock = Any()
 
-    // ===== 输出槽：print/console 写 main；判题期间切到 test 缓冲 =====
-    /**
-     * 输出缓冲：写入侧做硬上限，而不是等执行结束再截断。
-     *
-     * 只截断不拦截挡不住内存问题：`while (true) console.log('x'.repeat(10000))`
-     * 在 8 秒超时前就能把 StringBuilder 撑到几百 MB，低端机会被系统杀掉
-     * （2026-11 审查发现）。这里超限直接抛 JsTimeoutException 中断脚本。
-     */
+    // 输出缓冲。判题时测试输出走单独的槽。
+    // 边写边限量。只在结束时截断挡不住内存，死循环 print 在超时前就能把堆撑爆，
+    // 所以超了直接抛异常停脚本。
     private class BoundedSink(private val hardLimit: Int = MAX_OUTPUT * 4) {
         private val sb = StringBuilder()
         var length: Int = 0
@@ -110,7 +98,7 @@ object JsBridge : LanguageRuntime {
         }
 
         fun append(c: Char): BoundedSink = append(c.toString())
-        /** 从 [mark] 位置到末尾的文本（REPL 增量输出用）。 */
+        // 取某段之后的内容，REPL 只显示这次新增的输出。
         fun from(mark: Int): String = if (mark >= sb.length) "" else sb.substring(mark)
         override fun toString(): String = sb.toString()
     }
@@ -129,7 +117,7 @@ object JsBridge : LanguageRuntime {
         }
     }
 
-    // ===== 对外契约 =====
+    // 对外接口=
 
     override fun runCode(
         code: String,
@@ -149,7 +137,7 @@ object JsBridge : LanguageRuntime {
         false
     }
 
-    // ===== REPL：括号平衡即提交；不平衡则续行，空行强制提交 =====
+    // REPL 里括号配平才执行，不配平就等下一行；空行强制提交。
 
     private var replScope: Scriptable? = null
     private var replSink: OutputSink? = null
@@ -196,9 +184,9 @@ object JsBridge : LanguageRuntime {
         false to mainOut.from(mark)
     }
 
-    // ===== 内部实现 =====
+    // 内部实现
 
-    /** 建作用域并装好宿主函数；返回 before 集合供快照做"新增变量"差集 */
+    // 建作用域、装宿主函数，顺手记下已有的变量名，后面做新增差集。
     private fun initScope(sink: OutputSink, stdin: List<String> = emptyList()): Pair<Scriptable, Set<String>> {
         val cx = factory.enterContext()
         try {
@@ -321,7 +309,7 @@ object JsBridge : LanguageRuntime {
         }
     }
 
-    // ===== 宿主函数注入（print / input / assert / console） =====
+    // 注入 print、input、assert 和 console。
 
     private fun installHost(cx: JsContext, scope: Scriptable, sink: OutputSink, input: InputQueue) {
         ScriptableObject.putProperty(scope, "print", object : BaseFunction() {
@@ -384,7 +372,7 @@ object JsBridge : LanguageRuntime {
     private fun joinArgs(args: Array<Any?>): String =
         args.joinToString(" ") { ContextToString(it) }
 
-    // ===== 错误映射与渲染 =====
+    // 错误转换
 
     private class Err(val type: String, val message: String, val traceback: String)
 
@@ -410,15 +398,14 @@ object JsBridge : LanguageRuntime {
 
     private fun formatError(t: Throwable, timeoutSec: Double): String {
         val e = mapError(t, timeoutSec)
-        // Rhino 的 EcmaError.message 自带「ReferenceError: xxx is not defined.」前缀，
-        // 直接拼 type 会出现「ReferenceError: ReferenceError: ...」（模拟器终端实测）。
+        // Rhino 的 message 自带「ReferenceError: ...」前缀，再拼一次类型就重复了。
         val msg = e.message.removePrefix("${e.type}: ").removePrefix("${e.type}:")
         val head = if (msg.isBlank()) e.type else "${e.type}: $msg"
         val trace = e.traceback.lines().take(4).joinToString("\n")
         return if (trace.isEmpty()) "$head\n" else "$head\n$trace\n"
     }
 
-    // ===== 变量快照：只展示本次运行新增的数据变量，最新定义排最前 =====
+    // 变量快照，只列这次新增的，最新的放前面。
 
     private fun snapshot(cx: JsContext, scope: Scriptable, before: Set<String>): List<VarInfo> {
         val items = mutableListOf<VarInfo>()
@@ -463,7 +450,7 @@ object JsBridge : LanguageRuntime {
 
     private fun ContextToString(value: Any?): String = JsContext.toString(value)
 
-    // ===== 工具 =====
+    // 小工具
 
     private fun truncate(text: String): String =
         if (text.length > MAX_OUTPUT) "[输出过长已截断]\n" + text.takeLast(MAX_OUTPUT) else text

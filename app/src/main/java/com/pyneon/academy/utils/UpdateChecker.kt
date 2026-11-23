@@ -5,13 +5,9 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 /**
- * 手动检查更新。
- *
- * 渠道策略（2026-11 决策：主发国内安卓应用市场，不投 Google Play）：
- *   1. **GitCode 优先** —— 国内直连稳定，作为主更新源
- *   2. **GitHub 兜底** —— 海外网络或 GitCode 故障时使用
- * 只读取公开发布版本号，不带任何设备标识；不自动下载、不申请安装权限。
- * 失败时静默降级为「无法检查」，绝不阻塞离线学习。
+ * 手动检查更新。主发国内应用市场，不在 Google Play。
+ * 先查 GitCode，挂了再查 GitHub。只读公开版本号，不带设备信息，
+ * 不自动下载，也不申请安装权限。查不到就算了，不影响离线学习。
  */
 object UpdateChecker {
 
@@ -21,7 +17,7 @@ object UpdateChecker {
         val publishedAt: String
     )
 
-    /** 按顺序尝试的发布源，第一个成功即返回。 */
+    // 按顺序试，哪个先成功就用哪个。
     private val SOURCES = listOf(
         "https://api.gitcode.com/api/v5/repos/badhope/mashang/releases/latest",
         "https://api.github.com/repos/badhope/mashang/releases/latest"
@@ -39,7 +35,7 @@ object UpdateChecker {
                 )
                 val json = JSONObject(body)
                 val tag = json.optString("tag_name").trim().removePrefix("v")
-                // GitCode 与 GitHub 的详情页字段名不同，两者都兼容
+                // GitCode 和 GitHub 的字段名不一样，两个都认。
                 val url = json.optString("html_url").ifBlank { json.optString("web_url") }
                 if (tag.isBlank() || url.isBlank()) {
                     lastError = IllegalStateException("返回内容缺少版本信息")
@@ -55,7 +51,7 @@ object UpdateChecker {
         Result.failure(lastError ?: IllegalStateException("所有更新源均不可达"))
     }
 
-    /** 语义化比较：返回 latest 是否比 current 新。非法输入按「不更新」处理。 */
+    // 按点号拆版本号逐段比，格式不对就当没有新版本。
     fun isNewer(latest: String, current: String): Boolean {
         fun parse(v: String): List<Int>? =
             v.trim().removePrefix("v").split('.').map { it.toIntOrNull() ?: return null }

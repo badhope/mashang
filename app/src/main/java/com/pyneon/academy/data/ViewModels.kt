@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
-// --- Mistake data model ---
+// 错题记录
 @Serializable
 data class MistakeRecord(
     val id: Int = 0,
@@ -28,7 +28,7 @@ data class MistakeRecord(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-// --- Review card data model ---
+// 复习卡
 @Serializable
 data class ReviewCard(
     val id: String,
@@ -70,20 +70,19 @@ class StreakViewModel(app: Application) : AndroidViewModel(app) {
 
     fun onAppOpen() {
         viewModelScope.launch(Dispatchers.IO) {
-            // 复用 Clock.todayEpochDay()（本地日期 → 天序号，与 java.time.toEpochDay 等价）；
-            // 不能用 millis / 86_400_000 折算，跨时区与夏令时会差一天导致连击清零。
+            // 用本地日期算天序号。拿毫秒除 86400000 在跨时区和夏令时会差一天，
+            // 连击就白断了。
             val today = Clock.todayEpochDay()
             val progress = ProgressStore.snapshot(getApplication())
             val last = progress.lastActiveEpochDay
             val context = getApplication<Application>()
 
             if (last == -1L) {
-                // First time ever
+                // 第一次打开。
                 ProgressStore.touchStreak(context, today)
-                // Set initial longest and total
-                updateProgressForNewStreak(context, today)
-                // 首日也要发 first_day 徽章（旧实现走这条路时不调用 updateBadges，
-                // 用户第一次打开永远拿不到首日徽章 —— 2026-11 审查发现）
+                // 首日把最长和总天数一起写上。
+                updateProgressForNewStreak(context)
+                // 首日也要发徽章。以前这条分支没调 updateBadges，第一次打开拿不到首日。
                 updateBadges(context, 1)
                 loadStreak()
                 return@launch
@@ -91,17 +90,17 @@ class StreakViewModel(app: Application) : AndroidViewModel(app) {
 
             val diff = today - last
             when {
-                diff == 0L -> {} // already counted today
+                diff == 0L -> {} // 今天已经记过。
                 diff == 1L -> {
                     ProgressStore.touchStreak(context, today)
-                    // Increment total active days and possibly longest
+                    // 连击加一，顺便更新最长和总天数。
                     val newCurrent = progress.streakDays + 1
                     updateLongestAndTotal(context, newCurrent, progress.totalActiveDays + 1)
                     updateBadges(context, newCurrent)
                     loadStreak()
                 }
                 else -> {
-                    // Streak broken, reset to 1
+                    // 断档了，从 1 重新开始。
                     ProgressStore.touchStreak(context, today)
                     updateLongestAndTotal(context, 1, progress.totalActiveDays + 1)
                     loadStreak()
@@ -110,10 +109,8 @@ class StreakViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private suspend fun updateProgressForNewStreak(context: Application, today: Long) {
-        val progress = ProgressStore.snapshot(context)
+    private suspend fun updateProgressForNewStreak(context: Application) {
         ProgressStore.updateStreakStats(context, 1, 1, 1)
-        // Also need to update lastActiveEpochDay separately since touchStreak already did it
     }
 
     private suspend fun updateLongestAndTotal(context: Application, newCurrent: Int, newTotal: Int) {
@@ -122,17 +119,11 @@ class StreakViewModel(app: Application) : AndroidViewModel(app) {
         ProgressStore.updateStreakStats(context, newCurrent, newLongest, newTotal)
     }
 
-    /**
-     * 补发连击徽章。
-     *
-     * 旧实现每次新建一个空集合并整体覆盖，导致「曾连击 30 天、断档后重新开始」
-     * 会把 week_warrior / month_master / centurion 永久抹掉（2026-11 审查发现）。
-     * 正确语义是：徽章是历史成就，只增不减。这里按历史最长连击补发，
-     * 并与已存徽章取并集。
-     */
+    // 补徽章。以前每次拿空集合整体覆盖，断档重来会把 30 天徽章抹掉。
+    // 徽章是历史成就，只增不减，所以按最长连击补，再和已有的取并集。
     private suspend fun updateBadges(context: Application, current: Int) {
         val progress = ProgressStore.snapshot(context)
-        // 断档后 current 会重置为 1，但历史最长连击仍保留在 longestStreak 里
+        // 断档后 current 归 1，最长连击还在 longestStreak 里。
         val peak = maxOf(current, progress.longestStreak)
         val badges = progress.badges.toMutableSet()
         if (peak >= 1) badges.add("first_day")
@@ -145,7 +136,7 @@ class StreakViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     suspend fun getDueReviewCount(): Int {
-        val cards = loadReviewCards()
+        val cards = readReviewCards(getApplication())
         val now = System.currentTimeMillis()
         return cards.count { it.nextReviewDate <= now }
     }
@@ -168,7 +159,7 @@ class ReviewViewModel(app: Application) : AndroidViewModel(app) {
 
     fun loadDueCards(limit: Int = 10) {
         viewModelScope.launch(Dispatchers.IO) {
-            val all = loadReviewCards()
+            val all = readReviewCards(getApplication())
             val now = System.currentTimeMillis()
             _dueCards.value = all.filter { it.nextReviewDate <= now }.take(limit)
         }
@@ -185,20 +176,20 @@ class ReviewViewModel(app: Application) : AndroidViewModel(app) {
                 lastReviewDate = System.currentTimeMillis(),
                 lapses = result.lapses
             )
-            saveReviewCard(updated)
+            val all = readReviewCards(getApplication()).map { if (it.id == card.id) updated else it }
+            writeReviewCards(getApplication(), all)
             loadDueCards()
         }
     }
 
     fun generateCardsForLesson(lesson: Lesson) {
         viewModelScope.launch(Dispatchers.IO) {
-            // B3: 只在缺失时补充该课卡片；旧实现 filter 掉该课全部旧卡再重写，
-            // 会覆盖用户已推进的复习进度（interval/repetitions）。
-            val existing = loadReviewCards()
+            // 只补缺的卡。以前把整课旧卡删掉重写，用户复习过的间隔和次数全没了。
+            val existing = readReviewCards(getApplication())
             val existingIds = existing.map { it.id }.toSet()
             val missing = ReviewScheduler.createInitialCards(lesson).filter { it.id !in existingIds }
             if (missing.isNotEmpty()) {
-                saveAllReviewCards(existing + missing)
+                writeReviewCards(getApplication(), existing + missing)
             }
         }
     }
@@ -226,7 +217,7 @@ class MistakeViewModel(app: Application) : AndroidViewModel(app) {
         conceptTags: List<String> = emptyList()
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            val mistakes = loadMistakesInternal()
+            val mistakes = readMistakes(getApplication())
             val newId = (mistakes.maxOfOrNull { it.id } ?: 0) + 1
             val mistake = MistakeRecord(
                 id = newId,
@@ -239,13 +230,13 @@ class MistakeViewModel(app: Application) : AndroidViewModel(app) {
                 errorMessage = error,
                 conceptTags = conceptTags
             )
-            saveMistakesInternal(mistakes + mistake)
+            writeMistakes(getApplication(), mistakes + mistake)
             _allMistakes.value = mistakes + mistake
         }
     }
 
     suspend fun getWeakConcepts(): List<Pair<String, Int>> {
-        val mistakes = loadMistakesInternal()
+        val mistakes = readMistakes(getApplication())
         return mistakes.flatMap { it.conceptTags }
             .groupingBy { it }
             .eachCount()
@@ -257,67 +248,44 @@ class MistakeViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deleteMistake(id: Int) {
         viewModelScope.launch(Dispatchers.IO) {
-            val mistakes = loadMistakesInternal().filter { it.id != id }
-            saveMistakesInternal(mistakes)
+            val mistakes = readMistakes(getApplication()).filter { it.id != id }
+            writeMistakes(getApplication(), mistakes)
             _allMistakes.value = mistakes
         }
     }
 
     fun clearAll() {
         viewModelScope.launch(Dispatchers.IO) {
-            saveMistakesInternal(emptyList())
+            writeMistakes(getApplication(), emptyList())
             _allMistakes.value = emptyList()
         }
     }
 
     private fun loadMistakes() {
         viewModelScope.launch(Dispatchers.IO) {
-            _allMistakes.value = loadMistakesInternal()
+            _allMistakes.value = readMistakes(getApplication())
         }
     }
 }
 
-// --- JSON file I/O helpers ---
-// 2026-11 去重：读/写/原子替换统一收敛到 UserDataFiles + JsonListFile，
-// 错题本、复习卡、备份三条链路共用同一套字段映射，避免各自维护一份。
-private fun loadMistakesInternal(context: Application? = null): List<MistakeRecord> =
-    context?.let { UserDataFiles.mistakesStore(it).read() } ?: emptyList()
+private fun readMistakes(context: Application): List<MistakeRecord> =
+    UserDataFiles.mistakesStore(context).read()
 
-private fun saveMistakesInternal(mistakes: List<MistakeRecord>, context: Application? = null) {
-    if (context == null) return
+private fun writeMistakes(context: Application, mistakes: List<MistakeRecord>) {
     try {
         UserDataFiles.mistakesStore(context).write(mistakes)
     } catch (e: Exception) {
-        Log.e(TAG, "Failed to save mistakes", e)
+        Log.e(TAG, "保存错题失败", e)
     }
 }
 
-fun MistakeViewModel.loadMistakesInternal(): List<MistakeRecord> =
-    loadMistakesInternal(getApplication())
+private fun readReviewCards(context: Application): List<ReviewCard> =
+    UserDataFiles.reviewCardsStore(context).read()
 
-fun MistakeViewModel.saveMistakesInternal(mistakes: List<MistakeRecord>) =
-    saveMistakesInternal(mistakes, getApplication())
-
-private fun loadReviewCards(context: Application? = null): List<ReviewCard> =
-    context?.let { UserDataFiles.reviewCardsStore(it).read() } ?: emptyList()
-
-private fun saveReviewCards(cards: List<ReviewCard>, context: Application? = null) {
-    if (context == null) return
+private fun writeReviewCards(context: Application, cards: List<ReviewCard>) {
     try {
         UserDataFiles.reviewCardsStore(context).write(cards)
     } catch (e: Exception) {
-        Log.e(TAG, "Failed to save review cards", e)
+        Log.e(TAG, "保存复习卡失败", e)
     }
 }
-
-fun ReviewViewModel.loadReviewCards(): List<ReviewCard> =
-    loadReviewCards(getApplication())
-
-fun ReviewViewModel.saveReviewCard(card: ReviewCard) {
-    val all = loadReviewCards()
-    val updated = all.map { if (it.id == card.id) card else it }
-    saveReviewCards(updated, getApplication())
-}
-
-fun ReviewViewModel.saveAllReviewCards(cards: List<ReviewCard>) =
-    saveReviewCards(cards, getApplication())

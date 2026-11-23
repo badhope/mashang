@@ -10,20 +10,16 @@ DEFAULT_TIMEOUT = 8.0
 EXERCISE_TEST_TIMEOUT = 2.0
 MAX_VARS = 40
 MAX_REPR = 200
-# W3: cap captured stdout/stderr so a runaway print loop cannot blow up the
-# JSON payload or exhaust memory. 1 MiB is plenty for terminal output.
+# 输出最多留 1MiB，死循环 print 也不会把 JSON 和内存撑爆。
 MAX_OUTPUT = 1_048_576
-# W2: coarse byte-size guard applied *before* calling repr() on a user value,
-# so a gigantic object (or a repr that would allocate massively) is skipped.
+# 调 repr 之前先看对象多大，太大就跳过，免得 repr 本身把内存吃光。
 MAX_VAR_BYTES = 1_000_000
 
 
-# 进程级执行锁：一次运行会改写 sys.stdout / sys.stderr / builtins.input 这些
-# 进程级全局对象（见 _run_protected），两个执行并发进入就会互相劫持缓冲区。
-# 实测：两个线程各打印 50 行，A 的 47 行被写进了 B 的缓冲区，A 自己只剩 3 行。
-# 所有改动这些全局状态的入口（run_code / check_exercise / repl.push）必须共用
-# 同一把锁，因此 repl.py 也导入本对象而不是自带一把。
-# 用 RLock 是为了容忍同线程内的嵌套获取（push -> runcode）。
+# 执行锁。一次运行会改 sys.stdout、sys.stderr 和 builtins.input 这些进程级对象，
+# 两个线程一起跑就会互相抢缓冲区，A 的输出跑进 B 里。
+# run_code、check_exercise 和 repl.push 都用这一把，repl.py 也导它，不另起炉灶。
+# 用 RLock 是允许同线程嵌套，比如 push 里再调 runcode。
 EXEC_LOCK = threading.RLock()
 
 
@@ -72,8 +68,7 @@ def _error_payload(etype, evalue, tb):
 
 
 def _truncate(text):
-    """W3: keep stdout/stderr bounded. When too long, drop the head and keep the
-    tail so the most recent output (and the error) stays visible."""
+    """输出太长就丢前面留尾部，最近的输出和报错还能看到。"""
     if text and len(text) > MAX_OUTPUT:
         return "[输出过长已截断]\n" + text[-MAX_OUTPUT:]
     return text
@@ -84,12 +79,8 @@ class OutputTooLong(Exception):
 
 
 class _BoundedBuffer(io.StringIO):
-    """带上限的输出缓冲。
-
-    只在执行结束后截断挡不住内存问题：`while True: print('x'*10000)` 在 8 秒
-    超时之前能把内存吃到几百 MB，低端机直接被系统杀掉。这里在写入侧累计长度，
-    超过 HARD_LIMIT 立刻抛 OutputTooLong，由 _run_protected 翻译成用户可读错误。
-    """
+    """带上限的输出缓冲。只在结束后截断挡不住内存，
+    死循环 print 在超时前就能吃几百 MB。这里边写边量，超过上限直接抛异常。"""
 
     HARD_LIMIT = MAX_OUTPUT * 4
 
@@ -173,14 +164,10 @@ def _run_protected(code, namespace, stdin_lines, timeout):
         target()
     duration_ms = int((time.perf_counter() - started_at) * 1000)
 
-    # E1: 说明与兜底——settrace 看门狗只覆盖纯 Python 字节码；若用户代码卡在
-    # C 扩展调用（time.sleep、纯 C 实现的循环等），join 超时后 daemon 线程可能
-    # 仍在后台运行。这是 CPython 无法安全强杀线程的固有限制，处理策略：
-    #   1) 输出/错误缓冲不再读取（结果已按 Timeout 返回），避免脏数据上屏；
-    #   2) 每次运行都用全新命名空间，残留线程写不到共享状态；
-    #   3) daemon 线程随进程退出，不会阻止 App 关闭。
-    # 若未来要覆盖 C 阻塞场景，需改为子进程执行（multiprocessing），成本较高，
-    # 教学场景暂不启用。
+    # settrace 只能拦纯 Python 字节码。用户卡在 C 调用（sleep、C 写的循环）时，
+    # join 超时后线程可能还在跑，CPython 又没法安全强杀线程。这里只能：
+    # 不再读它的缓冲，免得脏数据上屏；每次用新命名空间，残留线程写不到状态；
+    # 线程是 daemon，进程退出就结束。真要管 C 阻塞得上子进程，教学场景不值当。
     still_alive = not state["finished"]
     error = (
         None
@@ -206,10 +193,8 @@ def _run_protected(code, namespace, stdin_lines, timeout):
 
 
 def _snapshot(namespace):
-    # E4: 先收集全部“数据变量”，再按【定义顺序逆序】展示（最近定义的排最前）。
-    # 理由：(1) 教学场景里用户最想看到的是刚算出的变量；(2) 顺序每次运行一致，
-    # 可预期；(3) 不再像旧实现那样遍历到 MAX_VARS 就 break——那会按插入序截断，
-    # 漏掉最后定义的变量（恰恰是最该展示的）。
+    # 先收数据变量，再按定义顺序倒着显示，最近算出来的放最上面。
+    # 以前数到 40 个就 break，按插入顺序截断，最该看的最后几个反而没了。
     items = []
     for key, value in reversed(namespace.items()):
         if key.startswith("__"):
@@ -236,9 +221,8 @@ def _snapshot(namespace):
             else:
                 rendered = repr(value)
         except BaseException:
-            # W2: a custom __repr__ that raises (or recurses into RecursionError)
-            # must never crash the snapshot of the caller's session.
-            rendered = "<unrepresentable>"
+            # 自定义 __repr__ 抛异常或递归太深，也不能把整个快照带崩。
+            rendered = "<无法显示>"
         if len(rendered) > MAX_REPR:
             rendered = rendered[:MAX_REPR] + "…"
         items.append({"name": key, "type": type(value).__name__, "value": rendered})
@@ -281,15 +265,13 @@ def _check_exercise_locked(code, tests, stdin_lines, namespace):
 
     failures = []
     test_outputs = []
-    # E2: 用户代码在 namespace 中运行完毕后，测试跑在【共享的副本】test_ns 上：
-    #   - 测试用例之间保持共享状态（现有课程把 tests 写成"准备→动作→断言"的
-    #     有序脚本，这是内容格式的事实约束，必须兼容）；
-    #   - 测试的赋值/副作用不会污染用户命名空间，变量快照因此只展示用户代码
-    #     真正定义的内容；
-    #   - 用户代码定义的函数/类通过浅拷贝对测试可见（copy 共享引用）。
+    # 用户代码跑完后，测试放在 namespace 的浅拷贝里跑：
+    # 测试之间共享状态，课程里的 tests 本来就是准备、动作、断言三段；
+    # 但测试的赋值不会污染用户命名空间，快照只显示用户自己定义的东西。
+    # 函数和类通过浅拷贝对测试可见。
     test_ns = namespace.copy()
-    # 判题契约：把用户代码的 stdout 暴露给用例，允许 assert 输出内容，
-    # 防止「只赋值不打印」也能过关（l01 实测漏洞）。stderr 同理。
+    # 判题把用户 stdout 交给用例，允许 assert 输出内容。
+    # 不然只赋值不打印也能过，l01 就出过这个漏洞。stderr 同样处理。
     test_ns["__stdout__"] = core["stdout"]
     test_ns["__stderr__"] = core["stderr"]
     for index, test in enumerate(tests, start=1):
@@ -330,8 +312,7 @@ def _check_exercise_locked(code, tests, stdin_lines, namespace):
             test_target()  # 无多线程环境降级为主线程执行（同 run_code）
         if not test_state["finished"]:
             test_state["error"] = "测试执行超时"
-        # G3b: collect whatever the test printed (both for passing and failing
-        # cases) so diagnostic print() calls inside a test are visible.
+        # 测试不管过没过，print 出来的内容都收着，用户加的排查输出才看得到。
         test_outputs.append(test_out.getvalue())
         if test_state["error"] is not None:
             failures.append(

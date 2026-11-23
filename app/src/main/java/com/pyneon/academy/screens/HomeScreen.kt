@@ -112,7 +112,7 @@ fun HomeScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 GlitchText("CodeLearning", style = MaterialTheme.typography.headlineMedium, color = NeonCyan)
-                Text("码上 · 编程学院 v${AppConstants.VERSION_NAME}", style = MaterialTheme.typography.labelSmall, color = TextDim)
+                Text("码上编程学院 v${AppConstants.VERSION_NAME}", style = MaterialTheme.typography.labelSmall, color = TextDim)
             }
             // 运行时版本串可能很长，限宽单行，不然左边的品牌名会被挤下去。
             Text(

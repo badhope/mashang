@@ -49,14 +49,9 @@ import com.pyneon.academy.ui.theme.TextMid
 import com.pyneon.academy.utils.AppConstants
 import com.pyneon.academy.utils.ShareHelper
 
-/**
- * 开发者诊断页。
- *
- * 离线 App 出问题时没有服务端可查，用户只能说「打不开」。这一页把
- * 环境、运行时状态、内容包、日志全部摊开，用户可以复制或分享给开发者。
- *
- * 明确不做的事：不上传、不采集用户代码、不请求任何网络。
- */
+// 开发者诊断页。离线应用出问题没有服务端日志可查，
+// 把环境、运行时、内容包和日志都摊开，用户复制或发邮件给开发者就行。
+// 这一页不联网，也不读用户代码。
 @Composable
 fun DiagnosticsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -91,12 +86,11 @@ fun DiagnosticsScreen(onBack: () -> Unit) {
     ) {
         ScreenHeader(
             title = "开发者诊断",
-            subtitle = "环境 · 运行时 · 内容 · 日志",
+            subtitle = "环境、运行时、内容、日志",
             accent = NeonCyan,
             onBack = onBack
         )
 
-        // ===== 运行环境 =====
         SectionHeader("运行环境", accent = NeonCyan)
         NeonCard(accent = NeonCyan) {
             DiagRow("应用版本", "v${AppConstants.VERSION_NAME} (code ${AppConstants.VERSION_CODE})")
@@ -105,7 +99,6 @@ fun DiagnosticsScreen(onBack: () -> Unit) {
             DiagRow("ABI", Build.SUPPORTED_ABIS.joinToString(", "))
         }
 
-        // ===== 运行时状态 =====
         SectionHeader("运行时状态", accent = NeonGreen)
         NeonCard(accent = NeonGreen) {
             runtimeRows.forEach { (id, pair) ->
@@ -113,19 +106,18 @@ fun DiagnosticsScreen(onBack: () -> Unit) {
                 val (available, version) = state
                 DiagRow(
                     name,
-                    if (available) "$version · 可用" else "不可用",
+                    if (available) "$version 可用" else "不可用",
                     NeonGreen.takeIf { available } ?: NeonMagenta
                 )
             }
             Spacer(Modifier.height(6.dp))
             Text(
-                "「可用」表示运行时已注册且能初始化；不可用时对应课程会显示「缺运行时」。",
+                "能初始化就算可用；不可用时课程页会提示缺运行时。",
                 style = MaterialTheme.typography.labelSmall,
                 color = TextDim
             )
         }
 
-        // ===== 内容状态 =====
         SectionHeader("内容状态", accent = NeonYellow)
         NeonCard(accent = NeonYellow) {
             DiagRow("课程总数", if (lessonCount >= 0) "$lessonCount 讲" else "解析失败")
@@ -133,7 +125,6 @@ fun DiagnosticsScreen(onBack: () -> Unit) {
             DiagRow("已装语言包", if (packs.isEmpty()) "无" else packs.entries.joinToString { "${it.key} v${it.value}" })
         }
 
-        // ===== 上次崩溃 =====
         val lastCrash = remember(refreshKey) { CrashHandler.lastCrash(context) }
         if (lastCrash != null) {
             SectionHeader("上次异常退出", accent = NeonMagenta)
@@ -167,7 +158,6 @@ fun DiagnosticsScreen(onBack: () -> Unit) {
             }
         }
 
-        // ===== 日志 =====
         SectionHeader("运行日志", accent = NeonMagenta)
         NeonCard(accent = NeonMagenta) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -184,7 +174,7 @@ fun DiagnosticsScreen(onBack: () -> Unit) {
                     color = TextDim
                 )
             } else {
-                // 只显示最近 80 条，避免长列表卡顿；完整内容可导出
+                // 只显示最近 80 条，完整内容在导出里。
                 logEntries.takeLast(80).reversed().forEach { entry ->
                     val color = when (entry.level) {
                         DebugLog.Level.ERROR -> NeonMagenta

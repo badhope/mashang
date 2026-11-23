@@ -28,13 +28,7 @@ import com.pyneon.academy.ui.theme.NeonYellow
 import com.pyneon.academy.ui.theme.SurfaceHigh
 import com.pyneon.academy.ui.theme.TextDim
 
-/**
- * 智能错误消息组件 - 将技术性错误转换为用户友好的提示
- * 
- * @param errorText 原始错误文本
- * @param suggestion 修复建议（可选）
- * @param modifier Modifier
- */
+// 把引擎报错换成用户看得懂的话，再给一句修法。
 @Composable
 fun SmartErrorMessage(
     errorText: String,
@@ -78,7 +72,7 @@ fun SmartErrorMessage(
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     hint?.let {
                         Text(
-                            text = "💡 $it",
+                            text = it,
                             style = MaterialTheme.typography.bodySmall,
                             color = TextDim
                         )
@@ -96,9 +90,7 @@ fun SmartErrorMessage(
     }
 }
 
-/**
- * 解析 Python 错误并返回用户友好的消息和提示
- */
+
 private fun parseError(errorText: String): Pair<String, String?> {
     return when {
         // 判题未通过（不是运行时错误：用户代码跑完了，只是断言没过）

@@ -55,14 +55,7 @@ import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-/**
- * 扫描线底纹。
- *
- * 标记为 @Composable 是为了读取 [LocalVisualStyle]：简洁风格下直接返回
- * 未改动的 Modifier（不绘制、不产生 draw layer），调用点无需逐个判断风格。
- * 调用点必须位于 Composable 作用域——现有 5 处（首页/开屏/终端/证书/角斗场）
- * 都在 Composable 内，符合约束。
- */
+// 扫描线底纹。简洁风格直接返回原 Modifier，调用点不用自己判断。
 @Composable
 fun Modifier.scanlines(): Modifier =
     if (LocalVisualStyle.current.backdropEnabled) {
@@ -81,7 +74,7 @@ fun Modifier.scanlines(): Modifier =
         this
     }
 
-/** 赛博网格底纹；简洁风格下不绘制（同 [scanlines]）。 */
+// 网格底纹，简洁风格不画。
 @Composable
 fun Modifier.cyberGrid(color: Color, cell: Dp): Modifier =
     if (LocalVisualStyle.current.backdropEnabled) {
@@ -111,8 +104,7 @@ fun GlitchText(
     modifier: Modifier = Modifier,
     color: Color = TextHi
 ) {
-    // 简洁风格：完全不创建无限动画，也不叠双层错位文字。
-    // 直接走纯 Text 分支，避免动画在后台持续请求帧（省电、省 GPU）。
+    // 简洁风格不建动画，直接走 Text，后台不用一直请求帧。
     if (!LocalVisualStyle.current.glitchEnabled) {
         Text(text = text, style = style, color = color, modifier = modifier)
         return
@@ -124,8 +116,7 @@ fun GlitchText(
         animationSpec = infiniteRepeatable(tween(4200, easing = LinearEasing)),
         label = "phase"
     )
-    // 只在每个周期的最后 5% 抖一下，其余时间完全静止：常量错位会让中文标题看起来
-    // 像重影糊成一团（实测 0.75 alpha + 2dp 偏移，笔画密集处几乎不可读）。
+    // 每轮只在最后 5% 抖一下，其他时候不动。一直错位的话中文标题会糊成重影。
     val burst = ((phase - 0.95f) / 0.05f).coerceIn(0f, 1f)
     val amount = if (phase < 0.95f) 0f else sin(burst * Math.PI).toFloat()
     val jitterX = (sin(phase * Math.PI * 40) * 2.0f * amount).dp
@@ -191,10 +182,7 @@ fun BlinkingCursor(modifier: Modifier = Modifier, color: Color = NeonCyan) {
     )
 }
 
-/**
- * 卡片描边：赛博风格为霓虹渐变，简洁风格为细实线（宽度更细、无渐变）。
- * 非 Composable 的旧签名保留给不感知风格的调用点（如证书海报的绘制代码）。
- */
+// 霓虹渐变描边。给不感知风格的调用点用，比如证书海报绘制。
 fun neonBorder(accent: Color): BorderStroke = BorderStroke(
     width = 1.dp,
     brush = Brush.linearGradient(
@@ -202,7 +190,7 @@ fun neonBorder(accent: Color): BorderStroke = BorderStroke(
     )
 )
 
-/** 感知视觉风格的描边：简洁风格用 1dp 实线、半透明，不做渐变。 */
+// 按当前风格选描边：赛博走渐变，简洁走 1dp 半透明实线。
 @Composable
 fun styleBorder(accent: Color): BorderStroke =
     if (LocalVisualStyle.current.neonBorderEnabled) {
@@ -227,7 +215,7 @@ fun NeonCard(
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    // 简洁风格不做按压回弹：直接固定 1f，动画不会被创建
+    // 简洁风格不做按压回弹，直接固定 1f。
     val scale by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (pressed && onClick != null && style.pressAnimationEnabled) 0.98f else 1f,
         animationSpec = androidx.compose.animation.core.tween(90),
