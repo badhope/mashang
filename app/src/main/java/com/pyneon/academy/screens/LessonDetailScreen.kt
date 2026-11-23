@@ -89,14 +89,11 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
     var runningKey by remember(lessonId) { mutableStateOf<Int?>(null) }
 
     val exercise = lesson?.exercise
-    // 用户正在写的代码、提示展开状态必须跨屏幕旋转 / 进程重建保留，
-    // 否则转一下屏幕或切到后台再回来，写了一半的答案就没了（2026-11 审计发现）。
-    // key 带上 lessonId：切到别的课不能用上一课的草稿。
+    // 没写完的答案要能扛住旋转和切后台，key 带 lessonId，换课就换草稿。
     var editorValue by rememberSaveable(lessonId) {
         mutableStateOf(exercise?.starterCode ?: "")
     }
-    // 判题结果 / 教练提示是「一次性的展示态」，旋转后重新判即可，
-    // 但为保证体验一致也一并保存（RunResult 不可 Saveable，这里只保存标记位）。
+    // 判题结果和教练提示不保存，旋转后重判；草稿和提示展开状态会保存。
     var checkResult by remember(lessonId) { mutableStateOf<RunResult?>(null) }
     var coachTip by remember(lessonId) { mutableStateOf<CoachTip?>(null) }
     var checking by remember(lessonId) { mutableStateOf(false) }
@@ -113,8 +110,7 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
         return
     }
 
-    // 课程里的代码块和「跟做示例」共用同一条运行链路：统一超时兜底、
-    // 错误日志与 side effects 记录，避免两处各写一遍后行为漂移。
+    // 代码块和跟做示例都走这里，别各写一份。
     fun runBlock(index: Int, code: String, lang: String, stdin: List<String>) {
         scope.launch {
             runningKey = index
@@ -144,12 +140,8 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
         }
     }
 
-    // U4: 提升到函数级作用域，供顶部进度条与完成弹窗的「下一课」入口共用。
-    //
-    // 进度口径按【当前课程所属的章节（=课程包）】统计，而不是按语言：
-    // 按语言分会让 DSA（lang=python）被当成 Python 主线，导致 10 讲 DSA + 彩蛋课
-    // 的 lessonIdx = -1（进度条消失），完成后「下一课」还会跳回 l01（2026-11 实测）。
-    // 章节名在同一包内唯一（chapterName = "语言包 · C 启程" 等），用它分组最稳。
+    // 进度按当前课程包（chapterName）算，不按语言。DSA 的 lang 也是 python，
+    // 按语言会把 Python 主线算乱。
     val allLessons = remember(lessonId, lesson?.chapterName) {
         val chapter = lesson?.chapterName.orEmpty()
         if (chapter.isBlank()) {
@@ -157,22 +149,22 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
         } else {
             val sameChapter = LessonRepository.lessons(context)
                 .filter { it.chapterName == chapter }
-            // 章节内课程数异常（数据缺失）时回落到主线，避免进度条算出 0/0
+            // 章节数据缺失就退回主线，免得进度条变成 0/0。
             sameChapter.ifEmpty { LessonRepository.mainline(context) }
         }
     }
     val lessonIdx = allLessons.indexOfFirst { it.id == lessonId }
-    // 完成度按已通关讲数统计（而不是「当前是第几讲」），与「我的」页口径一致
+    // 完成度按已通关讲数算，和「我的」页保持一致。
     val doneCount = allLessons.count { it.id in progress.completedLessons }
 
-    // Generate review cards when lesson is first completed
+    // 第一次通关时生成复习卡。
     androidx.compose.runtime.LaunchedEffect(alreadySolved) {
         if (alreadySolved) {
             reviewVm.generateCardsForLesson(lesson)
         }
     }
 
-    // 打开课程即记录到学习历史（LESSON_OPEN）
+    // 打开课程就记一笔学习历史。
     androidx.compose.runtime.LaunchedEffect(lesson.id) {
         com.pyneon.academy.data.ProgressStore.markLessonOpened(context, lesson.id)
     }
@@ -189,10 +181,10 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
             Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            NeonButton(label = "◄ 返回", accent = TextMid, onClick = onBack)
+            NeonButton(label = "返回", accent = TextMid, onClick = onBack)
             Spacer(Modifier.size(10.dp))
             GlitchText(
-                "%02d // %s".format(lesson.order, lesson.title),
+                "第%02d讲  %s".format(lesson.order, lesson.title),
                 style = MaterialTheme.typography.titleMedium,
                 color = NeonCyan,
                 modifier = Modifier.weight(1f)
@@ -242,15 +234,14 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
                     is Block.Output -> OutputPreview(block.text)
                     is Block.Table -> NeonTable(block.headers, block.rows)
                     is Block.Diagram -> DiagramBox(block.text)
-                    is Block.Task -> TipBox(block.text, NeonYellow, "TASK · 跟着做")
+                    is Block.Task -> TipBox(block.text, NeonYellow, "TASK 跟着做")
                     is Block.Steps -> StepsCard(block.items)
                     is Block.Practice -> PracticeCard(
                         practice = block,
                         lang = lesson.lang,
                         result = runResults[index],
                         running = runningKey == index,
-                        // practice 里的代码默认是「只读跟做」；TypeScript 课程已逐条
-                        // 用真实转译器验证过，才开放运行按钮，避免别的语言点半成品报错。
+                        // TypeScript 的示例逐条验证过才开放运行，别的语言先只读。
                         onRun = if (lesson.lang == "typescript") {
                             { runBlock(index, block.code, lesson.lang, emptyList()) }
                         } else null
@@ -347,13 +338,13 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
                                             ProgressStore.markExerciseSolved(context, solvedKey, exercise.xp, Clock.todayEpochDay())
                                             ProgressStore.markLessonDone(context, lesson.id, lesson.xp)
                                             rewardXp = exercise.xp + lesson.xp
-                                            // Generate review cards for this lesson
+                                            // 第一次通关才生成复习卡。
                                             reviewVm.generateCardsForLesson(lesson)
                                         } else {
                                             rewardXp = 0
                                         }
                                     } else {
-                                        // Record mistake for review
+                                        // 没过就进错题本。
                                         val errorMsg = r.stdout?.takeIf { it.isNotBlank() } ?: r.stderr ?: "未知错误"
                                         mistakeVm.recordMistake(
                                             lessonId = lesson.id,
@@ -391,7 +382,7 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
                     if (needCoach) {
                         Spacer(Modifier.height(10.dp))
                         NeonButton(
-                            label = "问教练 · 只提示不代写",
+                            label = "问教练（只提示不代写）",
                             accent = NeonMagenta,
                             leadingIcon = Icons.Outlined.Lightbulb,
                             onClick = {
@@ -408,7 +399,7 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
                     coachTip?.let { tip ->
                         AlertDialog(
                             onDismissRequest = { coachTip = null },
-                            title = { Text("🤖 教练：${tip.title}", style = MaterialTheme.typography.titleMedium) },
+                            title = { Text("教练：${tip.title}", style = MaterialTheme.typography.titleMedium) },
                             text = {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(tip.summary, style = MaterialTheme.typography.bodyMedium)
@@ -439,7 +430,7 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
                     }
                     if (alreadySolved && checkResult?.passed != false) {
                         Text(
-                            "// 已通关 ✓",
+                            "已通关",
                             style = MaterialTheme.typography.labelMedium,
                             color = NeonGreen,
                             modifier = Modifier.padding(top = 8.dp)
@@ -451,7 +442,7 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
     }
 
     rewardXp?.let { gained ->
-        // U4: 学完一课，弹出「下一课」入口，学习流不中断
+        // 学完弹「下一课」，别把人卡在结果页。
         val nextLesson = allLessons.getOrNull(lessonIdx + 1)
         AlertDialog(
             onDismissRequest = { rewardXp = null },
@@ -471,7 +462,7 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
                     TextButton(onClick = { rewardXp = null }) { Text("留在本课", color = TextMid) }
                     if (gained > 0 && nextLesson != null && onNextLesson != null) {
                         TextButton(onClick = { rewardXp = null; onNextLesson(nextLesson.id) }) {
-                            Text("下一课：${nextLesson.title} →", color = NeonGreen)
+                            Text("下一课：${nextLesson.title}", color = NeonGreen)
                         }
                     }
                 }

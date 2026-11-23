@@ -45,31 +45,31 @@ fun AboutScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         ScreenHeader(
-            title = "关于 // ABOUT",
+            title = "关于",
             accent = NeonMagenta,
             onBack = onBack
         )
         Text(
-            "CodeLearning · 码上\n版本 v${AppConstants.VERSION_NAME}",
+            "CodeLearning（码上）\n版本 v${AppConstants.VERSION_NAME}",
             style = MaterialTheme.typography.bodyMedium,
             color = TextMid
         )
 
         SectionHeader("开源与授权", accent = NeonCyan)
         Text(
-            "本应用以 MIT 协议开源：允许自由使用、修改与再分发（含个人、教育及商业用途），只需保留版权与许可声明。" +
-                "按「原样」提供，不附带任何担保。\"CodeLearning\"、\"码上\" 名称与标识为保留商标。",
+            "本应用以 MIT 协议开源：可以自由使用、修改和再分发，个人、教育、商业用途都行，保留版权和许可声明即可。" +
+                "软件按原样提供，不附带担保。CodeLearning 和码上的名称、标识保留商标权。",
             style = MaterialTheme.typography.bodySmall,
             color = TextMid
         )
 
         SectionHeader("技术致谢", accent = NeonGreen)
         Text(
-            "· CPython 3.13 — 设备端嵌入的 Python 运行时\n" +
-                "· Mozilla Rhino 1.7.15 — 设备端嵌入的 JavaScript 运行时\n" +
-                "· Chaquopy — Android 上的 Python 集成\n" +
-                "· Jetpack Compose / AndroidX — UI 与架构\n" +
-                "· 课程设计与 CodeLearning 视觉系统由开发团队原创",
+            "CPython 3.13：设备端 Python 运行时\n" +
+                "Mozilla Rhino 1.7.15：设备端 JavaScript 运行时\n" +
+                "Chaquopy：Android 上的 Python 集成\n" +
+                "Jetpack Compose 和 AndroidX：界面与架构\n" +
+                "课程内容和界面由项目维护者整理",
             style = MaterialTheme.typography.bodySmall,
             color = TextMid
         )
@@ -83,19 +83,19 @@ fun AboutScreen(
 
         SectionHeader("开源社区", accent = NeonGreen)
         Text(
-            "如果这个项目帮到了你，欢迎在仓库点一个 Star。Star 是独立开发最直接的鼓励，也能让更多人看到这个离线学习项目。",
+            "如果这个项目帮到了你，欢迎去仓库点个 Star。点一下能让更多人看到它，也是对我最直接的鼓励。",
             style = MaterialTheme.typography.bodySmall,
             color = TextMid
         )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             NeonButton(
-                label = "GitCode · 点 Star",
+                label = "去 GitCode 点 Star",
                 accent = NeonGreen,
                 onClick = { ShareHelper.openUrl(context, AppConstants.REPO_URL) },
                 modifier = Modifier.weight(1f)
             )
             NeonButton(
-                label = "GitHub 镜像",
+                label = "GitHub 仓库",
                 accent = NeonCyan,
                 onClick = { ShareHelper.openUrl(context, AppConstants.REPO_URL_GITHUB) },
                 modifier = Modifier.weight(1f)
@@ -103,7 +103,7 @@ fun AboutScreen(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             NeonButton(
-                label = "Gitee 镜像",
+                label = "Gitee 仓库",
                 accent = NeonCyan,
                 onClick = { ShareHelper.openUrl(context, AppConstants.REPO_URL_GITEE) },
                 modifier = Modifier.weight(1f)
@@ -139,7 +139,7 @@ fun AboutScreen(
         )
 
         Text(
-            "© 2026 ${AppConstants.DEV_NAME}. 保留一切权利。",
+            "© 2026 ${AppConstants.DEV_NAME}。代码以 MIT 协议开源。",
             style = MaterialTheme.typography.labelSmall,
             color = TextMid,
             modifier = Modifier.fillMaxWidth().align(Alignment.CenterHorizontally)

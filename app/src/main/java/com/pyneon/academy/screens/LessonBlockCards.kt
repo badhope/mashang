@@ -47,8 +47,7 @@ import com.pyneon.academy.ui.theme.TextDim
 import com.pyneon.academy.ui.theme.TextHi
 import com.pyneon.academy.ui.theme.TextMid
 
-// M3a: 从 LessonDetailScreen.kt 拆出的课程内容卡片组件（原私有函数改 internal，
-// 仅供本包使用）。主屏幕文件只保留页面骨架与业务编排。
+// 课程内容块组件，页面文件只留骨架。
 @Composable
 internal fun TipBox(text: String, accent: androidx.compose.ui.graphics.Color, tag: String) {
     Column(

@@ -49,14 +49,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * 语言中心：把「运行时是否内置」与「课程包是否已下载」分成两栏展示。
- *
- * 设计红线（2026-10-24 复核后确立）：
- * - 内置运行时（Python / JavaScript / Lua / SQL）显示为可用，课程包按需下载；
- * - 未内置运行时的语言（Java / C++ / Go / Rust）只显示「暂不支持」，
- *   不出现任何下载入口——项目没有运行时下载机制，不能让用户白点。
- * - 课程包未下载前，课程列表里不出现该语言的任何讲；
- *   预置包（js/lua/sql）只下载课程内容，不下载运行时。
+ * 语言中心：运行时和课程包分开列。
+ * 没运行时的语言只标「暂不支持」，不给下载入口，不然用户点了也白点。
  */
 @Composable
 fun LanguageCenterScreen(onBack: () -> Unit) {
@@ -95,9 +89,9 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            NeonButton(label = "◄ 返回", accent = TextMid, onClick = onBack)
+            NeonButton(label = "返回", accent = TextMid, onClick = onBack)
             Spacer(Modifier.size(10.dp))
-            GlitchText("语言中心 // LANGS", style = MaterialTheme.typography.titleMedium, color = NeonCyan)
+            GlitchText("语言中心", style = MaterialTheme.typography.titleMedium, color = NeonCyan)
         }
 
         Text(
@@ -126,7 +120,7 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
         SectionHeader("暂不支持", accent = NeonMagenta)
         NeonCard(accent = NeonMagenta) {
             Text(
-                LanguageIds.PLANNED.joinToString(" · ") { LanguageIds.displayNameOf(it) },
+                LanguageIds.PLANNED.joinToString("、") { LanguageIds.displayNameOf(it) },
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextHi
             )
@@ -146,7 +140,7 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
         )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             NeonButton(
-                label = if (loading) "检查中…" else "检查课程包",
+                label = if (loading) "检查中..." else "检查课程包",
                 accent = NeonCyan,
                 enabled = !loading,
                 onClick = { refresh() },
@@ -160,7 +154,7 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
         catalog?.let { cat ->
             val installedLangs = LessonRepository.lessons(context).map { it.lang }.distinct()
 
-            /** 下载一个包；返回是否成功。批量下载循环复用，避免两套错误处理。 */
+            // 下载一个包，批量下载也调这里。
             fun downloadPack(pack: ContentPack): Boolean = try {
                 center.download(context, pack, catalogBase)
                 installed = center.installedVersions(context)
@@ -172,10 +166,7 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
                 throw e
             }
 
-            // 按「语言 + 产品线」分组：正式语言四包（基础/核心/进阶/专业）合成一张卡，
-            // 增补包（彩蛋 / DSA）单独成卡。旧实现只按 lang 分组，会把「彩蛋 + DSA 基础
-            // + DSA 进阶」并进「Python · 全阶课程 11 讲」，批量下载时混装三个不相关包
-            // （2026-11 审查发现）。
+            // 同门语言的四个课程包放一张卡，彩蛋、DSA 这类增补包各算各的。
             val isTierPack: (ContentPack) -> Boolean = { it.tier.isNotBlank() }
             val grouped = cat.packs.groupBy { pack ->
                 if (isTierPack(pack)) "lang:${pack.lang}" else "extra:${pack.id}"
@@ -199,33 +190,26 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
                                 when {
                                     lang.isBlank() -> "通用资源"
                                     isExtra -> packs.first().name
-                                    else -> "${LanguageIds.displayNameOf(lang)} · 全阶课程"
+                                    else -> "${LanguageIds.displayNameOf(lang)} 全阶课程"
                                 },
                                 style = MaterialTheme.typography.titleMedium,
                                 color = TextHi
                             )
                             Text(
-                                buildString {
-                                    if (lessonSum > 0) append("$lessonSum 讲")
-                                    if (sizeSum > 0) {
-                                        if (isNotEmpty()) append(" · ")
-                                        append(formatBytes(sizeSum))
-                                    }
-                                    if (packs.size > 1) {
-                                        if (isNotEmpty()) append(" · ")
-                                        append("${packs.size} 个包")
-                                    }
+                                listOfNotNull(
+                                    "$lessonSum 讲".takeIf { lessonSum > 0 },
+                                    formatBytes(sizeSum).takeIf { sizeSum > 0 },
+                                    "${packs.size} 个包".takeIf { packs.size > 1 },
                                     if (lang.isNotBlank()) {
-                                        if (isNotEmpty()) append(" · ")
-                                        append(if (installedLangs.contains(lang)) "已可学习" else "待下载")
-                                    }
-                                },
+                                        if (installedLangs.contains(lang)) "已可学习" else "待下载"
+                                    } else null
+                                ).joinToString("，"),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = TextDim
                             )
                         }
                         if (allInstalled) {
-                            Text("✓ 已装齐", style = MaterialTheme.typography.labelMedium, color = NeonGreen)
+                            Text("已装齐", style = MaterialTheme.typography.labelMedium, color = NeonGreen)
                         }
                     }
 
@@ -247,7 +231,7 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
                                         var ok = 0
                                         var failed: String? = null
                                         for (pack in missing) {
-                                            message = "下载中 ${pack.name}…"
+                                            message = "下载中 ${pack.name}..."
                                             try {
                                                 withContext(Dispatchers.IO) { downloadPack(pack) }
                                                 ok++
@@ -256,9 +240,7 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
                                                 break
                                             }
                                         }
-                                        // 失败必须压过成功提示：旧实现只要成功过一个包
-                                        // 就把「下载失败」覆盖成「已安装 N 个包」，
-                                        // 用户会以为整门都装好了（2026-11 审查发现）。
+                                        // 失败提示要压过成功提示，别让用户以为整门都装好了。
                                         message = if (failed != null) {
                                             "已装 $ok/${missing.size} 包，失败：$failed（可重试）"
                                         } else {
@@ -290,8 +272,8 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
                                     )
                                     Text(
                                         buildString {
-                                            if (pack.lessons > 0) append("${pack.lessons} 讲 · ")
-                                            if (pack.bytes > 0) append("${formatBytes(pack.bytes)} · ")
+                                            if (pack.lessons > 0) append("${pack.lessons} 讲，")
+                                            if (pack.bytes > 0) append("${formatBytes(pack.bytes)}，")
                                             append("v${pack.version}")
                                         },
                                         style = MaterialTheme.typography.labelSmall,
@@ -304,7 +286,7 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
                                         accent = NeonYellow,
                                         onClick = {
                                             scope.launch {
-                                                message = "下载中 ${pack.name}…"
+                                                message = "下载中 ${pack.name}..."
                                                 try {
                                                     withContext(Dispatchers.IO) { downloadPack(pack) }
                                                     message = "安装完成，课程列表已刷新"
@@ -315,7 +297,7 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
                                         }
                                     )
                                 } else {
-                                    Text("✓ v$ver", style = MaterialTheme.typography.labelMedium, color = NeonGreen)
+                                    Text("v$ver", style = MaterialTheme.typography.labelMedium, color = NeonGreen)
                                 }
                             }
                             Text(
@@ -335,16 +317,16 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
     }
 }
 
-/** 层级标签：课程包按基础/核心/进阶拆包时，UI 只显示这三档，避免三行长标题。 */
+// 课程包分档显示，标题短一点。
 private fun tierLabel(tier: String): String = when (tier) {
-    "basics" -> "基础篇 · 入门到能写"
-    "core" -> "核心篇 · 语言主体"
-    "advanced" -> "进阶篇 · 高级应用"
-    "expert" -> "专业篇 · 工程与实战"
+    "basics" -> "基础篇：入门到能写"
+    "core" -> "核心篇：语言主体"
+    "advanced" -> "进阶篇：高级应用"
+    "expert" -> "专业篇：工程与实战"
     else -> ""
 }
 
-/** 体积显示：KB 以下给 B，1MB 以下给 KB，其余给一位小数 MB。 */
+// 课程包体积，按大小换单位。
 private fun formatBytes(bytes: Long): String = when {
     bytes <= 0 -> ""
     bytes < 1024 -> "$bytes B"

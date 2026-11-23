@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -17,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.pyneon.academy.data.LessonRepository
 import com.pyneon.academy.ui.components.NeonButton
 import com.pyneon.academy.ui.components.ScreenHeader
 import com.pyneon.academy.ui.theme.Bg0
@@ -24,24 +24,23 @@ import com.pyneon.academy.ui.theme.NeonCyan
 import com.pyneon.academy.ui.theme.NeonGreen
 import com.pyneon.academy.ui.theme.NeonYellow
 import com.pyneon.academy.ui.theme.TextMid
-import com.pyneon.academy.data.LessonRepository
 import com.pyneon.academy.utils.AppConstants
 import com.pyneon.academy.utils.ShareHelper
+import org.json.JSONArray
 
 @Composable
 fun HelpScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    // 毕业口径 = 内置 Python 主线 39 讲（与「我的」页、证书页、毕业徽章保持同一事实源）。
-    // 不能用 lessonsByLang("python")——下载 DSA/彩蛋后它会变成 49，导致帮助页说
-    // 「通关 49 讲才毕业」而「我的」页按 38 计（2026-11 实测口径冲突）。
+    // 毕业只算 Python 主线。下载的 DSA、彩蛋不算，不然这里和「我的」页对不上。
     val totalLessons = LessonRepository.mainline(context).size
     val totalChallenges = remember {
         runCatching {
-            context.assets.open("challenges.json").bufferedReader(Charsets.UTF_8).use { r ->
-                org.json.JSONArray(r.readText()).length()
+            context.assets.open("challenges.json").bufferedReader(Charsets.UTF_8).use { reader ->
+                JSONArray(reader.readText()).length()
             }
         }.getOrDefault(0)
     }
+
     Column(
         Modifier
             .fillMaxSize()
@@ -58,31 +57,28 @@ fun HelpScreen(onBack: () -> Unit) {
             onBack = onBack
         )
 
-        // ===== 快速上手 =====
-        HelpSection("快速上手（60 秒）")
-        FaqItem("1 · 从哪开始？", "进入「课程」页，从第一幕第一课开始。课程按章节解锁，完成一课才能解锁下一课；通关后按「下一课」直达。")
-        FaqItem("2 · 怎么练习？", "每课末尾有「实战演练」：在代码编辑器写代码，点「运行判题」自动批改。答对得 XP 并解锁下一课；答错进错题本。")
-        FaqItem("3 · 代码在哪随手试？", "底部「终端」页是 REPL 终端，像语言的交互式命令行一样随时输入、立即运行，适合验证小片段。")
-        FaqItem("4 · 学完能拿什么？", "通关全部 $totalLessons 讲课程后，「我的」页解锁毕业证书；「挑战」页有 $totalChallenges 个实战闯关拿额外 XP。")
+        HelpSection("快速上手")
+        FaqItem("从哪开始？", "打开「课程」，从第一幕第一课往下学。上一课过了才开下一课，通关后点「下一课」就行。")
+        FaqItem("怎么练习？", "每课最后有实战演练。在编辑器里写代码，点「运行判题」自动批改。答对拿 XP，答错会进错题本。")
+        FaqItem("想随手试代码？", "底部「终端」就是 REPL，输入一行跑一行，适合试小片段。")
+        FaqItem("学完有什么？", "通关全部 $totalLessons 讲后，「我的」页可以领毕业证书。「挑战」页还有 $totalChallenges 道题，做完加 XP。")
 
-        // ===== 常用功能 =====
         HelpSection("常用功能")
-        FaqItem("变量快照是什么？", "每次运行后，应用展示当前内存中的变量名、类型与值——直观看到代码执行过程，是学「代码到底在干什么」的独家利器。")
-        FaqItem("错题本 / 复习台怎么用？", "判题失败的练习自动收入错题本（我的 → 错题本）；完成课程后系统按间隔重复生成复习卡（我的 → 复习台），对抗遗忘。")
-        FaqItem("主题能换吗？", "我的 → 主题切换：7 套预置色调 + 自定义主色（#RRGGBB 或色板点选），即时生效并自动保存。")
-        FaqItem("语言中心是什么？", "「我的 → 语言中心」列出六个内置离线运行时（Python / JavaScript / TypeScript / C / Lua / SQL）与可下载课程包。Java / C++ / Go / Rust 需要编译器，暂不支持，也不提供下载入口。断网不影响已安装课程。")
-        FaqItem("进度安全吗？", "进度存本机。我的 → 备份/恢复 可导出为 JSON 文件（含 XP、通关、错题、复习卡），换机后可导入。")
+        FaqItem("变量快照是什么？", "每次运行后能看到当前变量的名字、类型和值。比只看输出更直观，排查问题时很有用。")
+        FaqItem("错题本和复习台怎么用？", "判题错了会自动进错题本，在「我的」里能找到。复习台会按间隔重复排复习卡，隔几天再做一次，记得更牢。")
+        FaqItem("主题能换吗？", "「我的」里有主题切换，7 套预置配色，也可以自己填主色。改完立即生效，下次打开还在。")
+        FaqItem("语言中心是干什么的？", "「我的」里的语言中心会列出六个内置运行时：Python、JavaScript、TypeScript、C、Lua、SQL，课程包可以按需下载。Java、C++、Go、Rust 还需要编译器，当前版本跑不了，也不会给下载入口。已经装好的课程断网也能学。")
+        FaqItem("进度安全吗？", "进度都存在本机。「我的」里的备份恢复可以导出 JSON，换机后再导入。")
 
-        // ===== 常见问题 =====
         HelpSection("常见问题")
-        FaqItem("完全离线吗？", "是。语言运行时就绪内嵌在应用里，${totalLessons} 讲内置课程无网络也能学。联网仅用于语言中心下载额外课程包。")
-        FaqItem("代码报错看不懂怎么办？", "判题结果里点「问教练 · 只提示不代写」，智能教练会解释错误类型、定位疑似行号并给排查步骤，不直接给答案。")
-        FaqItem("不小心重置了进度能找回吗？", "先到备份/恢复导出过备份就能导入找回；未备份的重置不可撤销，重置前有二次确认。")
-        FaqItem("课程为什么是锁着的？", "课程按章节渐进解锁：必须先通过上一课，才能进入下一课——保证基础扎实再进阶。")
-        FaqItem("终端里怎么退出？", "终端是实时交互环境，无需退出；清空输入或按返回回到其他页面即可。")
-        FaqItem("判题卡住不动？", "代码若包含死循环，判题有超时保护会自动中断并提示。尽量先想清楚逻辑再运行。")
-        FaqItem("更新怎么获取？", "到「我的 → 系统设置 → 检查更新」可读取 GitHub Releases 的公开版本号；有新版时点「打开发布页」下载覆盖安装。应用不自动下载、不申请安装权限，学习数据不丢失（建议先备份）。")
-        FaqItem("如何联系开发者？", "点下方「联系我们」发邮件，或到开源仓库提 issue（见「我的 → 系统设置 → 开源仓库」）。")
+        FaqItem("完全离线吗？", "是。语言运行时直接打在 APK 里，$totalLessons 讲内置课程没网也能学。只有去语言中心下载额外课程包时才需要联网。")
+        FaqItem("报错看不懂怎么办？", "判题结果里点「问教练」，它会解释错误类型、指出大概哪一行有问题，再给排查步骤，不直接给答案。")
+        FaqItem("重置后还能找回吗？", "之前导出过备份就能导入找回。没备份的话重置后找不回来，所以重置前会再确认一次。")
+        FaqItem("课程为什么锁着？", "上一课过了才开下一课，避免跳着学后面看不懂。")
+        FaqItem("终端怎么退出？", "终端不用专门退出，按返回键回主界面就行。")
+        FaqItem("判题一直不动？", "代码里如果有死循环，超时保护会中断并提示。先检查循环条件，再运行。")
+        FaqItem("怎么更新？", "「我的」里的系统设置里有检查更新，会读取发布页的公开版本号。有新版本时点「打开发布页」下载覆盖安装。应用不会自动下载，也不申请安装权限。升级前建议先备份。")
+        FaqItem("怎么联系开发者？", "点下面的「联系我们」发邮件，或者去开源仓库提 issue，入口在「我的」里的系统设置。")
 
         NeonButton(
             label = "完整用户手册",
@@ -116,9 +112,9 @@ private fun HelpSection(title: String) {
 }
 
 @Composable
-private fun FaqItem(q: String, a: String) {
+private fun FaqItem(question: String, answer: String) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("Q. $q", style = MaterialTheme.typography.titleSmall, color = NeonYellow)
-        Text(a, style = MaterialTheme.typography.bodySmall, color = TextMid)
+        Text("Q. $question", style = MaterialTheme.typography.titleSmall, color = NeonYellow)
+        Text(answer, style = MaterialTheme.typography.bodySmall, color = TextMid)
     }
 }

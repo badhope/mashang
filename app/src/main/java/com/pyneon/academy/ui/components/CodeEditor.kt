@@ -26,16 +26,8 @@ import kotlinx.coroutines.awaitCancellation
 import org.eclipse.tm4e.core.registry.IGrammarSource
 
 /**
- * F3 重构：练习编辑器由 sora-editor（开源，LGPL-2.1）提供。
- *
- * 替换自研 BasicTextField 的理由：
- *  - 旧实现只有“死代码”级正则高亮（annotatedText 算了从未使用），无自动缩进、
- *    无 Tab 键处理、无撤销栈、行号与内容滚动不同步；
- *  - sora-editor 内置增量语法高亮、自动缩进（`:` 换行缩进）、行号、撤销/重做、
- *    括号匹配，均为成熟实现，不再重复造轮子。
- *
- * 高亮方案：TextMate Python 语法（assets/syntaxes/python.tmLanguage，plist）
- *  + 自建 PyNeon 主题（tokenColors 映射到品牌四色）。
+ * 练习编辑器用 sora-editor 做语法高亮、撤销、括号匹配和行号。
+ * 之前用 BasicTextField 手搓，Tab、缩进、滚动同步都没有，实在没必要。
  */
 
 /** 自建轻量 PyNeon 主题：把 TextMate scope 映射到品牌色板。 */
@@ -78,13 +70,8 @@ private val PYNEON_THEME_JSON: String =
 """.trimIndent()
 
 
-/**
- * 亮色代码配色（白底可读）。
- *
- * 为什么需要：此前编辑器主题写死深色，用户切到「白纸模式」后会出现
- * 深色代码框浮在白色界面上——刺眼且割裂。现在按 AppTheme.isLight 选择配色。
- * token scope 与暗色方案完全一致，只换色值，保证高亮语义统一。
- */
+// 白纸模式下的代码配色，scope 和暗色一致，只换色值。
+
 private val PYNEON_THEME_LIGHT_JSON: String =
     """
 {
@@ -125,12 +112,8 @@ private val PYNEON_THEME_LIGHT_JSON: String =
 
 private const val TAG = "PyNeonCodeEditor"
 
-/**
- * 创建并配置一个 sora CodeEditor 实例（每个 Composable 实例只建一次）。
- * 语法：TextMate，按 [language] 加载 assets/syntaxes/<language>.tmLanguage.json
- * （python / javascript，plist XML；未内置语法的语言降级为纯文本）。
- * 主题：PyNeon Dark（scope → 品牌四色，token scope 与各语法文件保持对齐）。
- */
+// 建编辑器。语法按 language 从 assets 里读，主题按明暗选。
+
 private fun createEditor(
     context: android.content.Context,
     language: String,
@@ -142,11 +125,8 @@ private fun createEditor(
             .open("syntaxes/$language.tmLanguage.json")
             .bufferedReader(Charsets.UTF_8)
             .use { it.readText() }
-        // .tmLanguage 文件是 plist(XML) 格式，显式声明 ContentType.XML。
-        // 必须把真实 scopeName 一起传进去：单参数的 withGrammarSource 会把
-        // scopeName 默认成 "source.string"，与语法文件里的声明不符，
-        // TextMateLanguage.create 会抛 IllegalStateException 并静默降级成
-        // 默认（白底）编辑器 —— 曾因此在深色主题上出现刺眼的白底代码框。
+        // plist 是 XML，ContentType 要写对。scopeName 也得一起传，
+        // 不然 TextMateLanguage.create 会抛异常，最后掉回白底编辑器。
         val scopeName = when (language) {
             "python" -> "source.python"
             "javascript" -> "source.js"
@@ -170,7 +150,7 @@ private fun createEditor(
         val scheme = TextMateColorScheme.create(themeSource)
         editor.setColorScheme(scheme)
     } catch (t: Throwable) {
-        // 语法/主题加载失败时降级为纯文本编辑器（不崩溃、不影响输入）
+        // 加载失败就退回纯文本，别让编辑器打不开。
         Log.w(TAG, "TextMate 语法加载失败，回退默认高亮: ${t.message}")
         editor.setColorScheme(EditorColorScheme())
     }
@@ -179,7 +159,7 @@ private fun createEditor(
         setUndoEnabled(true)
         setWordwrap(false)
         setTabWidth(4)
-        // 14sp（文本缩放跟随系统字体设置）
+        // 字号跟系统缩放走。
         setTextSizePx(14f * context.resources.displayMetrics.scaledDensity)
         setTypefaceText(Typeface.MONOSPACE)
         setTypefaceLineNumber(Typeface.MONOSPACE)
@@ -190,12 +170,8 @@ private fun createEditor(
 }
 
 /**
- * 练习代码编辑器（sora-editor 封装）。
- *
- * 参数保持与旧实现兼容，调用方无需改动：
- *  - [hint]：旧实现的占位提示；sora 无内置 placeholder，调用处上方通常已有
- *    题目简介文本，故保留参数但不渲染。
- *  - [onEnter]：sora 编辑器无回车钩子，保留参数（默认 null，调用方未使用）。
+ * 练习编辑器。hint 和 onEnter 是给旧调用方留的：
+ * sora 没有 placeholder，也没有回车钩子。
  */
 @Composable
 fun CodeEditor(
@@ -209,8 +185,7 @@ fun CodeEditor(
     language: String = "python"
 ) {
     val context = LocalContext.current
-    // 主题明暗参与 remember key：切换亮/暗主题时必须重建编辑器，
-    // 否则代码区会保持旧配色（白纸模式下出现深色代码框）。
+    // 切明暗主题要重建编辑器，不然代码区还是旧配色。
     val isLight = LocalNeonTokens.current.isLight
     val editor = remember(context, language, isLight) { createEditor(context, language, isLight) }
     var listener by remember { mutableStateOf<((String) -> Unit)?>(null) }
@@ -221,15 +196,19 @@ fun CodeEditor(
                 listener?.invoke(editor.text.toString())
             }
         }
-        // 视图销毁时解除订阅，避免泄漏
-        awaitCancellationSafe { receipt.unsubscribe() }
+        // 页面销毁时退订，别漏。
+        try {
+            awaitCancellation()
+        } finally {
+            receipt.unsubscribe()
+        }
     }
 
     AndroidView(
         factory = { editor },
         modifier = modifier,
         update = { view ->
-            // 外部值变化 → 同步进编辑器（内容一致时跳过，避免打断用户光标/撤销栈）
+            // 外部值变了就同步；内容一样就不动，免得打断光标和撤销。
             val current = view.text.toString()
             if (current != value) {
                 view.setText(value)
@@ -240,23 +219,11 @@ fun CodeEditor(
     )
 }
 
-/** 等待协程取消时执行 [block]（订阅清理）。 */
-private suspend fun awaitCancellationSafe(block: () -> Unit) {
-    try {
-        kotlinx.coroutines.awaitCancellation()
-    } finally {
-        block()
-    }
-}
+// 只读示例块还用这套正则高亮，先留着。
 
-// ===== 以下为只读示例代码块（PythonCodeField）继续使用的高亮工具，保持不动 =====
+// 只读示例用的简易高亮，支持 python、javascript、lua、sql。
+// 三引号字符串、f-string 这些它认不全，只读展示够用。
 
-/**
- * 简易语法高亮（正则版），支持 python / javascript。
- * 仅供只读示例代码块 [PythonCodeField] 使用；可编辑编辑器已由 sora-editor 接管。
- * 注意：正则高亮无法覆盖三引号字符串、f-string、正则字面量等边界场景，
- * 只读展示场景下可接受。
- */
 fun buildAnnotatedString(
     code: String,
     language: String,
@@ -281,7 +248,6 @@ fun buildAnnotatedString(
         else -> pythonHighlightSets()
     }
 
-    // Regex patterns
     val keywordPattern = "\\b(${keywords.joinToString("|")})\\b".toRegex()
     val stringPattern = """(["'])(?:(?=(\\?))\2.)*?\1""".toRegex()
     val commentPattern = "$commentPrefix.*".toRegex()
@@ -289,7 +255,7 @@ fun buildAnnotatedString(
     val functionPattern = "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()".toRegex()
     val builtinPattern = "\\b(${builtins.joinToString("|")})\\b".toRegex()
 
-    // Apply highlights (order matters: comments first, then strings, then others)
+    // 先注释，再字符串，最后其他。顺序反了会互相覆盖。
     commentPattern.findAll(code).forEach { match ->
         builder.addStyle(commentStyle, match.range.first, match.range.last + 1)
     }
