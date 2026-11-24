@@ -5,6 +5,7 @@ import threading
 import time
 import traceback
 import types
+from contextlib import contextmanager
 
 DEFAULT_TIMEOUT = 8.0
 EXERCISE_TEST_TIMEOUT = 2.0
@@ -14,6 +15,86 @@ MAX_REPR = 200
 MAX_OUTPUT = 1_048_576
 # 调 repr 之前先看对象多大，太大就跳过，免得 repr 本身把内存吃光。
 MAX_VAR_BYTES = 1_000_000
+
+# 运行台沙箱。只拦「执行用户代码」这一段，不拦 App 自己的课程包下载和启动。
+# 用审计钩子而不是封 import：课程里的 asyncio 会 import socket / subprocess,
+# 封 import 会把正常课程一起打断；这里允许 import，等真正建 socket、起进程时再拒绝。
+_BLOCKED_IMPORT_ROOTS = {"java", "jnius", "ctypes", "_ctypes", "chaquopy"}
+_BLOCKED_AUDIT_EVENTS = {
+    "os.system", "os.popen", "os.exec", "os.spawn", "os.posix_spawn",
+    "os.fork", "os.forkpty", "os.kill", "os.killpg",
+    "socket.connect", "socket.bind", "socket.getaddrinfo", "socket.gethostbyname",
+    "socket.gethostbyaddr", "socket.sendto", "socket.send_fds",
+}
+_BLOCKED_AUDIT_PREFIXES = ("subprocess.", "ctypes.")
+# 每个线程单独计数。超时线程卡在 C 调用里时，不能让整个 App 的联网也一起被锁死。
+_guard_depths = {}
+_SANDBOX_DENY = "运行台处于离线沙箱：不开放网络、系统命令、Java/ctypes 桥。"
+
+
+def _deny(what):
+    raise PermissionError("%s（%s）" % (_SANDBOX_DENY, what))
+
+
+def _audit(event, args):
+    if _guard_depths.get(threading.get_ident(), 0) <= 0:
+        return
+    if event == "import":
+        root = str(args[0]).split(".", 1)[0] if args else ""
+        if root in _BLOCKED_IMPORT_ROOTS:
+            _deny("import %s" % root)
+        return
+    if event == "socket.__new__":
+        # 只封 INET/INET6。asyncio 的事件循环会用 AF_UNIX socketpair，
+        # 连这个也封，所有异步课程都会挂。
+        family = args[1] if len(args) > 1 else None
+        if family in (2, 10):
+            _deny("socket family=%s" % family)
+        return
+    if event in _BLOCKED_AUDIT_EVENTS or event.startswith(_BLOCKED_AUDIT_PREFIXES):
+        _deny(event)
+
+
+try:
+    sys.addaudithook(_audit)
+except Exception:
+    # 老解释器没有审计钩子时宁可少一层防护，也不能让 App 起不来。
+    pass
+
+
+@contextmanager
+def sandbox_guard():
+    """执行用户代码期间打开操作级沙箱；可重入，按线程隔离。"""
+    tid = threading.get_ident()
+    _guard_depths[tid] = _guard_depths.get(tid, 0) + 1
+    try:
+        yield
+    finally:
+        depth = _guard_depths.get(tid, 1) - 1
+        if depth <= 0:
+            _guard_depths.pop(tid, None)
+        else:
+            _guard_depths[tid] = depth
+
+
+# 用户代码 new 出来的线程默认不继承 guard。包一层 Thread.start，
+# 让 threading / ThreadPoolExecutor 的子线程也留在沙箱里。
+_original_thread_start = threading.Thread.start
+
+
+def _guarded_thread_start(self):
+    if _guard_depths.get(threading.get_ident(), 0) > 0:
+        original_run = self.run
+
+        def guarded_run():
+            with sandbox_guard():
+                original_run()
+
+        self.run = guarded_run
+    return _original_thread_start(self)
+
+
+threading.Thread.start = _guarded_thread_start
 
 
 # 执行锁。一次运行会改 sys.stdout、sys.stderr 和 builtins.input 这些进程级对象，
@@ -112,7 +193,12 @@ def _run_protected(code, namespace, stdin_lines, timeout):
             builtins.input = _make_input(stdin_lines)
             sys.settrace(_Watchdog(time.perf_counter() + timeout))
             try:
-                exec(compile(code, "<pyneon>", "exec"), namespace)
+                with sandbox_guard():
+                    try:
+                        exec(compile(code, "<pyneon>", "exec"), namespace)
+                    finally:
+                        # 必须在 guard 内先关 trace，否则看门狗可能在清理过程中再抛一次。
+                        sys.settrace(None)
             finally:
                 sys.settrace(None)
         except SandboxTimeout:

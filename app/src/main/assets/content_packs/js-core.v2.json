@@ -1,0 +1,1195 @@
+[
+  {
+    "id": "js11",
+    "order": 310,
+    "chapter": 22,
+    "chapterName": "JavaScript · 核心篇",
+    "lang": "javascript",
+    "title": "数组三剑客",
+    "subtitle": "map / filter / reduce",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把循环写成声明式的表达"
+      },
+      {
+        "type": "text",
+        "text": "上一章我们用 for 循环手动累加、筛选、变形。数组自带三个高阶方法，把这三种模式各封成一个词：map 负责「每个元素变成什么」，返回等长新数组；filter 负责「留下哪些元素」，返回长度可能变小的新数组；reduce 负责「折叠成一个值」，返回累加结果。它们都不修改原数组，回调收到的参数是 (当前值, 下标, 原数组)。回调的参数不止一个：map 和 filter 回调用 (value, index, array)，reduce 用 (accumulator, value, index, array)。需要下标时直接用第二个参数，不必在外层再声明计数器。回调里不要修改原数组，否则后续元素的行为会变得难以预测。\n\n三者可以链式组合：先 filter 筛选，再 map 变形，最后 reduce 汇总。链式写法的可读性来自「每行只做一件事」，但也要注意代价：每一步都会生成一个中间数组。数据量小的时候不必在意，数据量大时可以用一次 reduce 完成多件事，或者改回 for 循环。工具没有绝对优劣，关键是你知道每一步发生了什么。链式调用有顺序成本：filter 先执行会减少后续 map 的元素数量，通常更划算；反过来先 map 再 filter 会多做无用功。把开销大的操作尽量往后放，是简单有效的优化。每一步都返回新数组，原数据始终不变。"
+      },
+      {
+        "type": "text",
+        "text": "reduce 最容易写错。它的第二个参数是初始值：给了初始值，第一次回调的 sum 就是它；不给，则拿第一个元素当初始值，从第二个元素开始遍历。空数组不带初始值调用 reduce 会抛 TypeError。因此求和、计数这类场景一律显式传 0，字符串拼接传空串，找最大值可以传第一个元素或极小值。回调的返回值会成为下一轮的累加值，忘记 return 是最常见的错误。reduce 能表达 map 和 filter 能表达的一切，但可读性不一定更好。求最大值、分组、扁平化这类「折叠」场景用 reduce 很自然；只是变形或筛选就用 map/filter。工具的选择标准是让读代码的人一眼看懂意图，而不是炫技。\n\nmap、filter、reduce 的共同点是「不修改原数组」，但它们都不是魔法：内部依然是一次遍历，只是把循环的细节藏了起来。理解回调收到的参数，就能写出更灵活的处理。比如 map 的第二个参数是下标，filter 的第二个参数也是下标，reduce 的第三个参数是当前下标。需要提前终止遍历时，map 和 filter 做不到，只能用 some、every 或普通循环。选择方法时先问「我要的是变形、筛选还是一个汇总值」，答案会直接指向对应的方法。"
+      },
+      {
+        "type": "text",
+        "text": "数组方法链的调试技巧：在每一步后面加一个临时变量并打印长度，确认中间结果符合预期，再把链合并回去。reduce 的初始值类型决定了累加器的类型，求和传 0，拼接传空串，分组传空对象。回调里不要修改累加器以外的状态，否则 reduce 就不再是纯计算。map 和 filter 的回调返回值分别决定「新元素」和「是否保留」，写错返回值类型不会报错，但结果会出乎意料。\n\n链式调用返回的都是新数组，所以可以在中间插入调试用的 map 打印。比如 .map(function (x) { console.log('step', x); return x; }) 不会改变结果，只增加观察点。reduce 的初始值不要省略，除非你确定数组非空且类型正确。回调函数尽量写成纯函数，不依赖外部变量，这样每一步的结果都可以独立验证。"
+      },
+      {
+        "type": "code",
+        "code": "var nums = [1, 2, 3, 4, 5];\n\nvar doubled = nums.map(function (n) {\n  return n * 2;\n});\n\nvar evens = nums.filter(function (n) {\n  return n % 2 === 0;\n});\n\nvar total = nums.reduce(function (sum, n) {\n  return sum + n;\n}, 0);\n\nconsole.log(doubled.join(','));\nconsole.log(evens.join(','));\nconsole.log(total);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "2,4,6,8,10\n2,4\n15"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "方法",
+          "回调返回值",
+          "结果",
+          "是否改原数组"
+        ],
+        "rows": [
+          [
+            "map",
+            "新元素",
+            "等长新数组",
+            "否"
+          ],
+          [
+            "filter",
+            "布尔值",
+            "通过筛选的元素",
+            "否"
+          ],
+          [
+            "reduce",
+            "新的累加值",
+            "单个值",
+            "否"
+          ],
+          [
+            "forEach",
+            "无",
+            "undefined",
+            "否（但可产生副作用）"
+          ]
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "不要在 map 里做副作用（比如 push 到外部数组）。map 的语义是「返回新数组」，用 forEach 做副作用更诚实。"
+      },
+      {
+        "type": "quiz",
+        "question": "[1, 2, 3].reduce(function (a, b) { return a + b; }) 的结果是？",
+        "options": [
+          "6",
+          "NaN",
+          "3",
+          "报错"
+        ],
+        "answer": 0,
+        "explain": "没有初始值时，第一次回调用 1 作为 a、2 作为 b，得到 3；第二次 3 + 3 = 6。"
+      },
+      {
+        "type": "code",
+        "code": "var people = [\n  { name: 'V', level: 66 },\n  { name: 'Judy', level: 42 },\n  { name: 'Jackie', level: 30 }\n];\n\nvar names = people\n  .filter(function (p) { return p.level >= 40; })\n  .map(function (p) { return p.name; });\n\nvar maxLevel = people.reduce(function (best, p) {\n  return p.level > best ? p.level : best;\n}, 0);\n\nconsole.log(names.join(' & '));\nconsole.log(maxLevel);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "V & Judy\n66"
+      },
+      {
+        "type": "practice",
+        "title": "链式过滤",
+        "code": "var words = ['neon', 'rain', 'city', 'sky'];\n\nvar long = words\n  .filter(function (w) { return w.length > 3; })\n  .map(function (w) { return w.toUpperCase(); });\n\nconsole.log(long.join('-'));",
+        "output": "NEON-RAIN-CITY",
+        "hint": "filter 先留下长度大于 3 的词，map 再统一转大写。"
+      }
+    ],
+    "exercise": {
+      "title": "数组分析器",
+      "brief": "实现 analyze(nums)：返回对象 { squares, evens, total }。squares 是每个元素的平方，evens 是偶数，total 是总和。空数组时 squares/evens 为空数组、total 为 0。",
+      "starterCode": "function analyze(nums) {\n  // 分别用 map / filter / reduce\n\n}\n\nconsole.log(JSON.stringify(analyze([1, 2, 3, 4])));",
+      "hint": "var squares = nums.map(function (n) { return n * n; }); evens 用 filter；total 用 reduce 传初始值 0。",
+      "tests": [
+        "assert(JSON.stringify(analyze([1,2,3,4]).squares) === '[1,4,9,16]', 'squares 应为平方')",
+        "assert(JSON.stringify(analyze([1,2,3,4]).evens) === '[2,4]', 'evens 只留偶数')",
+        "assert(analyze([1,2,3,4]).total === 10, 'total 应为总和')",
+        "assert(JSON.stringify(analyze([])) === '{\"squares\":[],\"evens\":[],\"total\":0}', '空数组要有兜底结果')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function analyze(nums) {\n  var squares = nums.map(function (n) { return n * n; });\n  var evens = nums.filter(function (n) { return n % 2 === 0; });\n  var total = nums.reduce(function (sum, n) { return sum + n; }, 0);\n  return { squares: squares, evens: evens, total: total };\n}\n\nconsole.log(JSON.stringify(analyze([1, 2, 3, 4])));"
+    }
+  },
+  {
+    "id": "js12",
+    "order": 311,
+    "chapter": 22,
+    "chapterName": "JavaScript · 核心篇",
+    "lang": "javascript",
+    "title": "字符串工具箱",
+    "subtitle": "trim / split / replace / padStart",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "清洗、切分、重组"
+      },
+      {
+        "type": "text",
+        "text": "真实数据几乎总是脏的：前后有空格、大小写混乱、分隔符不统一。字符串方法就是流水线上的工位。trim 去掉首尾空白（包括换行和制表符），toLowerCase/toUpperCase 统一大小写，split 按分隔符切成数组，join 再拼回字符串，replace 替换第一处匹配。把这些方法串起来，就能完成大部分清洗任务。处理用户输入的标准顺序：先 trim 去掉首尾空白，再统一大小写，再按分隔符切分，最后过滤空片段。顺序错了会留下空串或大小写不一致的键。写清洗函数时把这些步骤固定成流水线，调用方就不必每次重复。\n\nreplace 默认只替换第一处，需要全部替换时有两个选择：传带 g 标志的正则，或者用 split(旧串).join(新串) 的技巧。replace 的第二个参数可以是函数，接收匹配到的内容并返回替换值，这是做模板填充的关键。slice、substring、substr 都能截取，但参数语义不同，统一用 slice 最省心：它支持负索引，结束位置不包含。replace 的第二个参数可以是函数，参数依次是匹配内容、捕获组、位置、原字符串。用函数可以做条件替换、大小写转换、模板填充。返回 undefined 时保留原匹配，返回其他值则替换。这个能力比字符串替换强得多，值得单独练几次。"
+      },
+      {
+        "type": "text",
+        "text": "数字补零是常见需求：String(7).padStart(3, '0') 得到 '007'。注意 padStart 只能作用于字符串，数字要先 String() 或 .toString()。另一个坑是 split('') 与 split() 不同：前者按字符切，后者把整串作为一个元素。处理用户输入的空格时，split(' ') 会保留连续空格产生的空串，通常要再 filter 掉空串。字符串拼接在循环里用 += 在旧引擎是 O(n^2)，现代引擎有优化但依然不如数组收集后 join。生成长文本、日志、HTML 片段时，push 到数组再 join('') 是稳妥写法。可读性上，模板字符串适合短文本，数组 join 适合大量片段。\n\n字符串处理的难点不在方法本身，而在边界情况：空串、只有空格、连续分隔符、超长文本、非 ASCII 字符。写清洗函数时，先列出所有可能出现的脏数据形态，再逐一处理。trim 只能去掉首尾空白，中间的连续空格要 split 后过滤。大小写转换对中文没有影响，但对用户名、邮箱、标签这类英文内容很重要，统一转小写能避免「V 和 v 是两个用户」的问题。替换时注意特殊字符，普通字符串替换不会触发正则，但正则替换要转义。"
+      },
+      {
+        "type": "text",
+        "text": "处理文本时先明确「分隔符是什么、空白算不算、大小写敏不敏感」。这三个问题决定了清洗流水线的顺序。split 的分隔符可以是字符串或正则，字符串按字面量匹配，正则可以处理多种分隔符。join 的分隔符可以是空串，用来把字符数组拼回字符串。replace 的回调参数顺序是匹配、捕获组、位置、原串，写回调时按需取用。文本很长时避免在循环里反复拼接，用数组收集。\n\n格式化输出时，padStart 和 padEnd 很有用：编号补零、对齐表格、生成固定宽度的文本。repeat 适合画分隔线。trim 只去首尾，中间的空格要自己处理。处理多行文本时，split('\n') 得到行数组，逐行 trim 后再过滤空行，是日志分析的常见套路。字符串方法都不会修改原串，记得把返回值接住。"
+      },
+      {
+        "type": "code",
+        "code": "var raw = '  Neon City  ';\n\nconsole.log('[' + raw.trim() + ']');\nconsole.log(raw.trim().toLowerCase());\nconsole.log(raw.trim().split(' ').join('-'));\nconsole.log('abc'.toUpperCase());\nconsole.log('x'.repeat(3));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "[Neon City]\nneon city\nNeon-City\nABC\nxxx"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "方法",
+          "作用",
+          "示例"
+        ],
+        "rows": [
+          [
+            "trim",
+            "去掉首尾空白",
+            "'  a  '.trim() -> 'a'"
+          ],
+          [
+            "split",
+            "按分隔符切数组",
+            "'a,b'.split(',') -> ['a','b']"
+          ],
+          [
+            "join",
+            "数组拼字符串",
+            "['a','b'].join('-') -> 'a-b'"
+          ],
+          [
+            "replace",
+            "替换第一处",
+            "'a-b-c'.replace('-','/') -> 'a/b-c'"
+          ],
+          [
+            "padStart",
+            "左侧补字符",
+            "'7'.padStart(3,'0') -> '007'"
+          ],
+          [
+            "includes",
+            "是否包含子串",
+            "'abc'.includes('b') -> true"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "需要「全部替换」又不想写正则时：s.split(old).join(new)。它按字面量匹配，不会误触发正则元字符。"
+      },
+      {
+        "type": "quiz",
+        "question": "'a-b-c'.replace('-', '/') 的结果是？",
+        "options": [
+          "'a/b/c'",
+          "'a/b-c'",
+          "'a-b/c'",
+          "报错"
+        ],
+        "answer": 1,
+        "explain": "replace 传字符串时只替换第一处匹配。全部替换要传 /-/g 或使用 split/join。"
+      },
+      {
+        "type": "code",
+        "code": "var line = 'ERROR|disk|full';\n\nvar parts = line.split('|');\nvar label = parts[0].toLowerCase();\nvar path = parts.slice(1).join('/');\n\nconsole.log(label);\nconsole.log(path);\nconsole.log(String(7).padStart(3, '0'));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "error\ndisk/full\n007"
+      },
+      {
+        "type": "practice",
+        "title": "清理空格",
+        "code": "var input = '  a   b  c  ';\n\nvar words = input.trim().split(' ').filter(function (w) {\n  return w !== '';\n});\n\nconsole.log(words.length);\nconsole.log(words.join('_'));",
+        "output": "3\na_b_c",
+        "hint": "先 trim 去掉首尾，再按单个空格切，最后 filter 掉连续空格产生的空串。"
+      }
+    ],
+    "exercise": {
+      "title": "词频摘要",
+      "brief": "实现 wordStats(text)：按空白切词（忽略多余空格），返回 { count, longest, upper }。count 是词数，longest 是最长单词（并列取第一个），upper 是全部单词转大写后用空格连接。空文本返回 { count: 0, longest: '', upper: '' }。",
+      "starterCode": "function wordStats(text) {\n  // 清洗、切词，再统计\n\n}\n\nconsole.log(JSON.stringify(wordStats('Neon city rain')));",
+      "hint": "var words = text.trim().split(' ').filter(function (w) { return w !== ''; }); 然后用循环找最长，用 map/join 生成 upper。",
+      "tests": [
+        "var s = wordStats('Neon city rain');\nassert(s.count === 3, '应有 3 个词')",
+        "assert(s.longest === 'Neon', '最长词应为 Neon')",
+        "assert(s.upper === 'NEON CITY RAIN', 'upper 应全大写')",
+        "var e = wordStats('   ');\nassert(e.count === 0 && e.longest === '' && e.upper === '', '空文本要有兜底')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function wordStats(text) {\n  var words = text.trim().split(' ').filter(function (w) {\n    return w !== '';\n  });\n  if (words.length === 0) {\n    return { count: 0, longest: '', upper: '' };\n  }\n  var longest = words[0];\n  for (var i = 1; i < words.length; i++) {\n    if (words[i].length > longest.length) longest = words[i];\n  }\n  var upper = words.map(function (w) { return w.toUpperCase(); }).join(' ');\n  return { count: words.length, longest: longest, upper: upper };\n}\n\nconsole.log(JSON.stringify(wordStats('Neon city rain')));"
+    }
+  },
+  {
+    "id": "js13",
+    "order": 312,
+    "chapter": 22,
+    "chapterName": "JavaScript · 核心篇",
+    "lang": "javascript",
+    "title": "JSON 与数据交换",
+    "subtitle": "序列化、解析与深拷贝",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把内存里的对象变成可传输的文本"
+      },
+      {
+        "type": "text",
+        "text": "JSON 是一种文本格式，不是 JS 对象。JSON.stringify 把值序列化成字符串，JSON.parse 把字符串还原成值。网络传输、本地存储、配置文件都靠它。JSON 的语法比 JS 对象字面量更严格：键必须用双引号，不能有尾逗号，不能写注释，值只支持对象、数组、字符串、数字、true、false、null。JSON 只支持有限的值类型，所以序列化是有损的：Date 变字符串，undefined 和函数消失，NaN 变 null，循环引用直接报错。发送数据前先确认接收方能接受这些转换，必要时手动把 Date 转成时间戳、把 undefined 换成 null。\n\n序列化时有几条容易踩的规则：undefined、函数、Symbol 作为对象属性时会被直接丢弃；作为数组元素时变成 null；NaN 和 Infinity 变成 null；Date 会先转成 ISO 字符串。反序列化失败会抛 SyntaxError，所以处理外部输入时一定要 try/catch，不能假设对方给的字符串一定合法。JSON.stringify 的第二个参数是 replacer，可以是函数或字段数组；第三个参数控制缩进。调试时用 2 个空格缩进，输出立刻可读。JSON.parse 的第二个参数是 reviver，可以在还原时把日期字符串转回 Date，适合处理固定格式的配置。\n\n用 JSON.parse(JSON.stringify(obj)) 可以做「深拷贝」，但它有明确边界：函数和 undefined 会丢，Date 会变成字符串，循环引用直接抛错。真正的深拷贝要自己写递归，或使用结构化克隆（本运行时没有 structuredClone）。教学阶段可以用这个技巧处理纯数据，生产代码要确认数据里没有特殊类型。解析外部 JSON 时，除了语法错误，还要校验结构：字段是否存在、类型是否正确、数组长度是否合理。语法合法不代表数据可用。把校验写成独立的纯函数，解析与校验分开，错误信息就能精确指出是哪一层出了问题。"
+      },
+      {
+        "type": "text",
+        "text": "JSON 是数据交换的通用语言，但它不是 JS 的子集。JSON 的键必须双引号，字符串必须双引号，不允许注释和尾逗号，数字不能是 NaN 或 Infinity。写配置文件时要遵守这些规则，否则解析会失败。序列化时，对象里的 undefined、函数、Symbol 会被丢弃，数组里的会变成 null，日期会变成 ISO 字符串。需要保留类型信息时，约定一个 type 字段，或者用自定义的序列化函数。解析后先校验再使用，永远不要相信外部输入的结构。\n\nJSON 的常见错误有三类：语法错误（单引号、尾逗号、注释）、类型丢失（undefined、函数、Date）、结构不符（缺字段、类型不对）。前两类在解析阶段暴露，第三类需要自己校验。序列化前先想要不要保留 undefined，必要时转成 null；反序列化后先检查关键字段是否存在、类型是否正确。配置文件、缓存、日志都适合用 JSON，但二进制数据要用 Base64 或专门的格式。\n\nJSON 的缩进参数只影响可读性，不影响解析结果。生产环境传输时通常不缩进，节省带宽；调试和配置文件用两个空格缩进。深拷贝用 JSON 方案时，注意它会丢失函数、undefined、Date 类型和原型链，只适合纯数据。需要保留类型时，自己写序列化和反序列化函数，把类型信息显式存进字段。"
+      },
+      {
+        "type": "text",
+        "text": "处理 JSON 时还要注意编码问题：中文在 UTF-8 下正常，但如果传输环节编码不一致，可能出现乱码。序列化后的字符串是纯文本，可以安全地放进文件、网络请求、日志。不要把 JSON 字符串当代码执行，eval 会带来严重的安全风险。解析失败时给出具体的错误位置，比一句「格式错误」更有帮助。"
+      },
+      {
+        "type": "code",
+        "code": "var agent = {\n  name: 'V',\n  level: 66,\n  tags: ['netrunner', 'merc'],\n  active: true\n};\n\nvar text = JSON.stringify(agent);\nconsole.log(text);\n\nvar back = JSON.parse(text);\nconsole.log(back.name, back.tags.length, back.active);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "{\"name\":\"V\",\"level\":66,\"tags\":[\"netrunner\",\"merc\"],\"active\":true}\nV 2 true"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "JS 值",
+          "JSON.stringify 结果",
+          "说明"
+        ],
+        "rows": [
+          [
+            "{ a: 1 }",
+            "'{\"a\":1}'",
+            "键必须双引号"
+          ],
+          [
+            "[1, 'x']",
+            "'[1,\"x\"]'",
+            "数组保持顺序"
+          ],
+          [
+            "undefined（对象属性）",
+            "被丢弃",
+            "数组里则变 null"
+          ],
+          [
+            "NaN",
+            "null",
+            "非有限数字无法表示"
+          ],
+          [
+            "function",
+            "被丢弃",
+            "JSON 只存数据"
+          ]
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "JSON.parse 对格式极其严格：单引号、尾逗号、注释都会抛 SyntaxError。不要用 eval 解析 JSON，那是安全漏洞。"
+      },
+      {
+        "type": "quiz",
+        "question": "JSON.stringify({ a: undefined, b: 1 }) 的结果是？",
+        "options": [
+          "'{\"a\":null,\"b\":1}'",
+          "'{\"b\":1}'",
+          "报错",
+          "'{\"a\":undefined,\"b\":1}'"
+        ],
+        "answer": 1,
+        "explain": "对象里的 undefined 属性会被整体丢弃，所以只剩 b。数组里的 undefined 才会变成 null。"
+      },
+      {
+        "type": "code",
+        "code": "var raw = '{\"id\":7,\"name\":\"Judy\"}';\nvar data = JSON.parse(raw);\n\nconsole.log(data.name.toUpperCase());\n\nvar pretty = JSON.stringify(data, null, 2);\nconsole.log(pretty);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "JUDY\n{\n  \"id\": 7,\n  \"name\": \"Judy\"\n}"
+      },
+      {
+        "type": "practice",
+        "title": "安全解析",
+        "code": "function parseOrNull(text) {\n  try {\n    return JSON.parse(text);\n  } catch (e) {\n    return null;\n  }\n}\n\nconsole.log(parseOrNull('{\"ok\":true}').ok);\nconsole.log(parseOrNull('not json'));",
+        "output": "true\nnull",
+        "hint": "解析外部文本必须捕获异常，失败时返回一个明确的兜底值。"
+      }
+    ],
+    "exercise": {
+      "title": "字段提取",
+      "brief": "实现 pickFields(jsonText, fields)：先解析 JSON，再返回只包含 fields 中列出的键的新对象；解析失败返回 null；缺失的键不出现在结果里。",
+      "starterCode": "function pickFields(jsonText, fields) {\n  // 解析失败返回 null；否则按 fields 挑选\n\n}\n\nconsole.log(JSON.stringify(pickFields('{\"a\":1,\"b\":2,\"c\":3}', ['a', 'c'])));",
+      "hint": "try { var data = JSON.parse(jsonText); ... } catch (e) { return null; } 用循环和 in 判断键是否存在。",
+      "tests": [
+        "assert(JSON.stringify(pickFields('{\"a\":1,\"b\":2,\"c\":3}', ['a','c'])) === '{\"a\":1,\"c\":3}', '只保留指定字段')",
+        "assert(JSON.stringify(pickFields('{\"a\":1}', [])) === '{}', 'fields 为空应返回空对象')",
+        "assert(pickFields('bad json', ['a']) === null, '解析失败应返回 null')",
+        "assert(JSON.stringify(pickFields('{\"a\":1}', ['a','zzz'])) === '{\"a\":1}', '缺失字段应跳过')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function pickFields(jsonText, fields) {\n  var data;\n  try {\n    data = JSON.parse(jsonText);\n  } catch (e) {\n    return null;\n  }\n  var out = {};\n  for (var i = 0; i < fields.length; i++) {\n    var key = fields[i];\n    if (key in data) out[key] = data[key];\n  }\n  return out;\n}\n\nconsole.log(JSON.stringify(pickFields('{\"a\":1,\"b\":2,\"c\":3}', ['a', 'c'])));"
+    }
+  },
+  {
+    "id": "js14",
+    "order": 313,
+    "chapter": 22,
+    "chapterName": "JavaScript · 核心篇",
+    "lang": "javascript",
+    "title": "Math 与 Date",
+    "subtitle": "取整、随机与时间计算",
+    "xp": 100,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "数值与时间的工具层"
+      },
+      {
+        "type": "text",
+        "text": "Math 是静态工具对象，不需要 new。常用方法分三类：取整（floor 向下、ceil 向上、round 四舍五入、trunc 截断）、幂与根（pow、sqrt）、极值与绝对值（max、min、abs）。Math.random() 返回 [0, 1) 的伪随机小数，做随机整数要写成 Math.floor(Math.random() * n) + 1。注意它不可加密，不能用来生成令牌。浮点数比较不要用 ===，0.1 + 0.2 === 0.3 是 false。判断两个小数是否相等，看差值是否小于一个极小值（如 1e-9）。金额计算用整数分，或者引入定点数库；在本课程的环境里，用 Math.round 保留两位再比较就够用了。\n\nDate 同时表示时间点和日历字段。new Date() 取当前时刻，new Date(年, 月, 日) 用本地时间构造，月份从 0 开始（0 是一月，11 是十二月）。getFullYear、getMonth、getDate、getDay、getHours 分别取年、月、日、星期、小时。两个 Date 相减得到毫秒差，除以 86400000 就是天数。Date 的内部值是一个毫秒时间戳，可以用 getTime() 取出。Math.round 对负数的行为容易记错：Math.round(-2.5) 是 -2，不是 -3，因为它向 +∞ 方向取整。需要真正的四舍五入到指定小数位，用 Number(x.toFixed(2))，但要注意 toFixed 也有浮点误差。取整族方法先用几个正负样例试一遍再下结论。\n\n日期格式化必须手动补零：getMonth() 返回 0-11，显示时要 +1；getDate() 和 getHours() 可能是一位数，要用 padStart(2, '0')。不要依赖 toLocaleDateString 的输出，它受运行环境和时区影响，不同设备结果可能不同。做跨时区计算时统一用 getUTCFullYear 等 UTC 方法，避免本地时区把日期推前或推后一天。Date 的 getDay 返回 0 到 6，0 是星期日；getMonth 返回 0 到 11。做日历、排班、周期计算时，这两个偏移必须记牢。跨月跨年用时间戳相减最稳，不要手动加 30 天，月份长度和闰年会让结果出错。"
+      },
+      {
+        "type": "text",
+        "text": "Math 的方法都是静态的，直接 Math.xxx 调用，不需要实例。取整的四个方法各有用途：floor 向下、ceil 向上、round 四舍五入、trunc 向零截断。负数时 round 和 trunc 的结果不同，做财务计算要特别小心。Date 的构造有多种形式：无参数取当前时间，传时间戳，传年月日时分秒，传 ISO 字符串。不同形式受时区影响，跨时区系统统一用 UTC 方法。格式化输出自己拼字符串最可控，不要依赖本地化方法的默认格式。\n\n数值处理要区分「显示值」和「计算值」。显示时可以用 toFixed 保留小数位，计算时用原始数字，最后一步再格式化。toFixed 返回字符串，参与运算前要转回数字。Math.random 不可预测但也不安全，不能用于密码、令牌、抽奖等安全场景。Date 的时区问题在跨地区应用里很常见，存储统一用 UTC 时间戳，展示时再转本地时间。日期加减用毫秒数，避免手动处理月份天数。\n\n日期计算还有一个常见需求：判断闰年、某月有多少天。用 new Date(year, month, 0).getDate() 可以拿到上个月最后一天，也就是目标月份的天数，这是个小技巧。时间戳相减得到毫秒，除以 1000 得秒，除以 60000 得分钟，除以 3600000 得小时，除以 86400000 得天。跨时区比较统一用 getTime 或 UTC 方法。"
+      },
+      {
+        "type": "text",
+        "text": "数值格式化还有一个常用技巧：用 toFixed 控制小数位，用 parseInt/parseFloat 解析用户输入。百分比计算先乘 100 再保留一位小数，避免浮点误差累积。日期比较直接用时间戳，不要比较格式化后的字符串，字符串比较是按字典序，跨世纪时会出错。时间区间计算注意包含边界还是排除边界，业务语义要写清楚。\n\n最后提醒一个实践细节：不要把「当前时间」写死在代码里，测试和回放都会因此失效。需要当前时间时通过参数传入，函数只负责计算。这样日期逻辑可以脱离系统时钟独立测试，也能在需要时模拟不同时间点。日期工具的输入输出用时间戳或标准字符串，避免各平台解析格式不一致。"
+      },
+      {
+        "type": "code",
+        "code": "console.log(Math.floor(6.9));\nconsole.log(Math.ceil(0.1));\nconsole.log(Math.round(2.5), Math.round(-2.5));\nconsole.log(Math.max(3, 9, 2), Math.min(3, 9, 2));\nconsole.log(Math.pow(2, 10));\nconsole.log(Math.abs(-7));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "6\n1\n3 -2\n9 2\n1024\n7"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "需求",
+          "写法",
+          "结果示例"
+        ],
+        "rows": [
+          [
+            "向下取整",
+            "Math.floor(6.9)",
+            "6"
+          ],
+          [
+            "向上取整",
+            "Math.ceil(0.1)",
+            "1"
+          ],
+          [
+            "四舍五入",
+            "Math.round(2.5)",
+            "3"
+          ],
+          [
+            "平方根",
+            "Math.sqrt(81)",
+            "9"
+          ],
+          [
+            "随机整数 1..6",
+            "Math.floor(Math.random()*6)+1",
+            "1 到 6"
+          ],
+          [
+            "时间差（天）",
+            "(b - a) / 86400000",
+            "数字"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "new Date(2026, 10, 6) 表示 2026 年 11 月 6 日，不是 10 月。月份从 0 开始是 JS 最著名的历史包袱之一。"
+      },
+      {
+        "type": "quiz",
+        "question": "new Date(2026, 0, 15).getMonth() 返回什么？",
+        "options": [
+          "1",
+          "0",
+          "15",
+          "2026"
+        ],
+        "answer": 1,
+        "explain": "构造时 0 表示一月，getMonth() 也返回 0。只有展示给用户时才 +1。"
+      },
+      {
+        "type": "code",
+        "code": "var d = new Date(2026, 10, 6, 9, 5, 7);\n\nconsole.log(d.getFullYear());\nconsole.log(d.getMonth() + 1);\nconsole.log(d.getDate());\nconsole.log(d.getDay());\n\nvar start = new Date(2026, 0, 1);\nvar end = new Date(2026, 0, 10);\nconsole.log((end - start) / 86400000);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "2026\n11\n6\n5\n9"
+      },
+      {
+        "type": "practice",
+        "title": "补零格式化",
+        "code": "var d = new Date(2026, 0, 5);\n\nvar text = d.getFullYear() + '-' +\n  String(d.getMonth() + 1).padStart(2, '0') + '-' +\n  String(d.getDate()).padStart(2, '0');\n\nconsole.log(text);",
+        "output": "2026-01-05",
+        "hint": "月和日都可能是 1 位数，统一 String(...).padStart(2, '0')。"
+      }
+    ],
+    "exercise": {
+      "title": "日期工具",
+      "brief": "实现 formatDate(date)：返回 'YYYY-MM-DD'（月、日补零）。实现 daysBetween(a, b)：返回两个日期相差的整天数，取绝对值。",
+      "starterCode": "function formatDate(date) {\n  // 年-月-日，月和日补零\n\n}\n\nfunction daysBetween(a, b) {\n  // 毫秒差除以一天\n\n}\n\nconsole.log(formatDate(new Date(2026, 0, 5)));",
+      "hint": "formatDate 用 getFullYear/getMonth+1/getDate 拼 padStart；daysBetween 用 Math.abs((b - a) / 86400000)。",
+      "tests": [
+        "assert(formatDate(new Date(2026, 0, 5)) === '2026-01-05', '月和日要补零')",
+        "assert(formatDate(new Date(2026, 10, 30)) === '2026-11-30', '两位月日保持原样')",
+        "assert(daysBetween(new Date(2026, 0, 1), new Date(2026, 0, 10)) === 9, '相差 9 天')",
+        "assert(daysBetween(new Date(2026, 0, 10), new Date(2026, 0, 1)) === 9, '反向也要取绝对值')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function formatDate(date) {\n  var m = String(date.getMonth() + 1).padStart(2, '0');\n  var d = String(date.getDate()).padStart(2, '0');\n  return date.getFullYear() + '-' + m + '-' + d;\n}\n\nfunction daysBetween(a, b) {\n  return Math.abs((b - a) / 86400000);\n}\n\nconsole.log(formatDate(new Date(2026, 0, 5)));"
+    }
+  },
+  {
+    "id": "js15",
+    "order": 314,
+    "chapter": 22,
+    "chapterName": "JavaScript · 核心篇",
+    "lang": "javascript",
+    "title": "错误处理",
+    "subtitle": "try / catch / throw 与异常设计",
+    "xp": 100,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "失败也是程序的一部分"
+      },
+      {
+        "type": "text",
+        "text": "错误处理不是「出问题时再说」，而是函数契约的一部分。JS 用 throw 抛出一个值，通常是 Error 实例；用 try 包住可能出错的代码，catch 捕获并处理，finally 无论成功失败都会执行。Error 实例有 name 和 message 两个关键属性，堆栈信息由运行时补充。抛字符串虽然合法，但会丢失类型和堆栈，生产代码应抛 Error。错误对象的核心字段是 name 和 message。内置错误类型包括 Error、TypeError、RangeError、SyntaxError、ReferenceError，按语义选择能让调用方更容易判断。自定义错误继承 Error 后，记得设置 name，否则打印出来仍是 Error。\n\ncatch 捕获的是运行时错误和主动 throw 的错误，不包括语法错误（语法错误在解析阶段就失败）。处理错误有三种策略：就地恢复（返回兜底值）、转换后重抛（补充上下文）、向上冒泡（让调用方决定）。不要吞掉错误——空的 catch 会让故障变成幽灵。至少记录日志，或者返回一个调用方能识别的失败标记。catch 的参数在旧代码里常写成 e 或 err，名字不重要，重要的是不要忽略它。处理时至少做三件事之一：记录上下文、转换成用户能懂的提示、重新抛出。空 catch 等于告诉后来的人「这里出过问题，但我不关心」，这是维护噩梦。\n\n自定义错误类型用构造函数加原型继承实现（class 语法在本运行时不可用）：function ValidationError(message) { this.name = 'ValidationError'; this.message = message; } 然后 ValidationError.prototype = Object.create(Error.prototype)。这样 instanceof Error 和 instanceof ValidationError 都成立，调用方可以按类型分别处理。错误信息要包含「做了什么、期望什么、实际得到什么」。'invalid input' 是无用信息，'age must be a number, got string' 才能定位。错误信息是给未来的自己看的文档，值得多花十秒写清楚。"
+      },
+      {
+        "type": "text",
+        "text": "错误处理的目标不是「让程序不报错」，而是「让失败可预期、可恢复、可诊断」。可预期的失败用返回值表达（比如查找不到返回 null），真正的异常才用 throw。异常会打断正常控制流，滥用会让代码难以跟踪。catch 里要区分「能处理的」和「不能处理的」：能处理就恢复或返回兜底值，不能处理就补充上下文后重新抛出。finally 用于释放资源、恢复状态，不管成功失败都要执行。写错误信息时包含关键参数，比一句「出错了」有用一百倍。\n\n异常设计要区分「预期内的失败」和「真正的 bug」。用户输入不合法是预期内的，用返回值或校验函数处理；代码逻辑写错是 bug，让它抛异常尽早暴露。自定义错误继承 Error，设置 name 和 message，必要时加 code 字段供程序判断。catch 里不要只写 console.log，要决定恢复策略或重新抛出。finally 适合清理资源，但不要在里面 return，它会覆盖 try 里的返回值。\n\n错误处理写完后要测试失败路径，而不只是成功路径。故意传错参数、制造空值、触发边界，确认 catch 里的逻辑真的执行、返回值符合预期。没有测试过的错误分支，等于没有写。日志里记录错误时，带上函数名、参数摘要和时间，方便复现。用户看到的提示要友好，开发者看到的日志要详细，两者分开。"
+      },
+      {
+        "type": "text",
+        "text": "异常处理还有一个实践：把「可能失败的操作」集中到少数几个函数里，其他函数保持纯粹。这样错误边界清晰，测试也容易。比如解析、校验、IO 各自封装，调用方按顺序组合。不要让异常穿过太多层，否则堆栈很长、定位困难。每层捕获后补充上下文再抛出，是常用做法。"
+      },
+      {
+        "type": "code",
+        "code": "function parseAge(text) {\n  var n = Number(text);\n  if (isNaN(n)) {\n    throw new Error('age must be a number');\n  }\n  if (n < 0 || n > 150) {\n    throw new Error('age out of range');\n  }\n  return n;\n}\n\ntry {\n  console.log(parseAge('42'));\n  console.log(parseAge('abc'));\n} catch (e) {\n  console.log('caught:', e.message);\n} finally {\n  console.log('cleanup');\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "42\ncaught: age must be a number\ncleanup"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "关键字",
+          "作用",
+          "注意点"
+        ],
+        "rows": [
+          [
+            "throw",
+            "主动抛出错误",
+            "抛 Error 而不是字符串"
+          ],
+          [
+            "try",
+            "包住可能失败的代码",
+            "范围尽量小"
+          ],
+          [
+            "catch",
+            "捕获并处理",
+            "不要留空，至少记录"
+          ],
+          [
+            "finally",
+            "收尾清理",
+            "return 也拦不住它执行"
+          ]
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "不要用 try/catch 包住整个程序来掩盖问题。异常应该在最接近发生点的地方被分类处理，而不是在入口处统一静默。"
+      },
+      {
+        "type": "quiz",
+        "question": "try { throw new Error('x'); } finally { console.log('f'); } 会输出什么？",
+        "options": [
+          "什么都不输出",
+          "f，然后异常继续抛",
+          "f，异常被吞掉",
+          "报错，finally 不执行"
+        ],
+        "answer": 1,
+        "explain": "finally 一定执行，但它不会吞掉异常；没有 catch 时异常继续向外传播。"
+      },
+      {
+        "type": "code",
+        "code": "function ValidationError(message) {\n  this.name = 'ValidationError';\n  this.message = message;\n}\nValidationError.prototype = Object.create(Error.prototype);\n\nfunction checkLevel(level) {\n  if (typeof level !== 'number') {\n    throw new ValidationError('level must be a number');\n  }\n  return level;\n}\n\ntry {\n  checkLevel('high');\n} catch (e) {\n  console.log(e.name);\n  console.log(e instanceof Error);\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "ValidationError\ntrue"
+      },
+      {
+        "type": "practice",
+        "title": "兜底解析",
+        "code": "function toInt(text, fallback) {\n  try {\n    var n = parseInt(text, 10);\n    if (isNaN(n)) throw new Error('NaN');\n    return n;\n  } catch (e) {\n    return fallback;\n  }\n}\n\nconsole.log(toInt('12', 0));\nconsole.log(toInt('x', -1));",
+        "output": "12\n-1",
+        "hint": "parseInt 失败返回 NaN，主动 throw 后由 catch 统一返回兜底值。"
+      }
+    ],
+    "exercise": {
+      "title": "参数校验器",
+      "brief": "实现 requirePositive(n)：n 是大于 0 的有限数字时返回 n，否则抛 Error，消息为 'must be a positive number'。再实现 safePositive(n)：调用 requirePositive，成功返回数字，失败返回 0。",
+      "starterCode": "function requirePositive(n) {\n  // 校验失败时 throw new Error(...)\n\n}\n\nfunction safePositive(n) {\n  // 捕获异常并返回 0\n\n}\n\nconsole.log(safePositive(5));",
+      "hint": "requirePositive 里判断 typeof n !== 'number' || isNaN(n) || n <= 0；safePositive 用 try/catch 包住调用。",
+      "tests": [
+        "assert(requirePositive(5) === 5, '正数应原样返回')",
+        "var ok = false;\ntry { requirePositive(0); } catch (e) { ok = e.message === 'must be a positive number'; }\nassert(ok, '0 应抛出指定消息')",
+        "assert(safePositive(-3) === 0, '负数应返回 0')",
+        "assert(safePositive('x') === 0, '非数字应返回 0')",
+        "assert(safePositive(2.5) === 2.5, '正小数也合法')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function requirePositive(n) {\n  if (typeof n !== 'number' || isNaN(n) || n <= 0) {\n    throw new Error('must be a positive number');\n  }\n  return n;\n}\n\nfunction safePositive(n) {\n  try {\n    return requirePositive(n);\n  } catch (e) {\n    return 0;\n  }\n}\n\nconsole.log(safePositive(5));\nconsole.log(safePositive(-1));"
+    }
+  },
+  {
+    "id": "js16",
+    "order": 315,
+    "chapter": 22,
+    "chapterName": "JavaScript · 核心篇",
+    "lang": "javascript",
+    "title": "闭包",
+    "subtitle": "函数记住它出生的地方",
+    "xp": 100,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "私有状态的最小实现"
+      },
+      {
+        "type": "text",
+        "text": "闭包是「函数 + 它定义时所处的词法环境」。内层函数引用了外层函数的变量，外层函数返回后，这些变量不会被回收，因为内层函数还握着引用。于是我们可以用函数创建带私有状态的对象：外部只能通过返回的方法读写状态，无法直接访问变量本身。这是模块模式、计数器、缓存、柯里化的共同基础。闭包让「函数携带状态」成为可能，但状态是隐藏的，调试时看不到。需要观察内部值时，提供一个 debug 或 snapshot 方法，把关键变量暴露成只读副本。不要为了调试直接把私有变量挂到返回对象上，那会破坏封装。\n\n闭包捕获的是变量本身，不是创建时的值快照。多个函数共享同一个外层变量时，一个改动另一个能看到。经典陷阱是在循环里用 var 创建回调：所有回调共享同一个 i，循环结束后都读到最终值。解决方式是用函数工厂为每次迭代创建独立作用域，或者使用 let（本运行时对 let 的迭代绑定支持不完整，优先用工厂函数）。模块模式是闭包最实用的形态：内部维护状态和辅助函数，只返回公开 API。它的缺点是每个模块一份闭包，无法被 Tree-shaking 分析；现代项目用 ES Modules 更好。但读旧代码、写单文件脚本时，模块模式依然是最轻的隔离手段。"
+      },
+      {
+        "type": "text",
+        "text": "闭包也会带来内存问题：被闭包引用的变量无法被垃圾回收。如果闭包持有大数组或大对象，又不释放，就会造成泄漏。解决办法是缩小捕获范围（只捕获需要的值）、在不再使用时把引用置空、避免在长生命周期对象上挂大量闭包。理解「谁还引用着它」，就能判断一个闭包是否该被释放。柯里化（currying）把多参数函数拆成一系列单参数函数：add(1)(2)(3)。它依赖闭包保存已传入的参数，适合做配置固定的工具函数。不要为了柯里化而柯里化，参数少、调用点固定时，普通函数更直观。\n\n闭包是 JS 最强大的特性之一，也是最容易造成内存泄漏的地方。每次调用外层函数都会创建新的闭包环境，返回的函数持有这些变量的引用。如果闭包被长期保存（比如挂在全局对象、事件监听器上），它引用的所有变量都无法回收。解决办法是只捕获必要的数据，及时解除引用，避免在闭包里持有大对象。闭包也是实现私有属性、模块化、函数工厂的基础，理解它，很多看似神奇的库代码就变得平淡无奇了。"
+      },
+      {
+        "type": "text",
+        "text": "闭包和内存的关系可以用「引用计数」理解：只要还有函数引用着变量，变量就不会被回收。长生命周期的闭包（事件监听、定时器、全局缓存）最容易积累内存。解决办法是及时移除监听、清空缓存、把不再需要的大对象置为 null。闭包也是实现「私有字段」的唯一手段（在 class 语法不可用时），通过返回对象的方法访问内部变量，外部无法直接修改。\n\n闭包在循环里的经典问题是共享变量。用 var 声明的循环变量只有一个，所有回调看到的是最终值；用函数工厂把当前值传进去，每个回调就能拿到独立副本。这个模式在事件处理、异步回调里非常常见。理解「捕获变量还是捕获值」的差别，是写出正确闭包代码的关键。"
+      },
+      {
+        "type": "code",
+        "code": "function makeCounter() {\n  var count = 0;\n  return {\n    increment: function () {\n      count = count + 1;\n      return count;\n    },\n    current: function () {\n      return count;\n    }\n  };\n}\n\nvar c1 = makeCounter();\nvar c2 = makeCounter();\n\nconsole.log(c1.increment(), c1.increment());\nconsole.log(c1.current());\nconsole.log(c2.current());",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "1 2\n2\n0"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "能力",
+          "实现方式",
+          "用途"
+        ],
+        "rows": [
+          [
+            "私有变量",
+            "外层函数内的局部变量",
+            "外部无法直接篡改"
+          ],
+          [
+            "状态保持",
+            "内层函数引用外层变量",
+            "计数器、缓存、连接池"
+          ],
+          [
+            "函数工厂",
+            "外层接收参数并返回函数",
+            "生成一族行为相似的函数"
+          ],
+          [
+            "模块封装",
+            "IIFE 返回公开方法",
+            "只暴露必要接口"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "判断闭包的最快方式：内层函数里出现了外层函数的变量名。只要它还活着，那个变量就不会消失。"
+      },
+      {
+        "type": "quiz",
+        "question": "function outer() { var x = 1; return function () { return x; }; } outer()() 的结果是？",
+        "options": [
+          "undefined",
+          "1",
+          "报错",
+          "null"
+        ],
+        "answer": 1,
+        "explain": "outer 返回的内层函数仍然引用 x，调用时读到 1。x 不会因为 outer 返回而销毁。"
+      },
+      {
+        "type": "code",
+        "code": "function makeGreeter(greeting) {\n  return function (name) {\n    return greeting + ', ' + name;\n  };\n}\n\nvar hi = makeGreeter('hi');\nvar yo = makeGreeter('yo');\n\nconsole.log(hi('V'));\nconsole.log(yo('Judy'));\n\nfunction makeAdders() {\n  var out = [];\n  for (var i = 0; i < 3; i++) {\n    out.push((function (n) {\n      return function () { return n; };\n    })(i));\n  }\n  return out;\n}\n\nvar adders = makeAdders();\nconsole.log(adders[0](), adders[1](), adders[2]());",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "hi, V\nyo, Judy\n0 1 2"
+      },
+      {
+        "type": "practice",
+        "title": "私有计数",
+        "code": "function makeIdGen(prefix) {\n  var n = 0;\n  return function () {\n    n = n + 1;\n    return prefix + '-' + n;\n  };\n}\n\nvar next = makeIdGen('agent');\nconsole.log(next());\nconsole.log(next());",
+        "output": "agent-1\nagent-2",
+        "hint": "n 是外层局部变量，返回的函数每次调用都修改同一个 n。"
+      }
+    ],
+    "exercise": {
+      "title": "账户工厂",
+      "brief": "实现 makeAccount(balance)：返回对象 { deposit, withdraw, balance }。deposit(n) 增加余额并返回新余额；withdraw(n) 在余额不足时返回 -1，否则扣减并返回新余额；balance() 返回当前余额。余额必须私有，外部不能直接改。",
+      "starterCode": "function makeAccount(balance) {\n  // 用闭包保存余额，返回三个方法\n\n}\n\nvar acc = makeAccount(100);\nconsole.log(acc.deposit(50));",
+      "hint": "var current = balance; 返回的对象方法都读写 current。withdraw 先判断 current < n。",
+      "tests": [
+        "var a = makeAccount(100);\nassert(a.balance() === 100, '初始余额 100')",
+        "assert(a.deposit(50) === 150 && a.balance() === 150, '存款后 150')",
+        "assert(a.withdraw(30) === 120, '取款后 120')",
+        "assert(a.withdraw(999) === -1 && a.balance() === 120, '余额不足返回 -1 且不扣款')",
+        "var b = makeAccount(0);\nassert(b.balance() === 0 && a.balance() === 120, '两个账户互不影响')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function makeAccount(balance) {\n  var current = balance;\n  return {\n    deposit: function (n) {\n      current = current + n;\n      return current;\n    },\n    withdraw: function (n) {\n      if (n > current) return -1;\n      current = current - n;\n      return current;\n    },\n    balance: function () {\n      return current;\n    }\n  };\n}\n\nvar acc = makeAccount(100);\nconsole.log(acc.deposit(50));\nconsole.log(acc.withdraw(30));"
+    }
+  },
+  {
+    "id": "js17",
+    "order": 316,
+    "chapter": 22,
+    "chapterName": "JavaScript · 核心篇",
+    "lang": "javascript",
+    "title": "高阶函数与回调",
+    "subtitle": "把行为当参数传",
+    "xp": 100,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "函数是值，不是语法装饰"
+      },
+      {
+        "type": "text",
+        "text": "高阶函数是「接收函数作为参数」或「返回函数」的函数。JS 里函数是一等值，可以赋给变量、存进对象、作为参数传递。回调就是被传进去、稍后调用的函数。数组的 map/filter/reduce、sort 的比较器、事件处理都是高阶函数的应用。理解这一点，你就能把「变化的逻辑」抽成参数，把「稳定的流程」留在函数体里。高阶函数的价值是「把变化点参数化」。同一个流程，排序规则、过滤条件、转换方式都可以作为函数传入，流程本身只写一次。这就是策略模式在函数层面的表达。识别出代码里「只有一小段不同」的地方，就是抽取高阶函数的时机。\n\n回调的常见坑是 this 和调用时机。普通函数作为回调传入时，调用方式决定了 this；箭头函数没有自己的 this，会捕获外层。回调还分同步和异步：数组方法里的回调是同步的，Promise 的 then 回调是异步的。写代码时要清楚回调会在什么时候执行，以及它执行时哪些变量已经就绪。回调的同步/异步属性必须清楚：数组方法的回调在当前调用栈同步执行，Promise 的 then 回调在微任务里执行。把异步回调当成同步用，会得到 undefined；把同步回调包成 Promise，又会让简单逻辑复杂化。先确认回调何时执行，再决定怎么写。"
+      },
+      {
+        "type": "text",
+        "text": "sort 的比较器是高阶函数的经典案例：它接收 (a, b)，返回负数表示 a 在前，正数表示 b 在后，0 表示相等。按对象的某个字段排序就写 function (a, b) { return a.level - b.level; }。排序前记得复制数组，因为 sort 会原地修改。回调不要写得太长，超过五六行就该提取成具名函数，否则调用处会被噪音淹没。sort 的比较器必须满足：a 在前返回负数，b 在前返回正数，相等返回 0。返回布尔值（a > b）在部分引擎能跑，但语义错误，结果不稳定。排序对象时先取字段再比较，字段可能是字符串时要考虑 localeCompare 或统一大小写。\n\n高阶函数让代码从「怎么做」转向「做什么」。map 表达「每个元素变成什么」，filter 表达「保留哪些」，reduce 表达「如何汇总」，sort 的比较器表达「谁在前」。这些方法把循环的模板代码隐藏起来，你只需要提供变化的部分。回调写得越短越专注，可读性越好；超过几行就提取成具名函数，让调用处保持一行。高阶函数不是炫技，它的价值在于把重复的控制流抽走，留下纯粹的业务表达。"
+      },
+      {
+        "type": "text",
+        "text": "高阶函数的组合能力来自「函数也是值」。把函数存在对象里就是策略表，把函数作为参数就是回调，把函数作为返回值就是工厂。compose 和 pipe 是两种组合方向：compose 从右到左，pipe 从左到右，选一种团队统一即可。回调里抛出的异常会传给调用方，除非调用方捕获；异步回调里的异常要走 Promise 的 catch。写高阶函数时，参数名用 fn、predicate、mapper 这类语义化名字，读起来更清楚。\n\n回调函数的参数顺序是约定：错误优先（error-first）是 Node 的风格，数组方法则是值优先。写自己的高阶函数时，把回调放在最后一个参数，方便调用方传匿名函数。回调的返回值要明确：map 需要返回值，forEach 不需要。高阶函数不要修改传入的数组或对象，保持纯函数风格。"
+      },
+      {
+        "type": "code",
+        "code": "function applyTwice(fn, value) {\n  return fn(fn(value));\n}\n\nfunction compose(f, g) {\n  return function (x) {\n    return f(g(x));\n  };\n}\n\nvar inc = function (n) { return n + 1; };\nvar double = function (n) { return n * 2; };\n\nconsole.log(applyTwice(inc, 10));\nconsole.log(compose(inc, double)(5));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "12\n11"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "模式",
+          "签名",
+          "典型用途"
+        ],
+        "rows": [
+          [
+            "回调",
+            "run(value, callback)",
+            "完成后通知调用方"
+          ],
+          [
+            "函数工厂",
+            "makeX(config) -> function",
+            "生成定制行为"
+          ],
+          [
+            "组合",
+            "compose(f, g) -> function",
+            "把多个小函数串起来"
+          ],
+          [
+            "谓词",
+            "fn(value) -> boolean",
+            "filter / some / every"
+          ]
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "把方法直接当回调传（如 arr.map(obj.format)）可能丢失 this。需要保留上下文时用 obj.format.bind(obj)，或者包一层 function (x) { return obj.format(x); }。"
+      },
+      {
+        "type": "quiz",
+        "question": "compose(f, g)(3) 等价于？",
+        "options": [
+          "f(3) + g(3)",
+          "f(g(3))",
+          "g(f(3))",
+          "f(3) * g(3)"
+        ],
+        "answer": 1,
+        "explain": "compose 的惯例是从右向左：先执行 g，再把结果交给 f。"
+      },
+      {
+        "type": "code",
+        "code": "var people = [\n  { name: 'V', level: 66 },\n  { name: 'Judy', level: 42 },\n  { name: 'Jackie', level: 30 }\n];\n\nvar byLevel = people.slice().sort(function (a, b) {\n  return a.level - b.level;\n});\n\nconsole.log(byLevel.map(function (p) { return p.name; }).join(' > '));\n\nfunction myFilter(list, predicate) {\n  var out = [];\n  for (var i = 0; i < list.length; i++) {\n    if (predicate(list[i], i)) out.push(list[i]);\n  }\n  return out;\n}\n\nconsole.log(myFilter([1, 2, 3, 4], function (n) { return n % 2 === 0; }).join(','));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "Jackie > Judy > V\n2,4"
+      },
+      {
+        "type": "practice",
+        "title": "重复执行",
+        "code": "function times(n, fn) {\n  var out = [];\n  for (var i = 0; i < n; i++) out.push(fn(i));\n  return out;\n}\n\nconsole.log(times(3, function (i) { return i * i; }).join('-'));",
+        "output": "0-1-4",
+        "hint": "高阶函数把「做几次」和「每次做什么」分开。"
+      }
+    ],
+    "exercise": {
+      "title": "函数组合器",
+      "brief": "实现 compose2(f, g)：返回新函数，调用时先执行 g 再执行 f。实现 mapWith(list, fn)：不调用内置 map，用循环实现同样的效果。",
+      "starterCode": "function compose2(f, g) {\n  // 返回 function (x) { ... }\n\n}\n\nfunction mapWith(list, fn) {\n  // 用循环生成新数组\n\n}\n\nconsole.log(compose2(function (n) { return n + 1; }, function (n) { return n * 2; })(5));",
+      "hint": "compose2 返回 function (x) { return f(g(x)); }；mapWith 遍历 list，把 fn(list[i], i) push 进结果。",
+      "tests": [
+        "var f = compose2(function (n) { return n + 1; }, function (n) { return n * 2; });\nassert(f(5) === 11, '先乘 2 再加 1')",
+        "assert(compose2(String, function (n) { return n + 1; })(2) === '3', '外层函数可以是内置函数')",
+        "assert(JSON.stringify(mapWith([1,2,3], function (n) { return n * 10; })) === '[10,20,30]', 'mapWith 应返回新数组')",
+        "assert(JSON.stringify(mapWith([], function (n) { return n; })) === '[]', '空数组返回空数组')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function compose2(f, g) {\n  return function (x) {\n    return f(g(x));\n  };\n}\n\nfunction mapWith(list, fn) {\n  var out = [];\n  for (var i = 0; i < list.length; i++) {\n    out.push(fn(list[i], i));\n  }\n  return out;\n}\n\nconsole.log(compose2(function (n) { return n + 1; }, function (n) { return n * 2; })(5));\nconsole.log(JSON.stringify(mapWith([1, 2, 3], function (n) { return n * 10; })));"
+    }
+  },
+  {
+    "id": "js18",
+    "order": 317,
+    "chapter": 22,
+    "chapterName": "JavaScript · 核心篇",
+    "lang": "javascript",
+    "title": "解构赋值",
+    "subtitle": "从数组和对象里拆出变量",
+    "xp": 100,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "一次声明多个名字"
+      },
+      {
+        "type": "text",
+        "text": "解构赋值让你按「形状」从数组或对象里取数据。数组按位置：var a = pair[0], b = pair[1] 可以写成 var [a, b] = pair。对象按键名：var name = user.name, level = user.level 可以写成 var { name, level } = user。解构只是语法糖，不会改变原数据，也不会自动深拷贝嵌套对象。解构是「按形状取值」的语法，不改变原数据。对象解构的键必须与属性名一致，除非用冒号重命名；数组解构按位置，跳过的位置用逗号占位，如 var [, second] = pair。嵌套解构让深层字段一步取出，但层次太深会降低可读性。\n\n常见用法有三种：交换变量 [a, b] = [b, a]；函数参数直接解构 function render({ title, body })；从函数返回的多个值里按名字取。重命名用 { name: agentName }，嵌套用 { user: { name } }。本运行时支持对象和数组解构，但不支持解构中的默认值写法，需要兜底时在解构后单独判断 undefined。函数参数解构让接口自解释：function create({ name, level }) 一眼能看出需要哪些字段。调用方传对象时顺序无关，扩展字段也方便。缺点是参数不能省略，调用时必须传一个对象；需要可选参数时，在函数内部判断 undefined 并给默认值。\n\n对象解构经常和函数参数配合：function greet(person) { var name = person.name; ... } 可以简化为 function greet({ name }) { ... }。这让调用方必须传对象，接口更清晰。数组解构适合「有序的多个返回值」，对象解构适合「有名字的字段」。选择哪种取决于数据本身的语义，不要为了炫技把简单代码写复杂。本运行时不支持解构默认值和 rest 解构，写代码时要避开 var { a = 1 } = obj 和 var [a, ...rest] = arr。需要默认值就解构后判断 undefined，需要剩余元素就用 slice。知道运行时的边界，比记住一堆语法糖更重要。"
+      },
+      {
+        "type": "text",
+        "text": "解构赋值在函数参数、返回值、配置对象里都非常常见。它让「从对象里取几个字段」这件事变得简洁，但也会掩盖字段缺失的问题：解构不存在的键得到 undefined，不会报错。需要严格校验时，解构后逐个检查 undefined，或者写一个校验函数。数组解构适合有序数据，比如坐标、RGB、函数的多返回值；对象解构适合有名字的字段，比如配置、用户信息。嵌套解构可读性差，深层字段建议分两步取。\n\n解构赋值可以用于函数返回多个值：return { ok: true, data: data }，调用方 var { ok, data } = result。这比返回数组更容易扩展字段。数组解构适合位置固定的数据，比如 [x, y] = point。解构时变量名冲突可以用重命名，嵌套太深就分步取。本运行时不支持默认值和 rest 解构，写代码前先确认语法边界，避免在真机上才发现解析失败。\n\n解构和展开运算符经常一起出现，但本运行时不支持展开。需要合并对象用 Object.assign，需要合并数组用 concat。解构赋值可以一次声明多个变量，但不要在一行里塞太多，超过四五个就该拆分。函数参数解构时，调用方必须传对象，不能传 null 或 undefined，否则会抛 TypeError。"
+      },
+      {
+        "type": "text",
+        "text": "解构赋值让代码更短，但短不等于清晰。字段很多时，逐个解构反而不如直接用一个对象变量，读代码的人能看出数据来源。函数参数解构适合字段少、语义明确的场景。解构后的变量名如果和外部变量冲突，用重命名解决，不要勉强复用。数组解构注意跳过元素的逗号数量，写错会取到错误位置。"
+      },
+      {
+        "type": "code",
+        "code": "var pair = [10, 20];\nvar [first, second] = pair;\n\nconsole.log(first, second);\n\nvar a = 1;\nvar b = 2;\n[a, b] = [b, a];\nconsole.log(a, b);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "10 20\n2 1"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "含义",
+          "结果"
+        ],
+        "rows": [
+          [
+            "var [x, y] = [1, 2]",
+            "按位置取值",
+            "x=1, y=2"
+          ],
+          [
+            "var { name } = user",
+            "按键名取值",
+            "name = user.name"
+          ],
+          [
+            "var { name: n } = user",
+            "取值并重命名",
+            "n = user.name"
+          ],
+          [
+            "var { user: { name } } = data",
+            "嵌套解构",
+            "name = data.user.name"
+          ],
+          [
+            "[a, b] = [b, a]",
+            "交换",
+            "两变量互换"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "解构不存在的键得到 undefined，不会报错。需要默认值时写 var name = user.name === undefined ? 'anonymous' : user.name;，本运行时不支持 { name = 'anonymous' } 这种语法。"
+      },
+      {
+        "type": "quiz",
+        "question": "var { a, b } = { a: 1 }; 之后 b 的值是？",
+        "options": [
+          "0",
+          "null",
+          "undefined",
+          "报错"
+        ],
+        "answer": 2,
+        "explain": "对象里没有 b 键，解构得到 undefined。解构不会因为缺键而抛错。"
+      },
+      {
+        "type": "code",
+        "code": "var agent = {\n  name: 'V',\n  stats: { level: 66, hp: 100 },\n  tags: ['netrunner', 'merc']\n};\n\nvar { name, stats: { level } } = agent;\nvar [primary] = agent.tags;\n\nconsole.log(name, level, primary);\n\nfunction describe({ name, stats }) {\n  return name + ':' + stats.level;\n}\nconsole.log(describe(agent));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "V 66 netrunner\nV:66"
+      },
+      {
+        "type": "practice",
+        "title": "函数参数解构",
+        "code": "function area({ width, height }) {\n  return width * height;\n}\n\nconsole.log(area({ width: 3, height: 4 }));\nconsole.log(area({ width: 5, height: 2 }));",
+        "output": "12\n10",
+        "hint": "参数位置直接写 { width, height }，调用时传对象即可。"
+      }
+    ],
+    "exercise": {
+      "title": "姓名拆分与交换",
+      "brief": "实现 splitName(full)：按最后一个空格拆成 { first, last }；只有一个词时 last 为 ''；空字符串返回 { first: '', last: '' }。实现 swapPair(pair)：返回交换后的新数组，不修改原数组。",
+      "starterCode": "function splitName(full) {\n  // 用 lastIndexOf 找最后一个空格\n\n}\n\nfunction swapPair(pair) {\n  // 返回 [pair[1], pair[0]]\n\n}\n\nconsole.log(JSON.stringify(splitName('Judy Alvarez')));",
+      "hint": "用 full.lastIndexOf(' ') 找位置；找不到返回 { first: full, last: '' }。swapPair 用解构交换后返回新数组。",
+      "tests": [
+        "assert(JSON.stringify(splitName('Judy Alvarez')) === '{\"first\":\"Judy\",\"last\":\"Alvarez\"}', '正常两段姓名')",
+        "assert(JSON.stringify(splitName('V')) === '{\"first\":\"V\",\"last\":\"\"}', '单词姓名 last 为空')",
+        "assert(JSON.stringify(splitName('')) === '{\"first\":\"\",\"last\":\"\"}', '空串要有兜底')",
+        "var src = [1, 2];\nassert(JSON.stringify(swapPair(src)) === '[2,1]' && JSON.stringify(src) === '[1,2]', '交换结果正确且不改原数组')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function splitName(full) {\n  if (full === '') return { first: '', last: '' };\n  var idx = full.lastIndexOf(' ');\n  if (idx === -1) return { first: full, last: '' };\n  var first = full.slice(0, idx);\n  var last = full.slice(idx + 1);\n  return { first: first, last: last };\n}\n\nfunction swapPair(pair) {\n  var [a, b] = pair;\n  return [b, a];\n}\n\nconsole.log(JSON.stringify(splitName('Judy Alvarez')));\nconsole.log(JSON.stringify(swapPair([1, 2])));"
+    }
+  },
+  {
+    "id": "js19",
+    "order": 318,
+    "chapter": 22,
+    "chapterName": "JavaScript · 核心篇",
+    "lang": "javascript",
+    "title": "Map 与 Set",
+    "subtitle": "真正的键值容器与去重集合",
+    "xp": 100,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "对象之外的两件容器"
+      },
+      {
+        "type": "text",
+        "text": "普通对象的键只能是字符串或 Symbol，数字键会被转成字符串，对象键会变成 '[object Object]'。Map 解决了这个问题：键可以是任意类型，按 SameValueZero 比较（NaN 等于 NaN），并保留插入顺序。常用 API：set(k, v)、get(k)、has(k)、delete(k)、size 属性，以及 forEach 和 for-of 遍历。Map 和 Set 的比较规则是 SameValueZero：NaN 等于 NaN，+0 等于 -0，对象按引用比较。这意味着两个内容相同的对象是不同的键。需要按内容做键时，先序列化成字符串，或者自己维护一个 id。\n\nSet 是只存唯一值的集合。new Set(array) 会自动去重，add、has、delete、size 是常用操作，遍历用 forEach 或 for-of。判断数组是否有重复元素，用 new Set(arr).size !== arr.length 一行就能完成。Set 和 Map 都是 ES6 新增，本运行时已经支持；但它们不能用 JSON.stringify 直接序列化。Map 的遍历顺序是插入顺序，Set 也是。需要稳定输出时这是优点；需要排序时先转数组再 sort。Map 不能直接 JSON.stringify，转普通对象时键会变成字符串，转数组用 Array.from 或手动 push。\n\n用 Map 做频次统计比对象更安全：键是任意值时不会被转成字符串，也不会意外访问到 toString 之类的原型属性。遍历 Map 的推荐方式是 forEach(function (value, key) { ... }) 或 for (var pair of map)，其中 pair 是 [key, value] 数组。需要转成普通对象时，遍历后手动赋值，注意键最终仍会变成字符串。选择容器：需要字符串键、要序列化、字段固定，用普通对象；需要任意类型键、频繁增删、关心顺序，用 Map；需要去重或集合运算，用 Set。三者不是替代关系，而是各有适用场景。"
+      },
+      {
+        "type": "text",
+        "text": "Map 和 Set 是 ES6 带来的新容器，解决了对象作为字典时的几个老问题：键只能是字符串、原型属性干扰、长度计算麻烦。Map 的键可以是任意类型，按引用或值比较，插入顺序稳定。Set 只存唯一值，适合去重和成员判断。它们都不是数组的替代品：需要下标访问、需要 map/filter 链式处理时，数组更合适。选择容器的标准是「我要用它做什么操作」，而不是「哪个更新」。\n\nMap 的常用方法要记全：set 返回 Map 本身，可以链式调用；get 不存在返回 undefined；has 判断键；delete 返回布尔值表示是否删除成功；clear 清空；size 是属性。Set 的 add 也返回自身，has/delete/clear 类似。遍历 Map 用 forEach(value, key) 或 for-of 拿 [key, value]；遍历 Set 用 forEach(value) 或 for-of 拿值。两者都支持 for-of，但不支持下标访问。\n\nMap 和 Set 的迭代器可以用 for-of 消费，也可以用 forEach。for-of 拿到的 Map 元素是 [key, value] 数组，Set 元素是值本身。它们都不能用 JSON.stringify 直接序列化，需要先转成数组或普通对象。判断是否为空用 size === 0，不要用 length。删除不存在的键不会报错，delete 返回 false。"
+      },
+      {
+        "type": "text",
+        "text": "Map 和 Set 的性能优势在大数据量下才明显，小数据用对象和数组更简单。选择容器时还要考虑团队熟悉度：大家都熟悉的写法比冷门技巧更可维护。Map 的键可以是对象，但对象键按引用比较，两个内容相同的对象不相等，这点和普通对象不同。Set 的遍历顺序是插入顺序，需要排序时先转数组。\n\n最后补充一个使用场景：用 Map 做缓存。键是请求参数序列化后的字符串，值是计算结果，取之前先 has 判断，没有就计算并 set。这种缓存策略简单有效，但要注意内存增长，必要时限制条目数或定期清理。Set 可以用来记录「已经处理过的 id」，避免重复处理。两种容器都是日常业务里高频出现的基础设施，值得熟练。"
+      },
+      {
+        "type": "code",
+        "code": "var visits = new Map();\n\nvisits.set('V', 3);\nvisits.set('Judy', 5);\nvisits.set('V', visits.get('V') + 1);\n\nconsole.log(visits.get('V'));\nconsole.log(visits.has('Jackie'));\nconsole.log(visits.size);\n\nvar unique = new Set([3, 1, 3, 2, 1]);\nconsole.log(unique.size);\n\nvar out = [];\nunique.forEach(function (v) { out.push(v); });\nconsole.log(out.join(','));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "4\nfalse\n2\n3\n3,1,2"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "对比项",
+          "Object",
+          "Map"
+        ],
+        "rows": [
+          [
+            "键类型",
+            "字符串 / Symbol",
+            "任意类型"
+          ],
+          [
+            "顺序",
+            "整数键升序，其余插入序",
+            "严格插入顺序"
+          ],
+          [
+            "长度",
+            "Object.keys(obj).length",
+            "map.size"
+          ],
+          [
+            "原型污染",
+            "键名可能撞上原型属性",
+            "无此问题"
+          ],
+          [
+            "JSON",
+            "可直接序列化",
+            "需要手动转数组"
+          ]
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "Map 的 get 读取不存在的键返回 undefined，不会抛错；size 是属性不是方法，写 map.size 而不是 map.size()。"
+      },
+      {
+        "type": "quiz",
+        "question": "new Set([1, 1, 2, 3, 3]).size 的结果是？",
+        "options": [
+          "5",
+          "3",
+          "2",
+          "1"
+        ],
+        "answer": 1,
+        "explain": "Set 自动去重，剩下 1、2、3 三个元素。"
+      },
+      {
+        "type": "code",
+        "code": "var words = ['neon', 'rain', 'neon', 'city', 'rain'];\n\nvar counts = new Map();\nfor (var i = 0; i < words.length; i++) {\n  var w = words[i];\n  if (counts.has(w)) {\n    counts.set(w, counts.get(w) + 1);\n  } else {\n    counts.set(w, 1);\n  }\n}\n\ncounts.forEach(function (n, w) {\n  console.log(w + '=' + n);\n});",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "neon=2\nrain=2\ncity=1"
+      },
+      {
+        "type": "practice",
+        "title": "数组去重",
+        "code": "var nums = [3, 1, 3, 2, 1];\nvar seen = new Set();\nvar out = [];\n\nfor (var i = 0; i < nums.length; i++) {\n  if (!seen.has(nums[i])) {\n    seen.add(nums[i]);\n    out.push(nums[i]);\n  }\n}\n\nconsole.log(out.join(','));",
+        "output": "3,1,2",
+        "hint": "Set 记录见过的值，数组保留首次出现的顺序。"
+      }
+    ],
+    "exercise": {
+      "title": "集合工具",
+      "brief": "实现 dedupe(list)：按首次出现顺序去重并返回新数组。实现 frequency(list)：返回 Map，键是元素，值是出现次数。",
+      "starterCode": "function dedupe(list) {\n  // 用 Set 记录见过的值\n\n}\n\nfunction frequency(list) {\n  // 返回 Map\n\n}\n\nconsole.log(dedupe([3, 1, 3, 2]).join(','));",
+      "hint": "dedupe 遍历 list，用 seen.has 判断；frequency 用 map.has/map.get/map.set 累加。",
+      "tests": [
+        "assert(JSON.stringify(dedupe([3,1,3,2,1])) === '[3,1,2]', '去重并保留首次顺序')",
+        "assert(JSON.stringify(dedupe([])) === '[]', '空数组返回空数组')",
+        "var m = frequency(['a','b','a']);\nassert(m.get('a') === 2 && m.get('b') === 1, '频次统计正确')",
+        "assert(frequency([]).size === 0, '空数组返回空 Map')",
+        "assert(dedupe([1,1,1]).length === 1, '全相同只留一个')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function dedupe(list) {\n  var seen = new Set();\n  var out = [];\n  for (var i = 0; i < list.length; i++) {\n    if (!seen.has(list[i])) {\n      seen.add(list[i]);\n      out.push(list[i]);\n    }\n  }\n  return out;\n}\n\nfunction frequency(list) {\n  var counts = new Map();\n  for (var i = 0; i < list.length; i++) {\n    var item = list[i];\n    if (counts.has(item)) counts.set(item, counts.get(item) + 1);\n    else counts.set(item, 1);\n  }\n  return counts;\n}\n\nconsole.log(dedupe([3, 1, 3, 2]).join(','));\nconsole.log(frequency(['a', 'b', 'a']).get('a'));"
+    }
+  },
+  {
+    "id": "js20",
+    "order": 319,
+    "chapter": 22,
+    "chapterName": "JavaScript · 核心篇",
+    "lang": "javascript",
+    "title": "正则表达式",
+    "subtitle": "test / exec / match / replace",
+    "xp": 110,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "用模式描述文本"
+      },
+      {
+        "type": "text",
+        "text": "正则表达式是描述字符串模式的迷你语言。字面量写法 /pattern/flags，flags 常见的有 g（全局）、i（忽略大小写）、m（多行）。最常用的四个方法：test 判断是否匹配返回布尔值；exec 返回第一个匹配及捕获组；String.match 在 g 标志下返回所有匹配；String.replace 替换匹配内容。先写最简单的模式，再逐步加约束。量词默认是贪婪的，会尽量多匹配；在量词后加问号变成懒惰，尽量少匹配。写提取标签、引号内容时，贪婪模式常常一口吞掉太多字符。调试正则时先把模式拆成小段，逐段用 test 验证，再组合起来。\n\n基础元字符要熟：\\d 数字，\\w 字母数字下划线，\\s 空白，点号匹配任意字符（不含换行），^ 行首，$ 行尾。量词：星号零次或多次，加号一次或多次，问号零次或一次，{2,4} 两到四次。字符类 [abc] 表示其中之一，[^abc] 表示排除。分组用圆括号，replace 里用 $1、$2 引用捕获组。字符类里的大部分元字符失去特殊含义，但 ]、\\、^、- 仍需转义。点号不匹配换行，跨行匹配要用 [\\s\\S] 或 s 标志（本运行时支持有限）。锚点 ^ 和 $ 默认匹配整串首尾，加 m 标志后才匹配每行首尾。\n\n正则默认只匹配第一处，需要全部匹配必须加 g 标志。test 和 exec 在带 g 的正则上会维护 lastIndex，连续调用会在字符串中向前推进，这常常导致「第一次 true 第二次 false」的困惑。需要重复判断时，要么每次新建正则，要么在调用前把 lastIndex 置 0。写复杂正则时先用简单字符串试，再逐步加规则。正则不是越复杂越好。一个几十字符的模式如果没有注释，三个月后没人敢改。把复杂正则拆成常量、加注释、配一组测试用例，是让它可维护的唯一办法。对于结构化数据，解析器永远比正则可靠。"
+      },
+      {
+        "type": "text",
+        "text": "正则表达式的学习曲线陡，但常用模式其实不多：数字、字母、空白、邮箱、日期、手机号。先把这些模式背下来，再学组合和量词，就能覆盖大部分场景。写正则时从简单到复杂，每加一个约束就用几个正例和反例验证。test 用于判断、match 用于提取、replace 用于替换、exec 用于捕获组，四个方法各司其职。正则的性能在极端输入下可能退化，处理用户输入时限制长度，避免灾难性回溯。\n\n正则的调试方法：把模式拆成最小单元，用 test 逐个验证，再组合。字符类、量词、分组、锚点分开测试，出错时容易定位。提取用 match 加 g，捕获组用 exec 或 match 不加 g。replace 的 $1 到 $9 引用捕获组，$& 表示整个匹配。正则字面量在循环里复用会保留 lastIndex，需要每次重置或新建。复杂正则加注释，把每段的意图写清楚。\n\n正则的字符类里，连字符表示范围，比如 a-z、0-9；要匹配连字符本身，放在开头或结尾，或者转义。点号匹配除换行外的任意字符，要匹配真正的点号就转义。括号分组会捕获内容，不想捕获用 (?:...)。锚点 ^ 和 $ 在 m 标志下匹配每行。写模式时先保证正确，再考虑性能。"
+      },
+      {
+        "type": "text",
+        "text": "正则表达式的可读性可以通过命名捕获组改善，但本运行时不支持 (?<name>...) 语法，只能用编号捕获组。写复杂模式时把每部分拆成变量，用字符串拼接构造 RegExp，虽然不如字面量直观，但更容易加注释。测试正则时准备一组正例和反例，覆盖边界情况：空串、超长串、特殊字符。"
+      },
+      {
+        "type": "code",
+        "code": "console.log(/^\\d{4}-\\d{2}-\\d{2}$/.test('2026-11-06'));\nconsole.log(/^\\d{4}-\\d{2}-\\d{2}$/.test('2026-1-6'));\n\nvar m = /(\\d+)-(\\d+)/.exec('range 12-34');\nconsole.log(m[0]);\nconsole.log(m[1]);\nconsole.log(m[2]);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "true\nfalse\n12-34\n12\n34"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "符号",
+          "含义",
+          "例子"
+        ],
+        "rows": [
+          [
+            "\\d",
+            "数字",
+            "\\d+ 匹配 123"
+          ],
+          [
+            "\\w",
+            "字母数字下划线",
+            "\\w+ 匹配 neon_1"
+          ],
+          [
+            "\\s",
+            "空白",
+            "\\s+ 匹配连续空格"
+          ],
+          [
+            "^ $",
+            "行首 / 行尾",
+            "^abc$ 整行匹配"
+          ],
+          [
+            "{n,m}",
+            "重复次数范围",
+            "\\d{2,4}"
+          ],
+          [
+            "( )",
+            "分组与捕获",
+            "replace 中用 $1 引用"
+          ]
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "不要用正则解析 HTML 或任意嵌套结构。正则适合线性、规则明确的文本；嵌套结构请用专门的解析器。"
+      },
+      {
+        "type": "quiz",
+        "question": "'a1b22c'.match(/\\d+/g) 的结果是？",
+        "options": [
+          "['1']",
+          "['1','22']",
+          "['1','2','2']",
+          "null"
+        ],
+        "answer": 1,
+        "explain": "g 标志返回所有匹配；\\d+ 会尽量连续匹配，所以是 '1' 和 '22'。"
+      },
+      {
+        "type": "code",
+        "code": "var text = 'contact: v@night.city, backup: judy@afterlife.net';\n\nvar emails = text.match(/[\\w.]+@[\\w.]+/g);\nconsole.log(emails.length);\nconsole.log(emails[0]);\n\nvar masked = '13800138000'.replace(/(\\d{3})\\d{4}(\\d{4})/, '$1****$2');\nconsole.log(masked);\n\nconsole.log('a-b-c'.replace(/-/g, '/'));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "2\nv@night.city\n138****8000\na/b/c"
+      },
+      {
+        "type": "practice",
+        "title": "校验与提取",
+        "code": "var ok = /^[a-z]+$/.test('neon');\nvar nums = 'x1 y22 z333'.match(/\\d+/g);\n\nconsole.log(ok);\nconsole.log(nums.join(','));",
+        "output": "true\n1,22,333",
+        "hint": "test 适合整串校验（加 ^$），match 加 g 适合提取全部片段。"
+      }
+    ],
+    "exercise": {
+      "title": "邮箱提取器",
+      "brief": "实现 extractEmails(text)：返回文本中所有邮箱地址组成的数组，没有则返回空数组。实现 maskPhone(phone)：把 11 位手机号的中间四位替换成 ****，格式不匹配时原样返回。",
+      "starterCode": "function extractEmails(text) {\n  // 用 match 加 g 标志提取\n\n}\n\nfunction maskPhone(phone) {\n  // 用 replace 的捕获组保留首尾\n\n}\n\nconsole.log(JSON.stringify(extractEmails('a@b.com and c@d.org')));",
+      "hint": "extractEmails 用 text.match(/[\\w.]+@[\\w.]+/g)，结果为 null 时返回 []；maskPhone 用 /^(\\d{3})\\d{4}(\\d{4})$/ 和 '$1****$2'。",
+      "tests": [
+        "assert(JSON.stringify(extractEmails('a@b.com and c@d.org')) === '[\"a@b.com\",\"c@d.org\"]', '提取两个邮箱')",
+        "assert(JSON.stringify(extractEmails('no mail here')) === '[]', '无匹配返回空数组')",
+        "assert(maskPhone('13800138000') === '138****8000', '中间四位打码')",
+        "assert(maskPhone('123') === '123', '格式不符应原样返回')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function extractEmails(text) {\n  var found = text.match(/[\\w.]+@[\\w.]+/g);\n  return found === null ? [] : found;\n}\n\nfunction maskPhone(phone) {\n  return phone.replace(/^(\\d{3})\\d{4}(\\d{4})$/, '$1****$2');\n}\n\nconsole.log(JSON.stringify(extractEmails('a@b.com and c@d.org')));\nconsole.log(maskPhone('13800138000'));"
+    }
+  }
+]

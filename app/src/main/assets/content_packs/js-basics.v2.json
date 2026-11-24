@@ -1,0 +1,1232 @@
+[
+  {
+    "id": "js01",
+    "order": 300,
+    "chapter": 21,
+    "chapterName": "JavaScript · 基础篇",
+    "lang": "javascript",
+    "title": "第一次握手",
+    "subtitle": "console.log 与程序结构",
+    "xp": 60,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "让程序开口：从第一行到最后一行"
+      },
+      {
+        "type": "text",
+        "text": "JavaScript 程序没有神秘的入口函数。一个脚本文件就是一批语句，运行时从上到下依次执行：先声明变量，再计算，再输出。浏览器在页面加载时执行脚本，Node 执行整个文件，本课程的 Rhino 运行时也遵守同一规则。只要能在脑子里按行「走一遍」，你就能预测程序的行为，这是后面所有调试能力的地基。初学者常把「写出来」当成「跑过了」。真正可靠的流程是：先预测输出，再运行对照，不一致就逐行缩小范围。预测错了不是坏事，那正是你发现自己理解偏差的时刻。控制台里的报错通常包含行号和错误类型，先读第一行，再读行号，最后才看堆栈。\n\nconsole.log() 是最常用的输出与观察工具。它接受任意多个参数，把每个参数转成字符串后用空格连接，再补一个换行。因此 console.log('level', 66) 输出的是 level 66，而不是两个独立的值。字符串可以用单引号或双引号包裹，两种写法完全等价；语句末尾的分号在 JS 里可以省略，但本课程统一保留，避免自动分号插入带来的歧义。语句和表达式要分清：表达式产生一个值，语句执行一个动作。var x = 1 + 2; 整体是语句，右边的 1 + 2 是表达式。函数调用既是表达式也可以单独成句。分号不是装饰，它标记语句结束；省略分号时引擎按规则自动插入，遇到以括号或方括号开头的下一行就可能误判。"
+      },
+      {
+        "type": "text",
+        "text": "初学阶段最常见的三个坑：第一，把 console.log 当成 return，函数里打印了值却没有返回，调用处拿到 undefined；第二，字符串引号不配对，解析器直接报语法错误；第三，使用了中文引号或中文分号，它们看起来很像，但对 JS 来说是非法的。遇到报错先看行号，再检查这一行的引号、括号和逗号是否成对。console.log 打印对象时，本运行时会先做字符串转换，直接打印往往只看到 [object Object]，看不清内部结构。想观察对象就用 JSON.stringify(obj)，想观察多个值就用逗号分隔并加标签。输出是给你自己看的证据，写得越清楚，后面排查越省时间。\n\n运行环境决定了你能用什么。本课程跑在一个精简的 JS 引擎里，只有语言核心：没有浏览器、没有网络、没有文件系统。这看起来是限制，其实是好事——你可以把全部注意力放在语言本身。等语法和思维打牢，再迁移到浏览器或 Node，只是多学几组 API 而已。调试的第一步永远是让程序说话：在关键位置打印变量的值和类型，确认它和你的预期一致，再继续往下走。当输出和预期不符时，把范围缩小到最小的一段代码，逐行删除直到现象消失，最后删掉的那行通常就是原因。这个「二分定位」的方法比盯着屏幕猜要快得多。"
+      },
+      {
+        "type": "text",
+        "text": "把第一行代码跑通之后，建议立刻做三个小实验：改字符串内容、改数字、故意删掉一个引号，观察输出和报错分别长什么样。认识报错的样子，比背语法更重要。JS 的报错通常会指出文件名、行号和错误类型，比如 SyntaxError 表示解析阶段就失败，ReferenceError 表示引用了不存在的变量。读懂这两类错误，你就能独立解决入门阶段八成的问题。每次实验只改一处，才能确定是哪个改动导致了结果变化。"
+      },
+      {
+        "type": "code",
+        "code": "var agent = 'V';\nvar level = 66;\n\nconsole.log('boot:', agent);\nconsole.log('level:', level);\nconsole.log('ready', true);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "boot: V\nlevel: 66\nready true"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "程序要素",
+          "写法",
+          "作用"
+        ],
+        "rows": [
+          [
+            "变量声明",
+            "var name = 'V';",
+            "给值起一个可复用的名字"
+          ],
+          [
+            "输出",
+            "console.log(a, b);",
+            "把值打印到控制台，便于观察"
+          ],
+          [
+            "单行注释",
+            "// 说明",
+            "给人看，运行时跳过"
+          ],
+          [
+            "多行注释",
+            "/* 说明 */",
+            "临时屏蔽一段代码"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "调试时给输出加标签：console.log('level =', level) 比只打印一个 66 有用得多。输出里的标签就是你的路标。"
+      },
+      {
+        "type": "quiz",
+        "question": "console.log('1' + 2) 会输出什么？",
+        "options": [
+          "3",
+          "12",
+          "报错",
+          "NaN"
+        ],
+        "answer": 1,
+        "explain": "加号遇到字符串会执行拼接：数字 2 被转成字符串 '2'，结果是 '12'。想得到 3 应写 Number('1') + 2。"
+      },
+      {
+        "type": "steps",
+        "items": [
+          "声明变量并赋初值",
+          "用运算符算出结果",
+          "用 console.log 输出，并给输出加标签",
+          "改动一处后重新运行，对照输出定位变化"
+        ]
+      },
+      {
+        "type": "code",
+        "code": "var a = 7;\nvar b = 3;\n\nconsole.log('sum =', a + b);\nconsole.log('mod =', a % b);\nconsole.log('done');",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "sum = 10\nmod = 1\ndone"
+      },
+      {
+        "type": "task",
+        "text": "把 agent 改成自己的代号，再增加一行输出，预测它会出现在第几行。"
+      }
+    ],
+    "exercise": {
+      "title": "生成入网代号",
+      "brief": "实现 greet(name)：返回字符串 'HELLO, ' 拼上 name。greet('v') 应返回 'HELLO, v'。",
+      "starterCode": "function greet(name) {\n  // 在这里返回拼接后的字符串\n\n}\n\nconsole.log(greet('v'));",
+      "hint": "return 'HELLO, ' + name; 注意 HELLO 后面的逗号和空格都在字符串内部。",
+      "tests": [
+        "assert(greet('v') === 'HELLO, v', 'greet(\"v\") 应为 HELLO, v')",
+        "assert(greet('judy') === 'HELLO, judy', 'greet(\"judy\") 应为 HELLO, judy')",
+        "assert(greet('') === 'HELLO, ', '空名字也要能拼接')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function greet(name) {\n  return 'HELLO, ' + name;\n}\n\nconsole.log(greet('v'));\nconsole.log(greet('judy'));"
+    }
+  },
+  {
+    "id": "js02",
+    "order": 301,
+    "chapter": 21,
+    "chapterName": "JavaScript · 基础篇",
+    "lang": "javascript",
+    "title": "变量的三种身份",
+    "subtitle": "var / let / const 与类型系统",
+    "xp": 70,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "声明、赋值与类型"
+      },
+      {
+        "type": "text",
+        "text": "JS 是动态类型语言：变量本身没有类型，值才有类型。同一个变量可以先存数字再存字符串，语言不会阻止你，但这类随意改型会让代码难以推理。声明变量有三种关键字：var 是历史写法，函数级作用域；let 和 const 是 ES6 写法，块级作用域。const 约束的是「绑定不能重新指向」，不是「对象不能修改」，这一点最容易误会。undefined 和 null 都表示「没有」，但来源不同：undefined 是引擎给的默认值，变量声明未赋值、函数没有返回值、访问不存在的属性都会得到它；null 是程序员主动写的空值，表示「这里刻意留空」。比较时用 === 区分，序列化时两者都会被 JSON 变成 null，这是数据交换时要注意的失真。\n\n七个基本类型值得先记住：number、string、boolean、undefined、null、symbol、bigint（后两种本课程不展开），其余都是 object，包括数组和函数。typeof 可以探测类型，但有两个历史遗留：typeof null 返回 'object'，typeof function 返回 'function'。判断 null 要用 value === null，判断数组要用 Array.isArray(value)。数字只有一个 number 类型，底层是 64 位浮点。0.1 + 0.2 得到 0.30000000000000004，不是 JS 的 bug，而是二进制无法精确表示这些小数。涉及金额时用整数分做单位，或者把结果 toFixed 后再转数字。安全整数范围是 ±2^53，超过后精度会悄悄丢失。"
+      },
+      {
+        "type": "text",
+        "text": "优先使用 const，需要改变绑定时才用 let，基本不用 var。原因是块级作用域把变量的可见范围压缩在花括号内，减少互相污染。另一个常见坑是 const 对象：const user = { name: 'V' } 之后 user.name = 'J' 完全合法，因为对象内部属性没有被冻结；只有 user = {} 这种重新赋值才会报错。命名是类型之外的另一层可读性：变量用名词，函数用动词，常量全大写加下划线。不要用 data、temp、value 这类含糊名字，它们会在几天后让你重新读一遍代码。声明时尽量一行一个，别写 var a = 1, b = 2 这种紧凑写法，调试时不好定位。\n\n类型转换分为显式和隐式。显式转换是你主动调用 Number、String、Boolean，意图清楚；隐式转换是运算符或比较自动做的，容易埋雷。写代码时尽量把转换写在明面上，让读代码的人不需要背规则。还有一个常被忽略的点：变量提升与暂时性死区。var 声明的变量在声明前访问得到 undefined，因为它被提升到作用域顶部；标准 JS 里 let 和 const 在声明前访问会报错（暂时性死区），但本课程的 Rhino 运行时在脚本顶层会把它们处理得接近 var，读到 undefined。无论实现如何，先声明后使用都能避开这类差异。把声明写在作用域开头，代码的阅读顺序和执行顺序就一致了。"
+      },
+      {
+        "type": "text",
+        "text": "声明变量的位置也影响可读性。把同一类变量放在一起，按「配置、状态、临时值」分组，读代码的人能更快建立心智模型。常量用全大写命名只是社区习惯，真正的常量语义靠 const 保证。var、let、const 三者不要混用：新代码统一 let/const，遇到旧代码里的 var 再单独理解。类型判断函数要记牢：typeof 适合基本类型，Array.isArray 适合数组，instanceof 适合自定义构造函数创建的对象，Object.prototype.toString 可以拿到更精确的标签。\n\n还有一个实践建议：每次声明变量时顺手想一下它的生命周期。循环里的临时变量、只在某个分支用的中间值、整个模块共享的配置，生命周期完全不同，作用域也应该不同。能用块级作用域限制住的，就不要放大到函数级；能在函数内部消化的，就不要挂到全局。变量可见范围越小，能被意外修改的路径越少，调试时需要排查的嫌疑范围也越小。"
+      },
+      {
+        "type": "code",
+        "code": "var legacy = 'var 是函数作用域';\nlet modern = 'let 是块级作用域';\nconst fixed = 42;\n\nconsole.log(typeof legacy, typeof modern, typeof fixed);\nconsole.log(typeof null, typeof [], typeof function () {});\n\n{\n  let modern = '内层块';\n  console.log(modern);\n}\nconsole.log(modern);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "string string number\nobject object function\n内层块\nlet 是块级作用域"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "声明",
+          "作用域",
+          "能否重新赋值",
+          "典型用途"
+        ],
+        "rows": [
+          [
+            "var",
+            "函数级",
+            "可以",
+            "维护旧代码时偶尔遇到"
+          ],
+          [
+            "let",
+            "块级",
+            "可以",
+            "会变化的计数器、循环变量"
+          ],
+          [
+            "const",
+            "块级",
+            "不可以",
+            "配置、引用、不会换指向的值"
+          ]
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "不要用 typeof 判断数组或 null。数组用 Array.isArray(x)，null 用 x === null。"
+      },
+      {
+        "type": "compare",
+        "title": "同一个变量，四种写法",
+        "columns": [
+          {
+            "lang": "python",
+            "code": "level = 66\nname = 'V'\nprint(level, name)",
+            "note": "不用声明，直接赋值"
+          },
+          {
+            "lang": "javascript",
+            "code": "var level = 66;\nvar name = 'V';\nconsole.log(level, name);",
+            "note": "var / let / const 三选一"
+          },
+          {
+            "lang": "typescript",
+            "code": "var level: number = 66;\nvar name: string = 'V';\nconsole.log(level, name);",
+            "note": "多了类型标注，运行时被擦除"
+          },
+          {
+            "lang": "c",
+            "code": "int main() {\n    int level = 66;\n    char name[] = \"V\";\n    printf(\"%d %s\\n\", level, name);\n    return 0;\n}",
+            "note": "必须写类型，还要声明 main"
+          }
+        ]
+      },
+      {
+        "type": "quiz",
+        "question": "const user = { name: 'V' }; user.name = 'J'; 的结果是？",
+        "options": [
+          "报错，const 不能改",
+          "合法，name 变成 'J'",
+          "合法，但 name 仍是 'V'",
+          "返回 undefined"
+        ],
+        "answer": 1,
+        "explain": "const 锁定的是变量绑定，不是对象内容。要真正禁止修改需要 Object.freeze，而且它只是浅冻结。"
+      },
+      {
+        "type": "fill",
+        "goal": "补全判断：确认 value 是数组",
+        "code": "if (____(value)) {\n  console.log('array');\n}",
+        "answer": "Array.isArray",
+        "explain": "Array.isArray 专门用于数组判断，能避开 typeof [] 返回 'object' 的坑。"
+      },
+      {
+        "type": "code",
+        "code": "let count = 0;\ncount = count + 1;\nconsole.log('count =', count);\n\nconst config = { mode: 'offline' };\nconfig.mode = 'online';\nconsole.log(config.mode);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "count = 1\nonline"
+      }
+    ],
+    "exercise": {
+      "title": "类型报告员",
+      "brief": "实现 describe(v)：number/string/boolean/undefined/function 返回 typeof 的结果；null 返回 'null'；数组返回 'array'。",
+      "starterCode": "function describe(v) {\n  // 先处理 null 和数组，再返回 typeof\n\n}\n\nconsole.log(describe(42));\nconsole.log(describe([]));",
+      "hint": "先写 if (v === null) return 'null'; 再写 if (Array.isArray(v)) return 'array'; 最后 return typeof v;",
+      "tests": [
+        "assert(describe(42) === 'number', '42 应为 number')",
+        "assert(describe('a') === 'string', '字符串应为 string')",
+        "assert(describe(null) === 'null', 'null 不能直接靠 typeof')",
+        "assert(describe([]) === 'array', '数组要单独判断')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function describe(v) {\n  if (v === null) return 'null';\n  if (Array.isArray(v)) return 'array';\n  return typeof v;\n}\n\nconsole.log(describe(42));\nconsole.log(describe([]));"
+    }
+  },
+  {
+    "id": "js03",
+    "order": 302,
+    "chapter": 21,
+    "chapterName": "JavaScript · 基础篇",
+    "lang": "javascript",
+    "title": "运算符与类型转换",
+    "subtitle": "加号的双重人格与严格相等",
+    "xp": 70,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "先看类型，再谈运算"
+      },
+      {
+        "type": "text",
+        "text": "JS 的运算符会悄悄做类型转换，最典型的是加号：只要有一边是字符串，另一边就会被转成字符串再拼接；而减号、乘号、除号只会做数学运算，遇到非数字会得到 NaN。很多「玄学 bug」都来自这里。写代码时先问自己：这一行我希望做数学还是做拼接？不确定就显式转换，别把判断权交给引擎。加号是唯一同时承担加法与拼接的运算符，所以它的行为取决于两边的类型。减号、乘号、除号、取余没有拼接语义，一律先转数字。想确认结果类型，用 typeof 打印出来；想显式转换，用 Number、String、Boolean 三个函数，别依赖隐式规则。\n\n相等比较有两套：== 先做类型转换再比较，=== 要求类型和值都相同。'1' == 1 是 true，'1' === 1 是 false；null == undefined 是 true，但两者都不等于 0。现代 JS 的共识是只用 === 和 !==，把隐式转换从比较逻辑里彻底赶出去。同理，NaN 不等于任何值，包括它自己，判断要用 Number.isNaN 或 isNaN。逻辑运算符返回的不一定是布尔值：a || b 在 a 为真时返回 a 本身，否则返回 b；a && b 在 a 为假时返回 a，否则返回 b。这个特性常被用来写默认值，比如 name || 'anonymous'，但它会把 0 和空串也当成缺失。需要精确判断 undefined 时，老老实实写三元表达式。"
+      },
+      {
+        "type": "text",
+        "text": "假值（falsy）只有固定的一小组：false、0、-0、0n、''、null、undefined、NaN。除此之外的对象、数组、非空字符串、函数都是真值，空数组 [] 和空对象 {} 也是真值——这是从 Python 转过来的人最容易误判的地方。需要判断「数组有没有元素」就写 arr.length > 0，而不是 if (arr)。运算符优先级决定表达式的分组：乘除高于加减，比较高于逻辑，赋值最低。记不住就用括号，括号不会让代码变慢，只会让人一眼看懂。混合使用 && 和 || 时尤其要加括号，否则读代码的人需要停下来查优先级表。\n\n运算符的短路特性值得单独记：a && b 在 a 为假时直接返回 a，不再计算 b；a || b 在 a 为真时直接返回 a。这意味着右边的表达式可能根本不会执行。把函数调用放在右边时要注意，副作用可能被跳过。利用这个特性可以写默认值和守卫，但不要在一行里塞太多逻辑。类型转换还有一个高频场景：表单输入。用户在输入框里敲的所有内容都是字符串，'0' 是真值，Number('0') 才是数字 0。判断「有没有填写」和判断「数值是多少」是两件事，混在一起就会出 bug。"
+      },
+      {
+        "type": "text",
+        "text": "比较运算还有一个容易忽略的点：对象和数组用 === 比较的是引用，两个内容相同的数组也不相等。需要比较内容时，数组用 join 或 JSON.stringify，对象用逐字段比较或序列化。NaN 是唯一不等于自己的值，判断要用 Number.isNaN。布尔转换在条件里自动发生，但显式写 Boolean(x) 能让意图更清楚。所有这些规则的共同目标是：让类型在代码里是可见的，而不是藏在引擎的自动转换里。\n\n练习时可以把同一个表达式拆成多行，逐步打印中间值和类型：先算左边、再算右边、最后看运算结果。隐式转换的规则不需要全部背下来，但常见的几种要形成条件反射：字符串加数字是拼接，减号会转数字，空串转数字是 0，null 转数字是 0，undefined 转数字是 NaN。遇到不确定的表达式，写一行 console.log(typeof x, x) 比猜更快。"
+      },
+      {
+        "type": "code",
+        "code": "console.log('1' + 1);\nconsole.log('1' - 1);\nconsole.log('1' === 1);\nconsole.log(null == undefined);\nconsole.log(Number(' 42 '), Number('abc'));\nconsole.log(Boolean(''), Boolean('0'), Boolean(0));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "11\n0\nfalse\ntrue\n42 NaN\nfalse true false"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "表达式",
+          "结果",
+          "原因"
+        ],
+        "rows": [
+          [
+            "'5' + 2",
+            "'52'",
+            "加号遇到字符串转为拼接"
+          ],
+          [
+            "'5' - 2",
+            "3",
+            "减号强制转数字"
+          ],
+          [
+            "Number('3.5')",
+            "3.5",
+            "字符串转数字"
+          ],
+          [
+            "Number('')",
+            "0",
+            "空串被当作 0，容易踩坑"
+          ],
+          [
+            "Boolean('0')",
+            "true",
+            "非空字符串都是真值"
+          ]
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "Number('') 得到 0，parseInt('12px') 得到 12，parseFloat('3.5.1') 得到 3.5。转换函数各有脾气，输入来自用户时必须配合校验。"
+      },
+      {
+        "type": "quiz",
+        "question": "下面哪个表达式的结果是 true？",
+        "options": [
+          "[] == false",
+          "'' === 0",
+          "Boolean([]) === true",
+          "NaN === NaN"
+        ],
+        "answer": 2,
+        "explain": "空数组是真值，Boolean([]) 为 true。[] == false 会走隐式转换得到 true，但这是 == 的陷阱，不应模仿。"
+      },
+      {
+        "type": "practice",
+        "title": "显式转换",
+        "code": "var raw = ' 12 ';\nvar n = Number(raw);\n\nconsole.log(n + 1);\nconsole.log(typeof n);",
+        "output": "13\nnumber",
+        "hint": "Number 会忽略首尾空白；加法两边都是数字时才做加法。"
+      },
+      {
+        "type": "code",
+        "code": "var score = 0;\nvar name = '';\n\nconsole.log(score || 'empty');\nconsole.log(name || 'anonymous');\nconsole.log(score === 0 ? 'zero' : 'nonzero');",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "empty\nanonymous\nzero"
+      }
+    ],
+    "exercise": {
+      "title": "安全数字转换",
+      "brief": "实现 toNumber(value)：数字原样返回；字符串去掉首尾空白后若为空或无法解析，返回 null，否则返回数字；true 返回 1，false 返回 0；其他类型返回 null。",
+      "starterCode": "function toNumber(value) {\n  // 处理数字、布尔、字符串三类输入\n\n}\n\nconsole.log(toNumber('42'));",
+      "hint": "先用 typeof 分流；字符串先 trim()，空串直接返回 null，再用 isNaN(Number(s)) 判断。",
+      "tests": [
+        "assert(toNumber(7) === 7, '数字应原样返回')",
+        "assert(toNumber(' 3.5 ') === 3.5, '数字字符串应转成数字')",
+        "assert(toNumber('') === null, '空字符串应返回 null')",
+        "assert(toNumber('abc') === null, '非法字符串应返回 null')",
+        "assert(toNumber(true) === 1 && toNumber(false) === 0, '布尔值应转成 1/0')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function toNumber(value) {\n  if (typeof value === 'number') return value;\n  if (typeof value === 'boolean') return value ? 1 : 0;\n  if (typeof value === 'string') {\n    var s = value.trim();\n    if (s === '') return null;\n    var n = Number(s);\n    if (isNaN(n)) return null;\n    return n;\n  }\n  return null;\n}\n\nconsole.log(toNumber('42'));\nconsole.log(toNumber('abc'));"
+    }
+  },
+  {
+    "id": "js04",
+    "order": 303,
+    "chapter": 21,
+    "chapterName": "JavaScript · 基础篇",
+    "lang": "javascript",
+    "title": "字符串与模板字符串",
+    "subtitle": "不可变序列与反引号",
+    "xp": 80,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "字符串是一把只读的刀"
+      },
+      {
+        "type": "text",
+        "text": "JS 字符串是按 UTF-16 码元排列的不可变序列：所有看起来像修改的方法，都会返回一个新字符串，原值保持不变。s.toUpperCase() 不会改变 s，s.slice(0, 3) 也不会。理解不可变性后，链式调用就很自然：每一步拿上一步的返回值继续处理，原始数据始终干净。这和后面要讲的纯函数、不可变数据是同一条思想线索。字符串的长度按 UTF-16 码元计算，一个汉字通常算一个码元，但 emoji 等增补字符算两个。所以 s.length 不总是「人眼看到的字符数」。做中文文本处理时这通常没问题，做用户输入限制时要意识到这个差异，必要时用 Array.from(s).length 按码点计数。\n\n常用方法可以按目的分组：截取用 slice(start, end) 或 substring；查找用 indexOf、includes、startsWith、endsWith；切分与合并用 split 和 join；清理用 trim；替换用 replace。slice 支持负索引，s.slice(-3) 取最后三个字符；split('') 可以把字符串拆成字符数组，再用 join('') 拼回。slice 与 substring 的区别：slice 接受负索引，substring 会把负数当 0，还会自动交换两个参数的位置。日常统一用 slice，行为最可预测。replace 只替换第一处，全部替换要加 g 标志或用 split/join。字符串比较用 ===，不要用 ==，也不要用 localeCompare 处理简单相等。"
+      },
+      {
+        "type": "text",
+        "text": "模板字符串用反引号包裹，可以用 ${表达式} 直接嵌入变量或运算结果，还支持换行，不必再用加号拼接。它解决的是「长字符串 + 多个变量」的可读性问题，不会改变类型。注意反引号不是单引号，键盘位置不同；在模板里写 ${} 时，花括号内必须是合法表达式，不能写语句。模板字符串里的表达式可以是任意合法表达式，包括函数调用和三元运算，但不能写 if 语句或 var 声明。需要复杂逻辑时先在外部算好变量，再嵌进去。模板字符串保留换行和缩进，生成多行文本很方便，但也会把缩进带进结果，必要时用 trim 清理。\n\n字符串方法大多返回新值，原字符串不变。这个规则适用于 toUpperCase、slice、replace、trim、padStart 等所有「看起来像修改」的方法。理解这一点，链式调用就不会写错顺序。另一个实用技巧是用 split 和 join 做批量替换：把旧分隔符切开，再用新分隔符拼起来。它按字面量匹配，不会像正则那样被特殊字符干扰。处理中文时注意 length 与视觉字符数的差异，做字数限制、截断显示时最好按码点处理。最后，字符串比较区分大小写，'A' 和 'a' 不相等；需要忽略大小写时先统一转换，再比较。"
+      },
+      {
+        "type": "text",
+        "text": "模板字符串的另一个用途是生成带格式的文本，比如日志、报告、SQL 片段。它保留换行，写多行内容时不必用转义字符。嵌入表达式时保持简单，复杂的计算先抽成变量，模板只负责组装。字符串拼接的性能在短文本上无关紧要，长文本用数组 join。最后记住：字符串一旦创建就不能修改，所有方法都返回新串，变量要重新赋值才能看到变化，这是初学者最常见的「为什么没生效」。\n\n处理用户输入时还要考虑空值和超长文本。空字符串调用 split、slice、trim 都不会报错，但业务上往往需要单独处理。超长文本做截断时，先判断长度再 slice，避免生成巨大的中间数组。模板字符串里不要直接拼接用户输入去构造代码或查询语句，那是注入漏洞的常见来源。文本处理看起来简单，边界和安全性才是真正的难点。"
+      },
+      {
+        "type": "code",
+        "code": "var base = 'cyberpunk';\n\nconsole.log(base.slice(0, 5));\nconsole.log(base.slice(-4));\nconsole.log(base.toUpperCase());\nconsole.log(base.length);\nconsole.log(base.includes('punk'));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "cyber\npunk\nCYBERPUNK\n9\ntrue"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "目的",
+          "写法",
+          "结果示例"
+        ],
+        "rows": [
+          [
+            "截取",
+            "s.slice(0, 3)",
+            "'cyber' -> 'cyb'"
+          ],
+          [
+            "负索引截取",
+            "s.slice(-4)",
+            "'punk'"
+          ],
+          [
+            "分割",
+            "s.split(';')",
+            "字符串转数组"
+          ],
+          [
+            "连接",
+            "arr.join(' | ')",
+            "数组转字符串"
+          ],
+          [
+            "去空白",
+            "s.trim()",
+            "去掉首尾空格"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "链式调用时按「从内到外」读：title.trim().toLowerCase().split(' ').join('-') 依次是清理、转小写、切词、连接。"
+      },
+      {
+        "type": "quiz",
+        "question": "var s = 'abc'; s.toUpperCase(); console.log(s); 输出什么？",
+        "options": [
+          "ABC",
+          "abc",
+          "undefined",
+          "报错"
+        ],
+        "answer": 1,
+        "explain": "字符串不可变。toUpperCase 返回新字符串，但没有赋回给 s，所以 s 仍是 'abc'。"
+      },
+      {
+        "type": "code",
+        "code": "var name = 'V';\nvar city = 'night city';\n\nvar card = `AGENT: ${name}\nCITY: ${city.toUpperCase()}\nTAG: ${name.toLowerCase()}-01`;\n\nconsole.log(card);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "AGENT: V\nCITY: NIGHT CITY\nTAG: v-01"
+      },
+      {
+        "type": "practice",
+        "title": "拆解日志",
+        "code": "var line = 'error:disk:full';\nvar parts = line.split(':');\n\nconsole.log(parts[0]);\nconsole.log(parts.length);\nconsole.log(parts.join('/'));",
+        "output": "error\n3\nerror/disk/full",
+        "hint": "split 按冒号切成三段，join 再用斜杠拼回去。"
+      },
+      {
+        "type": "task",
+        "text": "把 card 改成三行模板，并在第二行调用 slice 只保留城市名的前五个字符。"
+      }
+    ],
+    "exercise": {
+      "title": "生成姓名缩写",
+      "brief": "实现 initials(fullName)：按空格切分姓名，取每个单词首字母并转大写，用点号连接。initials('judy alvarez') 应返回 'J.A'；空字符串返回 ''。",
+      "starterCode": "function initials(fullName) {\n  // 切分、取首字母、转大写、用点连接\n\n}\n\nconsole.log(initials('judy alvarez'));",
+      "hint": "fullName.trim().split(' ') 得到单词数组；循环取 word.charAt(0).toUpperCase()，最后用 join('.')。",
+      "tests": [
+        "assert(initials('judy alvarez') === 'J.A', 'judy alvarez 应为 J.A')",
+        "assert(initials('v') === 'V', '单名应返回 V')",
+        "assert(initials('') === '', '空字符串应返回空字符串')",
+        "assert(initials('johnny silverhand') === 'J.S', '多段姓名都要取首字母')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function initials(fullName) {\n  if (fullName === '') return '';\n  var words = fullName.trim().split(' ');\n  var out = [];\n  for (var i = 0; i < words.length; i++) {\n    out.push(words[i].charAt(0).toUpperCase());\n  }\n  return out.join('.');\n}\n\nconsole.log(initials('judy alvarez'));"
+    }
+  },
+  {
+    "id": "js05",
+    "order": 304,
+    "chapter": 21,
+    "chapterName": "JavaScript · 基础篇",
+    "lang": "javascript",
+    "title": "条件分支",
+    "subtitle": "if / else if / switch 与守卫",
+    "xp": 80,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "让程序学会选择"
+      },
+      {
+        "type": "text",
+        "text": "条件分支解决的是「不同输入走不同路径」。JS 的写法与 C 家族一致：if 后面的条件必须放在小括号里，代码块用花括号包住；多路判断用 else if，最后用 else 兜底。判断从上到下短路，命中第一个真值分支后就不再检查后面的条件，所以顺序本身就是逻辑的一部分。写范围判断时，从最严格或最高的区间开始写。守卫语句（guard clause）是写分支的推荐姿势：先处理异常输入并 return，主逻辑就不再被层层 else 包裹。这样函数的正常路径保持在最外层，读代码时不用在脑子里维护「现在在哪个 else 里」。嵌套超过三层，基本就该拆函数了。\n\n条件表达式最终都会被转成布尔值，这里用的是真值/假值规则：false、0、''、null、undefined、NaN 为假，其余为真。因此 if (name) 判断的是「name 非空且不是那几个假值」，不是「name 已声明」。如果变量可能没被赋值，应先用 typeof name !== 'undefined' 或提前 return 的守卫（guard clause）把异常输入挡在函数入口。switch 用 === 比较，case 的值必须是常量表达式。忘记 break 会继续执行下一个 case，这叫 fallthrough，有时被故意用来合并多个条件，但更多时候是 bug。default 不是必须的，但建议写上，至少能处理意外输入。对象映射是 switch 的常见替代：把值当键、函数当值，查表即调用。"
+      },
+      {
+        "type": "text",
+        "text": "switch 适合「一个值对应多条固定路径」的场景，比如命令分发。它用 === 比较，每个 case 后要写 break，否则会继续执行下一个 case（fallthrough）。多数情况下 switch 可以用对象映射替代：把命令名作为键、处理函数作为值，查表比长串 if 更清晰。选择哪种写法看可读性，不必教条。边界值要专门测：等于阈值、刚好小于、刚好大于、空值、非数字。成绩分级这类逻辑，错误往往出在 90 到底算 A 还是 S。写完条件后拿三组数在纸上走一遍，比运行十次随机数据更有效。\n\n条件表达式里的真值判断是很多 bug 的来源。空字符串、0、NaN 都是假值，但 '0' 和 [] 是真值。判断「有没有值」和判断「数值是否为零」必须分开写。分支顺序也很关键：范围判断从大到小或从小到大都可以，但必须覆盖所有情况，并且边界不重叠。写完后用边界值、中间值、非法值各测一次，基本就能发现漏洞。switch 适合枚举型的分发，if 适合区间和复合条件，三元表达式适合二选一的简单赋值。不要用三元表达式嵌套多层，那不是简洁，是加密。"
+      },
+      {
+        "type": "text",
+        "text": "条件分支的可测试性取决于边界是否清晰。写完后列出所有分支，为每个分支准备至少一个输入，再准备空值、负数、超大值等异常输入。如果某个分支很难构造输入，说明条件设计可能有问题。else 不是必须的，提前 return 能让主路径更平。switch 的 fallthrough 要显式注释，否则读代码的人会以为是漏写 break。三元表达式只用于简单赋值，不要嵌套超过两层。\n\n写条件时还有一个可读性技巧：把肯定条件放前面，否定条件放后面。if (isValid) 比 if (!isInvalid) 更容易读。多个条件用括号分组，明确优先级。复杂的布尔表达式可以抽成具名变量，比如 var canAccess = level >= 50 && !banned; 然后 if (canAccess)。表达式越短，越不容易写错，也越容易在评审时被发现。"
+      },
+      {
+        "type": "code",
+        "code": "function access(level) {\n  if (level >= 100) {\n    return 'ROOT';\n  } else if (level >= 50) {\n    return 'OPERATOR';\n  } else {\n    return 'GUEST';\n  }\n}\n\nconsole.log(access(120));\nconsole.log(access(66));\nconsole.log(access(3));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "ROOT\nOPERATOR\nGUEST"
+      },
+      {
+        "type": "diagram",
+        "text": "if (条件 A) {\n  ...            // A 为真，执行这里\n} else if (条件 B) {\n  ...            // A 假、B 真\n} else {\n  ...            // 以上都假\n}"
+      },
+      {
+        "type": "warn",
+        "text": "if (x = 5) 是赋值不是比较，条件永远为真。写比较时把常量放左边（5 === x）可以让这类笔误直接报错。"
+      },
+      {
+        "type": "quiz",
+        "question": "score = 75 时，依次判断 score >= 90、score >= 75、score >= 60，会进入哪个分支？",
+        "options": [
+          "第一个",
+          "第二个",
+          "第三个",
+          "都不进"
+        ],
+        "answer": 1,
+        "explain": "75 不满足 >=90，满足 >=75，命中第二个分支后立即返回，不会再检查 >=60。"
+      },
+      {
+        "type": "fill",
+        "goal": "补全守卫：参数不是数字时提前返回",
+        "code": "function guard(x) {\n  if (____(x)) return 'bad input';\n  return 'ok';\n}",
+        "answer": "isNaN",
+        "explain": "isNaN(x) 为 true 表示 x 不能转成有效数字。真实项目里还应判断 typeof x === 'number'，避免把 '12' 当成合法数字。"
+      },
+      {
+        "type": "code",
+        "code": "function route(cmd) {\n  switch (cmd) {\n    case 'start':\n      return 'engine on';\n    case 'stop':\n      return 'engine off';\n    default:\n      return 'unknown';\n  }\n}\n\nconsole.log(route('start'));\nconsole.log(route('jump'));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "engine on\nunknown"
+      },
+      {
+        "type": "practice",
+        "title": "等级速查",
+        "code": "function badge(score) {\n  if (score >= 90) return 'S';\n  if (score >= 60) return 'A';\n  return 'F';\n}\n\nconsole.log(badge(95), badge(60), badge(59));",
+        "output": "S A F",
+        "hint": "多个 if 从高到低排列，命中即 return，不必层层嵌套 else。"
+      }
+    ],
+    "exercise": {
+      "title": "权限分级器",
+      "brief": "实现 grade(score)：90 及以上返回 'S'，75 到 89 返回 'A'，60 到 74 返回 'B'，低于 60 返回 'F'；score 不是数字或超出 0-100 返回 'INVALID'。",
+      "starterCode": "function grade(score) {\n  // 先做输入校验，再按区间返回等级\n\n}\n\nconsole.log(grade(95));",
+      "hint": "先写 if (typeof score !== 'number' || isNaN(score) || score < 0 || score > 100) return 'INVALID'; 再按 90/75/60 从高到低判断。",
+      "tests": [
+        "assert(grade(95) === 'S', '95 应为 S')",
+        "assert(grade(90) === 'S', '边界 90 应为 S')",
+        "assert(grade(75) === 'A', '边界 75 应为 A')",
+        "assert(grade(60) === 'B', '边界 60 应为 B')",
+        "assert(grade(101) === 'INVALID' && grade('x') === 'INVALID', '非法输入应被拦截')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function grade(score) {\n  if (typeof score !== 'number' || isNaN(score) || score < 0 || score > 100) {\n    return 'INVALID';\n  }\n  if (score >= 90) return 'S';\n  if (score >= 75) return 'A';\n  if (score >= 60) return 'B';\n  return 'F';\n}\n\nconsole.log(grade(95));\nconsole.log(grade(75));"
+    }
+  },
+  {
+    "id": "js06",
+    "order": 305,
+    "chapter": 21,
+    "chapterName": "JavaScript · 基础篇",
+    "lang": "javascript",
+    "title": "循环",
+    "subtitle": "for / while / for-of 与聚合",
+    "xp": 80,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "重复劳动交给机器"
+      },
+      {
+        "type": "text",
+        "text": "循环让一段代码按条件重复执行。最通用的是三段式 for：初始化、继续条件、步进，三段用分号隔开；while 适合「不知道要跑几次，只知道何时停」的场景；do-while 至少执行一次，再判断条件。遍历数组时，for-of 更简洁，直接拿到元素而不是下标，但它拿不到索引，需要索引时还是用经典 for。循环不变式是理解循环的工具：每一轮开始时，某个条件始终成立。求最大值时不变式是「best 是已遍历元素中的最大值」；求和时是「total 是已遍历元素之和」。写循环前先说出不变式，初始化、循环体、返回值就都有了依据。\n\n写循环先确定三件事：起点、终点、每次怎么变。终点用数组的 length，不要在循环体里修改被遍历的数组长度，否则很容易越界或漏项。累加、计数、找极值是三种最基本的循环模式：先初始化一个「种子」（0、空数组、第一个元素），再把每个元素合并进去。循环结束后返回种子。for-in 遍历的是键名，不是值。对数组使用 for-in 会得到字符串下标，还可能遍历到原型上的可枚举属性，因此数组遍历不要用 for-in，用经典 for 或 for-of。对象遍历可以用 for-in，但更推荐 Object.keys 配合普通 for，顺序和边界都更可控。"
+      },
+      {
+        "type": "text",
+        "text": "break 立即结束整个循环，continue 跳过本轮剩余语句进入下一轮。它们会影响控制流，滥用会让循环难以读懂。更推荐用「提前 return」把函数逻辑拆开。嵌套循环里 break 只跳出最内层，需要跳出多层时用标签（label），但标签可读性差，通常说明该把内层逻辑抽成函数了。死循环的常见原因：条件永远为真、循环变量没有更新、浮点数步进永远到不了终点。调试时在循环体里打印计数器和关键变量，跑几轮就能看出问题。生产代码里给循环加最大次数保护，是便宜又有效的防线。\n\n循环的边界最容易被忽略：从 0 开始还是从 1 开始，条件是小于还是小于等于，步进是加一还是加二。写完后用最小规模（0 个、1 个元素）验证，往往能立刻发现问题。遍历数组时缓存 length 在旧引擎能略微提速，但现代引擎优化后差别很小，可读性优先。需要提前退出时用 break 或 return，不要用修改循环变量的方式硬拗。嵌套循环的复杂度是乘积关系，数据量大时要考虑用 Map 或 Set 把内层查找降为常数时间，这就是后面性能课要讲的「空间换时间」。"
+      },
+      {
+        "type": "text",
+        "text": "循环写完后做一次「手动走查」：把 n 设成 0、1、2，在纸上写出每轮变量的值，检查是否与预期一致。这个习惯能抓住大部分边界错误。for-of 适合只关心元素的场景，经典 for 适合需要下标或要修改数组的场景。while 适合次数未知的等待，但一定要保证条件会变假。break 和 continue 会让控制流跳跃，用时加注释说明意图。嵌套循环超过两层，考虑抽函数或换数据结构。\n\n如果循环体超过十行，通常说明它做了不止一件事，应该拆成函数。拆分的标准是「这段代码能否用一个动词描述」，能就可以独立。循环里尽量不要修改循环变量，那会让终止条件难以推理。需要跳过某些元素用 continue，需要提前结束用 break，两者都比嵌套 if 清晰。遍历对象数组时，先把需要的字段解构出来，循环体里就不用反复写 item.xxx。"
+      },
+      {
+        "type": "code",
+        "code": "var scores = [88, 92, 79];\nvar total = 0;\n\nfor (var i = 0; i < scores.length; i++) {\n  total = total + scores[i];\n  console.log(i, scores[i]);\n}\n\nconsole.log('total =', total);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "0 88\n1 92\n2 79\ntotal = 259"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "循环",
+          "适合场景",
+          "注意点"
+        ],
+        "rows": [
+          [
+            "for",
+            "已知次数或需要下标",
+            "三段都不能少，步进别忘写"
+          ],
+          [
+            "while",
+            "条件驱动、次数未知",
+            "循环体里必须让条件有机会变假"
+          ],
+          [
+            "do-while",
+            "至少执行一次",
+            "条件在末尾，末尾有分号"
+          ],
+          [
+            "for-of",
+            "直接遍历数组/字符串",
+            "不提供下标"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "空数组要先守卫再访问 values[0]，否则 best 是 undefined。JS 不会因为越界报错，只会安静地给你 undefined。"
+      },
+      {
+        "type": "quiz",
+        "question": "for (var i = 0; i < 3; i++) 循环体执行几次？i 最终是多少？",
+        "options": [
+          "2 次，i=2",
+          "3 次，i=3",
+          "3 次，i=2",
+          "4 次，i=4"
+        ],
+        "answer": 1,
+        "explain": "i 取 0、1、2 各执行一次，共 3 次；执行完 i++ 后 i=3，条件不成立退出。"
+      },
+      {
+        "type": "visualize",
+        "title": "循环求最大值",
+        "caption": "nums = [3, 7, 2]，观察 i 与 max 的变化",
+        "frames": [
+          {
+            "label": "初始化：max 取第一个元素",
+            "items": [
+              {
+                "name": "i",
+                "value": "0"
+              },
+              {
+                "name": "max",
+                "value": "3"
+              }
+            ],
+            "highlight": [
+              "max"
+            ]
+          },
+          {
+            "label": "i=1，7 > 3，更新 max",
+            "items": [
+              {
+                "name": "i",
+                "value": "1"
+              },
+              {
+                "name": "max",
+                "value": "7"
+              }
+            ],
+            "highlight": [
+              "i",
+              "max"
+            ]
+          },
+          {
+            "label": "i=2，2 < 7，保持不变",
+            "items": [
+              {
+                "name": "i",
+                "value": "2"
+              },
+              {
+                "name": "max",
+                "value": "7"
+              }
+            ],
+            "highlight": [
+              "i"
+            ]
+          },
+          {
+            "label": "循环结束，最大值 7",
+            "items": [
+              {
+                "name": "i",
+                "value": "3"
+              },
+              {
+                "name": "max",
+                "value": "7"
+              }
+            ],
+            "highlight": [
+              "i"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "code",
+        "code": "function peak(values) {\n  if (values.length === 0) return null;\n  var best = values[0];\n  for (var i = 1; i < values.length; i++) {\n    if (values[i] > best) best = values[i];\n  }\n  return best;\n}\n\nvar found = [];\nfor (var v of [4, 9, 1]) {\n  found.push(v * 2);\n}\n\nconsole.log(peak([88, 92, 79]));\nconsole.log(peak([]));\nconsole.log(found.join('-'));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "92\nnull\n8-18-2"
+      }
+    ],
+    "exercise": {
+      "title": "累加器",
+      "brief": "实现 sumTo(n)：返回 1 到 n 的整数和；n 小于 1 时返回 0。",
+      "starterCode": "function sumTo(n) {\n  // 用循环累加\n\n}\n\nconsole.log(sumTo(10));",
+      "hint": "var total = 0; for (var i = 1; i <= n; i++) total += i; return total;",
+      "tests": [
+        "assert(sumTo(10) === 55, 'sumTo(10) 应为 55')",
+        "assert(sumTo(1) === 1, 'sumTo(1) 应为 1')",
+        "assert(sumTo(0) === 0, 'sumTo(0) 应为 0')",
+        "assert(sumTo(-5) === 0, '负数应返回 0')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function sumTo(n) {\n  var total = 0;\n  for (var i = 1; i <= n; i++) {\n    total = total + i;\n  }\n  return total;\n}\n\nconsole.log(sumTo(10));\nconsole.log(sumTo(0));"
+    }
+  },
+  {
+    "id": "js07",
+    "order": 306,
+    "chapter": 21,
+    "chapterName": "JavaScript · 基础篇",
+    "lang": "javascript",
+    "title": "数组",
+    "subtitle": "下标、长度与增删改查",
+    "xp": 80,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "一组有序的值"
+      },
+      {
+        "type": "text",
+        "text": "数组是按整数下标排列的有序集合，下标从 0 开始，length 表示元素个数。JS 数组是动态的：可以随时 push 追加、pop 弹出、用下标赋值扩展，甚至把 length 改小来截断。这种灵活性很方便，也意味着越界访问不会报错，只会得到 undefined。凡是依赖下标的代码，都要先确认长度。数组是对象的一种，typeof [] 返回 'object'，判断数组要用 Array.isArray。数组的 length 可读可写：把 length 设小会截断，设大会产生空洞（空位），空洞参与遍历时表现为 undefined。除非刻意为之，不要手动改 length，用 push/pop/splice 更清晰。\n\n修改原数组的方法有 push、pop、shift、unshift、splice、sort、reverse；返回新数组的方法有 slice、concat、map、filter。初学时要分清「改自己」和「返回副本」，否则函数调用后原数据被悄悄改动，排查起来非常痛苦。一个实用习惯：需要保留原数组时先 slice() 复制一份，再对副本排序或修改。二维数组是「数组的数组」，访问用 grid[row][col]。创建时不要用 new Array(3).fill([])，因为 fill 填进去的是同一个数组引用，改一行会影响所有行；应写循环，每次 push 一个新数组。这个坑在矩阵、棋盘、动态规划里非常常见。\n\nsort 默认按字符串排序：[10, 2, 1].sort() 得到 [1, 10, 2]，因为每个元素先转字符串再逐字符比较。数字排序必须传比较函数 (a, b) => a - b，返回负数表示 a 在前，正数表示 b 在前。这个比较函数的方向记不住时，用两个数试一遍即可。数组方法分两类：修改自身的（push/pop/shift/unshift/splice/sort/reverse）和返回新数组的（slice/concat/map/filter）。函数参数传数组时，默认是引用传递，函数内部 push 会影响调用方。需要保护原数据就开头 slice() 复制一份，成本很低。"
+      },
+      {
+        "type": "text",
+        "text": "数组的很多方法都有「原地修改」和「返回新数组」两派，混用是 bug 温床。一个简单原则：函数参数里的数组默认当作只读，需要修改就先复制。复制用 slice() 或 concat([])，浅复制足够应付大多数场景。多维数组要逐层复制，否则内层仍共享。判断元素是否存在，indexOf 返回下标、includes 返回布尔值，两者对 NaN 的处理不同：includes 能找到 NaN，indexOf 不能。删除元素时，delete 只留空洞不改变长度，splice 才真正移除。\n\n数组的 sort 默认按字符串排序，这是一个高频陷阱。数字排序必须传比较函数，字符串排序要注意大小写和本地化。sort 会修改原数组，需要保留原顺序就先 slice 复制。splice 的返回值是被删除的元素，不是修改后的数组，这个细节经常被记反。数组的 length 可以读写，但手动改 length 会产生空洞，遍历时得到 undefined。需要清空数组时，arr.length = 0 是常用写法，比 arr = [] 更能保留引用。\n\n数组是引用类型，赋值和传参都不会复制。把数组交给函数前，先想清楚函数会不会修改它；如果不确定，就传一份副本。复制一维数组用 slice()，复制二维数组要逐行 slice。数组比较用内容比较，不要用 ===。需要把数组当键时，先 JSON.stringify 成字符串，但要注意键的顺序和特殊类型。"
+      },
+      {
+        "type": "text",
+        "text": "练习数组时建议把「读、改、查、删、排序」五类操作各写一遍，并观察原数组是否变化。把每个方法的返回值打印出来，确认自己理解的是返回值还是原数组。数组是后续所有数据处理的基础，map、filter、reduce 都建立在它之上。花时间把这几个方法练熟，后面的课程会轻松很多。遇到不确定的行为，直接写两行代码验证，不要凭印象。"
+      },
+      {
+        "type": "code",
+        "code": "var queue = ['V', 'Judy'];\n\nqueue.push('Jackie');\nconsole.log(queue.join(','), queue.length);\n\nvar first = queue.shift();\nconsole.log(first, queue.join(','));\n\nvar copy = queue.slice();\ncopy.push('Rogue');\nconsole.log(queue.length, copy.length);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "V,Judy,Jackie 3\nV Judy,Jackie\n2 3"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "操作",
+          "方法",
+          "是否修改原数组"
+        ],
+        "rows": [
+          [
+            "末尾追加/删除",
+            "push / pop",
+            "是"
+          ],
+          [
+            "开头追加/删除",
+            "unshift / shift",
+            "是"
+          ],
+          [
+            "截取片段",
+            "slice(start, end)",
+            "否，返回新数组"
+          ],
+          [
+            "任意位置增删",
+            "splice(start, deleteCount, ...items)",
+            "是"
+          ],
+          [
+            "拼接",
+            "concat(other)",
+            "否，返回新数组"
+          ]
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "splice 的参数容易记反：splice(起始下标, 删除个数, 要插入的元素...)。它会直接修改原数组，并返回被删除元素组成的新数组。"
+      },
+      {
+        "type": "quiz",
+        "question": "var a = [1, 2, 3]; var b = a.slice(1); b.push(9); 此时 a 和 b 分别是什么？",
+        "options": [
+          "a=[1,2,3]，b=[2,3,9]",
+          "a=[1,2,3,9]，b=[2,3,9]",
+          "a=[2,3]，b=[2,3,9]",
+          "两者都是 [1,2,3,9]"
+        ],
+        "answer": 0,
+        "explain": "slice 返回新数组，b 是 [2,3]；push 只改 b，a 保持不变。"
+      },
+      {
+        "type": "code",
+        "code": "var nums = [10, 2, 1];\nvar sorted = nums.slice().sort(function (a, b) {\n  return a - b;\n});\n\nconsole.log(nums.join(','));\nconsole.log(sorted.join(','));\nconsole.log(nums.indexOf(2));\nconsole.log(nums.includes(99));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "10,2,1\n1,2,10\n1\nfalse"
+      },
+      {
+        "type": "practice",
+        "title": "切片复制",
+        "code": "var src = ['a', 'b', 'c', 'd'];\nvar mid = src.slice(1, 3);\n\nconsole.log(mid.join('-'));\nconsole.log(src.length);",
+        "output": "b-c\n4",
+        "hint": "slice(1, 3) 取下标 1 和 2，不包含 3；原数组不变。"
+      }
+    ],
+    "exercise": {
+      "title": "数组分块",
+      "brief": "实现 chunk(values, size)：把数组按 size 个一组切成二维数组；size 小于 1 或数组为空时返回空数组。",
+      "starterCode": "function chunk(values, size) {\n  // 每次用 slice 取一段，push 进结果\n\n}\n\nconsole.log(JSON.stringify(chunk([1, 2, 3, 4, 5], 2)));",
+      "hint": "for (var i = 0; i < values.length; i += size) { out.push(values.slice(i, i + size)); }",
+      "tests": [
+        "assert(JSON.stringify(chunk([1,2,3,4,5], 2)) === '[[1,2],[3,4],[5]]', '按 2 分组')",
+        "assert(JSON.stringify(chunk([1,2,3], 5)) === '[[1,2,3]]', 'size 大于长度时只有一组')",
+        "assert(JSON.stringify(chunk([], 3)) === '[]', '空数组应返回空数组')",
+        "assert(JSON.stringify(chunk([1,2], 0)) === '[]', 'size 小于 1 应返回空数组')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function chunk(values, size) {\n  if (size < 1) return [];\n  var out = [];\n  for (var i = 0; i < values.length; i += size) {\n    out.push(values.slice(i, i + size));\n  }\n  return out;\n}\n\nconsole.log(JSON.stringify(chunk([1, 2, 3, 4, 5], 2)));"
+    }
+  },
+  {
+    "id": "js08",
+    "order": 307,
+    "chapter": 21,
+    "chapterName": "JavaScript · 基础篇",
+    "lang": "javascript",
+    "title": "对象",
+    "subtitle": "键值对、in 与 Object.keys",
+    "xp": 80,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "用名字索引数据"
+      },
+      {
+        "type": "text",
+        "text": "对象是键值对的集合，键是字符串（或 Symbol），值可以是任意类型。它承担了 Python 字典的角色，但访问方式更丰富：点号 obj.name 适合固定的合法标识符，中括号 obj['key'] 适合动态键、含空格或数字的键。读取不存在的键不会报错，而是返回 undefined，这一点和 Python 抛 KeyError 完全不同。对象是引用类型：var b = a 不会复制对象，只是让 b 指向同一块内存。改 b.x 等于改 a.x。需要独立副本时用 Object.assign({}, a) 做浅复制，或 JSON.parse(JSON.stringify(a)) 做深复制。浅复制的「浅」指只复制第一层，嵌套对象仍然共享。\n\n判断键是否存在用 'key' in obj，它同时检查原型链；只想看对象自身属性用 Object.prototype.hasOwnProperty.call(obj, 'key')。遍历自身可枚举键用 Object.keys，拿值用 Object.values，拿键值对用 Object.entries。对象里键的顺序：整数形式的键按数值升序，其余按插入顺序，不要依赖顺序写业务逻辑。访问属性时，点号后面必须跟合法标识符；键名含空格、以数字开头、或是变量时，必须用中括号。中括号里的表达式会先求值再转字符串，所以 obj[key] 是动态访问的标准写法。读取不存在的属性返回 undefined，但读取 undefined 的属性会抛 TypeError，链式访问前要确认中间值存在。\n\n用对象做频次统计是经典套路：遍历数据，若 counts[key] === undefined 就置 1，否则加 1。这里不能写成 if (counts[key])，因为计数为 0 时会被当成假值，虽然本场景初值不会是 0，但习惯上应显式判断 undefined。统计完成后，用 Object.keys(counts).length 可以得到不同键的数量。Object.keys 只返回自身可枚举属性，不含原型上的方法；for-in 会连原型上的可枚举属性一起遍历。需要完整复制时用 Object.assign，它也只复制自身可枚举属性。理解「自身」和「继承」的边界，才能解释为什么有些属性打印不出来。"
+      },
+      {
+        "type": "text",
+        "text": "对象是 JS 的核心数据结构，几乎所有复杂数据都用它表达。写对象时键名尽量用有意义的英文单词，避免拼音和缩写。嵌套层次控制在三层以内，太深的结构应该拆成多个对象或改用扁平结构加 id 引用。遍历对象时，Object.keys 返回自身可枚举键，for-in 还会遍历原型链上的可枚举属性，两者在继承场景下结果不同。需要完整复制时注意浅复制只复制第一层，嵌套对象仍然共享。判断两个对象是否相等，=== 比较的是引用，内容相等要自己逐字段比较或序列化后比较。\n\n对象字面量的键可以是标识符、字符串或数字，写成 { name: 'V', 'level': 66, 1: 'x' } 都合法。访问时点号只适合合法标识符，其他情况用中括号。对象的方法本质上是属性值为函数的属性，调用时 this 指向对象本身。遍历对象推荐 Object.keys 加普通 for，顺序可控；for-in 会遍历原型链，需要 hasOwnProperty 过滤。删除属性用 delete，但它不会释放内存，只是断开引用。\n\n对象的可枚举性影响遍历结果：通过字面量和方法定义的属性默认可枚举，Object.defineProperty 可以控制。JSON.stringify 只序列化可枚举的自身属性。原型上的属性不会被 Object.keys 返回，但 for-in 会遍历到。理解这些差异，才能解释「为什么打印出来有、遍历却拿不到」这类问题。对象嵌套过深时，考虑用扁平结构加 id 引用，读写都更简单。"
+      },
+      {
+        "type": "text",
+        "text": "对象和数组的组合几乎能表达所有结构化数据：用户列表是对象数组，配置是嵌套对象，索引是键值映射。写业务代码时先设计数据结构，再写操作函数。数据结构清晰，逻辑就短；数据结构混乱，再多技巧也救不回来。对象字段的命名保持一致，比如统一用 camelCase，避免同一个概念在不同地方叫不同名字。"
+      },
+      {
+        "type": "code",
+        "code": "var agent = { name: 'V', level: 66, online: true };\n\nconsole.log(agent.name);\nconsole.log(agent['level']);\nconsole.log('name' in agent);\nconsole.log('rank' in agent);\nconsole.log(Object.keys(agent).join(','));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "V\n66\ntrue\nfalse\nname,level,online"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "需求",
+          "写法",
+          "说明"
+        ],
+        "rows": [
+          [
+            "读属性",
+            "obj.key / obj['key']",
+            "不存在的键返回 undefined"
+          ],
+          [
+            "写属性",
+            "obj.key = value",
+            "键不存在就新增"
+          ],
+          [
+            "删除属性",
+            "delete obj.key",
+            "删除后 in 返回 false"
+          ],
+          [
+            "列出键",
+            "Object.keys(obj)",
+            "只含自身可枚举属性"
+          ],
+          [
+            "遍历键值",
+            "Object.entries(obj)",
+            "返回 [key, value] 数组的数组"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "中括号里的键会被转成字符串：obj[1] 和 obj['1'] 是同一个属性。用对象当键会得到 '[object Object]'，需要真正的对象键请用 Map。"
+      },
+      {
+        "type": "quiz",
+        "question": "var o = {}; console.log(o.missing); 输出什么？",
+        "options": [
+          "null",
+          "undefined",
+          "报错 ReferenceError",
+          "0"
+        ],
+        "answer": 1,
+        "explain": "读取不存在的属性返回 undefined，不报错。这也是为什么拼错属性名时程序会安静地出错。"
+      },
+      {
+        "type": "code",
+        "code": "function freq(text) {\n  var counts = {};\n  for (var i = 0; i < text.length; i++) {\n    var ch = text[i];\n    if (counts[ch] === undefined) {\n      counts[ch] = 1;\n    } else {\n      counts[ch] = counts[ch] + 1;\n    }\n  }\n  return counts;\n}\n\nvar result = freq('aab');\nconsole.log(JSON.stringify(result));\nconsole.log(Object.keys(result).length);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "{\"a\":2,\"b\":1}\n2"
+      },
+      {
+        "type": "practice",
+        "title": "对象读写",
+        "code": "var profile = { name: 'Judy', tags: ['netrunner'] };\n\nprofile.level = 42;\ndelete profile.tags;\n\nconsole.log(profile.name, profile.level);\nconsole.log('tags' in profile);",
+        "output": "Judy 42\nfalse",
+        "hint": "点号新增属性；delete 删除后 in 返回 false。"
+      }
+    ],
+    "exercise": {
+      "title": "字符频率统计",
+      "brief": "实现 freq(text)：返回每个字符出现次数的对象。freq('aab') 应得到 { a: 2, b: 1 }。",
+      "starterCode": "function freq(text) {\n  // 遍历字符，用对象累计次数\n\n}\n\nconsole.log(JSON.stringify(freq('aab')));",
+      "hint": "counts[ch] === undefined 时置 1，否则 counts[ch] += 1；最后返回 counts。",
+      "tests": [
+        "var c1 = freq('aab');\nassert(c1.a === 2, 'a 应出现 2 次')",
+        "assert(c1.b === 1, 'b 应出现 1 次')",
+        "var c2 = freq('');\nassert(Object.keys(c2).length === 0, '空串应得到空对象')",
+        "var c3 = freq('xyx');\nassert(c3.x === 2 && c3.y === 1, '多字符统计')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function freq(text) {\n  var counts = {};\n  for (var i = 0; i < text.length; i++) {\n    var ch = text[i];\n    if (counts[ch] === undefined) counts[ch] = 1;\n    else counts[ch] = counts[ch] + 1;\n  }\n  return counts;\n}\n\nconsole.log(JSON.stringify(freq('aab')));"
+    }
+  },
+  {
+    "id": "js09",
+    "order": 308,
+    "chapter": 21,
+    "chapterName": "JavaScript · 基础篇",
+    "lang": "javascript",
+    "title": "函数与参数",
+    "subtitle": "声明、表达式、返回值与 rest",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把逻辑封装成可复用的盒子"
+      },
+      {
+        "type": "text",
+        "text": "函数是 JS 的一等公民：它可以被声明、赋值给变量、作为参数传递、作为返回值返回。声明式函数 function add(a, b) 会被提升，可以在定义之前调用；函数表达式 var add = function (a, b) 不会提升，必须先赋值再调用。箭头函数是表达式的简写，(a, b) => a + b，适合短小的回调，但它没有自己的 this 和 arguments。函数的 length 属性表示声明时的形参个数，不包含 rest 参数；arguments.length 表示实际传入的实参个数。两者可以不同。ES6 之后推荐用 rest 参数代替 arguments，因为 rest 得到真正的数组，可以直接用 map/filter，而 arguments 是类数组对象。\n\n参数是按值传递的：基本类型传副本，对象传引用的副本，所以函数内部修改对象属性会影响外部，但重新给参数赋值不会改变外部变量。参数个数不匹配不会报错：少传得到 undefined，多传会被忽略（可用 arguments 或 rest 参数收集）。rest 参数写作 ...args，必须是最后一个参数，得到真正的数组。函数声明会被整体提升，函数表达式不会。把函数赋给变量时，变量声明提升但赋值不提升，所以在赋值前调用会得到 TypeError: not a function。团队协作时统一用函数声明写顶层工具函数，用函数表达式写回调和局部逻辑，可以减少这类时序问题。"
+      },
+      {
+        "type": "text",
+        "text": "return 立即结束函数并交回一个值；不写 return 的函数返回 undefined。不要用 console.log 代替 return——打印只是给人看，返回值才是给调用者用的。一个函数最好只做一件事：计算就返回结果，输出交给调用方；这样它才能被测试、被复用、被组合。参数超过三个时，考虑改传一个配置对象。返回值决定函数的可用性。只打印不返回的函数难以组合，也难以测试；返回值的函数可以被断言、被缓存、被传给下一个函数。写函数时先问「调用方需要什么」，把结果 return 出去，把展示留给最外层。\n\n函数是代码复用和抽象的基本单位。写函数前先想清楚输入、输出和副作用：输入是参数，输出是返回值，副作用是打印、修改外部变量、读写文件等。理想的函数只有输入和输出，副作用集中在外层。参数设计上，超过三个就考虑改传对象，调用处可读性更好，也方便以后扩展。返回值要稳定：同一个函数不要有时返回数字、有时返回 null、有时返回 undefined，调用方会疯掉。函数名用动词开头，见名知意，比写注释更有效。"
+      },
+      {
+        "type": "text",
+        "text": "参数默认值在本运行时不支持，用 if (x === undefined) x = 默认值 代替。rest 参数必须是最后一个，收集到的是真正的数组。arguments 是类数组对象，需要 Array.prototype.slice.call 转数组。函数可以作为返回值，这是闭包和工厂函数的基础。写递归函数时，基准情形要放在最前面，递归步骤要保证规模缩小。函数不要过长，超过一屏就该拆分，每个函数只做一件事。\n\n函数参数的设计要稳定：一旦发布，增删参数都可能破坏调用方。新增可选参数放在末尾，用 undefined 判断是否传入。返回值类型要一致，不要因为分支不同返回不同结构。函数内部不要依赖外部的可变全局变量，否则同样的输入可能得到不同输出。把依赖显式传入，测试时就能轻松替换。"
+      },
+      {
+        "type": "code",
+        "code": "function total() {\n  var sum = 0;\n  for (var i = 0; i < arguments.length; i++) {\n    sum = sum + arguments[i];\n  }\n  return sum;\n}\n\nfunction average() {\n  var args = Array.prototype.slice.call(arguments);\n  return total.apply(null, args) / args.length;\n}\n\nconsole.log(total(1, 2, 3, 4));\nconsole.log(average(2, 4, 6));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "10\n4"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "示例",
+          "关键差异"
+        ],
+        "rows": [
+          [
+            "函数声明",
+            "function add(a, b) {}",
+            "会提升，可先调用后定义"
+          ],
+          [
+            "函数表达式",
+            "var add = function (a, b) {}",
+            "不提升，赋值后才可用"
+          ],
+          [
+            "箭头函数",
+            "var add = (a, b) => a + b;",
+            "无自己的 this/arguments"
+          ],
+          [
+            "rest 参数",
+            "function f(...args) {}",
+            "收集剩余参数为数组"
+          ]
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "箭头函数不能用作构造函数，也没有 arguments。需要动态 this 的方法不要写成箭头函数，否则 this 会指向外层作用域。"
+      },
+      {
+        "type": "quiz",
+        "question": "function f(a, b) { return a + b; } console.log(f(1)); 输出什么？",
+        "options": [
+          "1",
+          "2",
+          "NaN",
+          "报错"
+        ],
+        "answer": 2,
+        "explain": "少传的 b 是 undefined，1 + undefined 得到 NaN。参数缺省不会自动补 0。"
+      },
+      {
+        "type": "order",
+        "title": "把函数调用链排成正确顺序",
+        "lines": [
+          "定义函数 add(a, b)",
+          "调用 add(2, 3) 得到 5",
+          "把返回值传给 console.log",
+          "控制台输出 5"
+        ]
+      },
+      {
+        "type": "code",
+        "code": "function makeBadge(name, role) {\n  return '[' + role + '] ' + name;\n}\n\nvar badge = makeBadge('V', 'netrunner');\n\nconsole.log(badge);\nconsole.log(badge.length);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "[netrunner] V\n13"
+      },
+      {
+        "type": "practice",
+        "title": "默认值的手动写法",
+        "code": "function greet(name) {\n  if (name === undefined) name = 'anonymous';\n  return 'hi, ' + name;\n}\n\nconsole.log(greet('Judy'));\nconsole.log(greet());",
+        "output": "hi, Judy\nhi, anonymous",
+        "hint": "本运行时支持 rest 参数但不支持默认参数，用 if (name === undefined) 手动兜底。"
+      }
+    ],
+    "exercise": {
+      "title": "重复拼接",
+      "brief": "实现 repeatJoin(word, times, sep)：把 word 重复 times 次，用 sep 连接；times 小于等于 0 时返回空字符串。",
+      "starterCode": "function repeatJoin(word, times, sep) {\n  // 用循环收集，再 join\n\n}\n\nconsole.log(repeatJoin('ab', 3, '-'));",
+      "hint": "var parts = []; for (var i = 0; i < times; i++) parts.push(word); return parts.join(sep);",
+      "tests": [
+        "assert(repeatJoin('ab', 3, '-') === 'ab-ab-ab', '重复 3 次用 - 连接')",
+        "assert(repeatJoin('x', 1, ',') === 'x', '只重复 1 次')",
+        "assert(repeatJoin('x', 0, ',') === '', '0 次应返回空串')",
+        "assert(repeatJoin('a', 2, '') === 'aa', '分隔符可以为空')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function repeatJoin(word, times, sep) {\n  var parts = [];\n  for (var i = 0; i < times; i++) {\n    parts.push(word);\n  }\n  return parts.join(sep);\n}\n\nconsole.log(repeatJoin('ab', 3, '-'));"
+    }
+  },
+  {
+    "id": "js10",
+    "order": 309,
+    "chapter": 21,
+    "chapterName": "JavaScript · 基础篇",
+    "lang": "javascript",
+    "title": "作用域与提升",
+    "subtitle": "变量住在哪一层",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "可见性决定一切"
+      },
+      {
+        "type": "text",
+        "text": "作用域是变量能被访问的范围。JS 有三层：全局作用域、函数作用域、块级作用域（let/const 引入）。函数内部可以访问外部的变量，外部不能访问函数内部的变量；内层同名变量会遮蔽（shadow）外层变量。查找变量时从当前作用域逐层向外，直到全局；找不到就抛 ReferenceError。全局变量是事故的温床：任何函数都能改它，任何脚本都能覆盖它。浏览器里 var 声明的顶层变量会挂到 window 上，Node 里模块作用域稍好一些，但污染依然危险。把代码包进函数或 IIFE，是控制影响范围最直接的办法。\n\n提升（hoisting）是 JS 在进入作用域前先登记声明的机制。var 声明的变量会被提升到函数顶部，但赋值留在原处，所以声明前访问得到 undefined，而不是报错。函数声明整体被提升，可以在定义之前调用。标准 JS 里 let/const 也有暂时性死区（TDZ），声明前访问会抛 ReferenceError；但本课程使用的 Rhino 运行时在脚本顶层把 let/const 处理得接近 var，声明前读到 undefined。知道标准与实现的差异，比背结论更重要。遮蔽（shadowing）指内层声明了同名变量，外层变量在内层不可见。适度遮蔽能让变量名贴近上下文，过度遮蔽会让人误以为在改外层变量。遇到「为什么改了没生效」，先检查是不是声明了一个新的同名变量。"
+      },
+      {
+        "type": "text",
+        "text": "闭包是作用域规则的自然结果：函数会记住它定义时所在的作用域，即使外层函数已经返回，内层函数仍能读取那些变量。后面核心篇会专门展开。现在先建立一个判断标准：看一个变量属于谁，不看它在哪一行被使用，而看它在哪里被声明。把变量声明得离使用处越近，作用域越小，出错概率越低。严格模式 'use strict' 会禁止未声明赋值、禁止删除变量、让普通调用的 this 变成 undefined。它把一批静默失败变成显式报错，是现代代码的默认姿势。本运行时的脚本默认非严格，你可以在函数或文件开头手动加上这行字符串。\n\n作用域链是在函数定义时确定的，不是调用时。这解释了为什么闭包能记住外层变量，也解释了为什么在哪个函数里调用不影响变量的查找顺序。变量查找从当前作用域开始，逐层向外，直到全局；找不到就抛 ReferenceError，而不是返回 undefined。区分「变量未声明」和「变量已声明但值为 undefined」很重要：前者报错，后者可以安全比较。把变量声明在离使用最近的地方，作用域最小，命名冲突最少，调试也最容易。"
+      },
+      {
+        "type": "text",
+        "text": "提升规则可以用一句话总结：声明被提前，赋值留在原地。var 的声明提升到函数顶部，函数声明整体提升，let/const 提升但不初始化（暂时性死区）。本运行时的 let/const 实际表现接近 var，声明前访问得到 undefined 而不是报错，写课程示例时不要依赖这个差异。作用域越小越好：块级作用域、函数作用域、模块作用域，逐层收窄。全局变量只保留真正需要共享的配置，其余一律放进函数或模块。\n\n调试作用域问题时，先确认变量是在哪一层声明的，再看使用点位于哪一层。如果同名变量出现在多个层级，打印时加不同的标签区分。全局变量可以用 window 或 globalThis 检查，但本运行时没有这些对象，靠代码审查更实际。把代码包进函数或 IIFE，是避免全局污染最直接的手段，也是后面模块模式的基础。"
+      },
+      {
+        "type": "code",
+        "code": "console.log('var before:', typeof legacy);\n\nvar legacy = 'assigned';\n\nfunction hoisted() {\n  return 'function is hoisted';\n}\n\nconsole.log(hoisted());\nconsole.log('var after:', legacy);\n\ntry {\n  console.log(undeclaredName);\n} catch (e) {\n  console.log('undeclared error:', e.name);\n}\n\nlet modern = 'block';\nconsole.log('let after:', modern);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "var before: undefined\nfunction is hoisted\nvar after: assigned\nundeclared error: ReferenceError\nlet after: block"
+      },
+      {
+        "type": "diagram",
+        "text": "全局作用域\n  └─ 函数 outer\n       ├─ var x（函数级，整段可见）\n       └─ 块 { let y }（只在该块内可见）\n            └─ 内层函数可读取 x / y（闭包）"
+      },
+      {
+        "type": "warn",
+        "text": "var 在 for 循环中只有一个变量，循环结束后仍是最后一个值；let 在每次迭代会创建新的绑定，更适合配合回调。但本运行时对 let 的每次迭代绑定支持不完整，写闭包时用函数工厂而不是依赖循环变量。"
+      },
+      {
+        "type": "quiz",
+        "question": "console.log(x); var x = 5; 输出什么？",
+        "options": [
+          "5",
+          "undefined",
+          "报错 ReferenceError",
+          "null"
+        ],
+        "answer": 1,
+        "explain": "var 声明被提升，赋值没有；所以此时 x 已存在但值是 undefined。"
+      },
+      {
+        "type": "fill",
+        "goal": "补全代码：让函数内部的变量不污染全局",
+        "code": "function run() {\n  ____ secret = 'local';\n  return secret;\n}",
+        "answer": "var",
+        "explain": "函数内部用 var（或 let/const）声明，变量就属于函数作用域；不加关键字会创建或修改全局变量。"
+      },
+      {
+        "type": "code",
+        "code": "var label = 'global';\n\nfunction show() {\n  var label = 'local';\n  return label;\n}\n\nfunction readGlobal() {\n  return label;\n}\n\nconsole.log(show());\nconsole.log(readGlobal());\nconsole.log(label);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "local\nglobal\nglobal"
+      },
+      {
+        "type": "task",
+        "text": "把 show 里的 var 改成 let，观察块级作用域；再访问一个从未声明的变量，对比 ReferenceError 与 undefined 的区别。"
+      }
+    ],
+    "exercise": {
+      "title": "乘法器工厂",
+      "brief": "实现 makeMultiplier(factor)：返回一个函数，调用它时传入数字 x，返回 x * factor。两次调用 makeMultiplier 得到的函数互不影响。",
+      "starterCode": "function makeMultiplier(factor) {\n  // 返回一个函数，它记住 factor\n\n}\n\nvar triple = makeMultiplier(3);\nconsole.log(triple(5));",
+      "hint": "在 makeMultiplier 内部写 return function (x) { return x * factor; }; factor 被内层函数捕获，这就是闭包。",
+      "tests": [
+        "assert(makeMultiplier(3)(5) === 15, '3 倍器：5 -> 15')",
+        "assert(makeMultiplier(0)(99) === 0, '0 倍器任何数都是 0')",
+        "assert(makeMultiplier(-2)(4) === -8, '负数因子也要正确')",
+        "var a = makeMultiplier(2);\nvar b = makeMultiplier(10);\nassert(a(3) === 6 && b(3) === 30, '两个工厂互不影响')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function makeMultiplier(factor) {\n  return function (x) {\n    return x * factor;\n  };\n}\n\nvar triple = makeMultiplier(3);\nconsole.log(triple(5));\nconsole.log(makeMultiplier(10)(2));"
+    }
+  }
+]

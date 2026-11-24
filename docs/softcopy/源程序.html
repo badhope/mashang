@@ -1618,79 +1618,7 @@ object&nbsp;CInterpreter&nbsp;{
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">31 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;softEyeCare,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;paperLight
-&nbsp;&nbsp;&nbsp;&nbsp;)
-
-&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;按&nbsp;id&nbsp;找主题，找不到就回赛博霓虹。
-
-&nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;getThemeById(id:&nbsp;String):&nbsp;AppTheme&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;allThemes.find&nbsp;{&nbsp;it.id&nbsp;==&nbsp;id&nbsp;}&nbsp;?:&nbsp;cyberNeon
-&nbsp;&nbsp;&nbsp;&nbsp;}
-
-&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;自定义主题在&nbsp;ThemePreference&nbsp;里的固定&nbsp;id。
-&nbsp;&nbsp;&nbsp;&nbsp;const&nbsp;val&nbsp;CUSTOM_THEME_ID&nbsp;=&nbsp;&quot;custom&quot;
-
-&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;支持&nbsp;#RRGGBB&nbsp;和&nbsp;#AARRGGBB，格式不对返回&nbsp;null。
-&nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;parseHex(hex:&nbsp;String):&nbsp;Color?&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;trimmed&nbsp;=&nbsp;hex.trim().removePrefix(&quot;#&quot;)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(trimmed.length&nbsp;!=&nbsp;6&nbsp;&amp;&amp;&nbsp;trimmed.length&nbsp;!=&nbsp;8)&nbsp;return&nbsp;null
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;try&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Color(AndroidColor.parseColor(&quot;#$trimmed&quot;))
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;catch&nbsp;(_:&nbsp;IllegalArgumentException)&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;null
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;}
-
-&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;拿一个主色生成整套主题。辅助色和强调色在色环上往后转，饱和度降一点；
-&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;主色太暗就换成亮底，不然字看不清。
-&nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;customTheme(hexColor:&nbsp;String):&nbsp;AppTheme&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;base&nbsp;=&nbsp;parseHex(hexColor)&nbsp;?:&nbsp;cyberNeon.primary
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;hsv&nbsp;=&nbsp;FloatArray(3)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AndroidColor.colorToHSV(base.toArgb(),&nbsp;hsv)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;h&nbsp;=&nbsp;hsv[0];&nbsp;val&nbsp;s&nbsp;=&nbsp;hsv[1];&nbsp;val&nbsp;v&nbsp;=&nbsp;hsv[2]
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;secondary&nbsp;=&nbsp;Color(AndroidColor.HSVToColor(floatArrayOf((h&nbsp;+&nbsp;0.11f)&nbsp;%&nbsp;1f,&nbsp;(s&nbsp;*&nbsp;0.85f).coerceIn(0f,&nbsp;1f),&nbsp;v)))
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;accent&nbsp;=&nbsp;Color(AndroidColor.HSVToColor(floatArrayOf((h&nbsp;+&nbsp;0.22f)&nbsp;%&nbsp;1f,&nbsp;(s&nbsp;*&nbsp;0.70f).coerceIn(0f,&nbsp;1f),&nbsp;v)))
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;light&nbsp;=&nbsp;v&nbsp;&lt;&nbsp;0.35f
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;baseTheme&nbsp;=&nbsp;if&nbsp;(light)&nbsp;paperLight&nbsp;else&nbsp;cyberNeon
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;AppTheme(
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;id&nbsp;=&nbsp;CUSTOM_THEME_ID,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;name&nbsp;=&nbsp;&quot;自定义&quot;,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;primary&nbsp;=&nbsp;base,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;secondary&nbsp;=&nbsp;secondary,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;accent&nbsp;=&nbsp;accent,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;background&nbsp;=&nbsp;baseTheme.background,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;surface&nbsp;=&nbsp;baseTheme.surface,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;surfaceHigh&nbsp;=&nbsp;baseTheme.surfaceHigh,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;textPrimary&nbsp;=&nbsp;baseTheme.textPrimary,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;textSecondary&nbsp;=&nbsp;baseTheme.textSecondary,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;textDim&nbsp;=&nbsp;baseTheme.textDim,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;isLight&nbsp;=&nbsp;light
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
-&nbsp;&nbsp;&nbsp;&nbsp;}</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">32 / 60</span></div>
-  <div class="src">}
-package&nbsp;com.pyneon.academy.ui.theme
-
-import&nbsp;androidx.compose.runtime.Composable
-import&nbsp;androidx.compose.runtime.staticCompositionLocalOf
-import&nbsp;androidx.compose.ui.graphics.Color
-
-//&nbsp;界面颜色都从这里取。切主题就是换一套值，调用方不用动。
-data&nbsp;class&nbsp;NeonTokens(
-&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;背景层级（从最深到最浅）
-&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;bg0:&nbsp;Color,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;页面主背景
-&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;bg1:&nbsp;Color,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;次级背景（代码/输出面板等）
-&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;surfaceDark:&nbsp;Color,&nbsp;&nbsp;//&nbsp;卡片/弹窗表面
-&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;surfaceHigh:&nbsp;Color,&nbsp;&nbsp;//&nbsp;高亮表面（表头、输入框等）
-&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;文字层级（从最亮到最暗）
-&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;textHi:&nbsp;Color,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;主文字
-&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;textMid:&nbsp;Color,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;次级文字
-&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;textDim:&nbsp;Color,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;弱化文字
-&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;强调色，每套主题单独调过，保证在各自背景上看得清。
-&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;primary:&nbsp;Color,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;主色（青）
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;primary:&nbsp;Color,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;主色（青）
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;secondary:&nbsp;Color,&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;辅助色（品红）
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;accent:&nbsp;Color,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;强调色（黄）
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;success:&nbsp;Color,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;成功绿
@@ -1720,11 +1648,8 @@ val&nbsp;DarkTokens&nbsp;=&nbsp;NeonTokens(
 )
 
 //&nbsp;白纸主题，颜色按白底重新调过。
-val&nbsp;LightTokens&nbsp;=&nbsp;NeonTokens(</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">33 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;bg0&nbsp;=&nbsp;Color(0xFFF5F7FB),
+val&nbsp;LightTokens&nbsp;=&nbsp;NeonTokens(
+&nbsp;&nbsp;&nbsp;&nbsp;bg0&nbsp;=&nbsp;Color(0xFFF5F7FB),
 &nbsp;&nbsp;&nbsp;&nbsp;bg1&nbsp;=&nbsp;Color(0xFFE9EEF5),
 &nbsp;&nbsp;&nbsp;&nbsp;surfaceDark&nbsp;=&nbsp;Color(0xFFFFFFFF),
 &nbsp;&nbsp;&nbsp;&nbsp;surfaceHigh&nbsp;=&nbsp;Color(0xFFE2E8F2),
@@ -1742,8 +1667,11 @@ val&nbsp;LightTokens&nbsp;=&nbsp;NeonTokens(</div>
 )
 
 val&nbsp;LocalNeonTokens&nbsp;=&nbsp;staticCompositionLocalOf&nbsp;{&nbsp;DarkTokens&nbsp;}
-
-//&nbsp;背景层级
+</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">32 / 60</span></div>
+  <div class="src">//&nbsp;背景层级
 val&nbsp;Bg0:&nbsp;Color
 &nbsp;&nbsp;&nbsp;&nbsp;@Composable&nbsp;get()&nbsp;=&nbsp;LocalNeonTokens.current.bg0
 val&nbsp;Bg1:&nbsp;Color
@@ -1773,11 +1701,8 @@ val&nbsp;NeonYellow:&nbsp;Color
 val&nbsp;NeonPurple:&nbsp;Color
 &nbsp;&nbsp;&nbsp;&nbsp;@Composable&nbsp;get()&nbsp;=&nbsp;LocalNeonTokens.current.purple
 val&nbsp;DangerRed:&nbsp;Color
-&nbsp;&nbsp;&nbsp;&nbsp;@Composable&nbsp;get()&nbsp;=&nbsp;LocalNeonTokens.current.danger</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">34 / 60</span></div>
-  <div class="src">package&nbsp;com.pyneon.academy.ui.theme
+&nbsp;&nbsp;&nbsp;&nbsp;@Composable&nbsp;get()&nbsp;=&nbsp;LocalNeonTokens.current.danger
+package&nbsp;com.pyneon.academy.ui.theme
 
 import&nbsp;androidx.compose.foundation.shape.CutCornerShape
 import&nbsp;androidx.compose.material3.Shapes
@@ -1795,8 +1720,11 @@ package&nbsp;com.pyneon.academy.ui.theme
 import&nbsp;androidx.compose.material3.ColorScheme
 import&nbsp;androidx.compose.material3.MaterialTheme
 import&nbsp;androidx.compose.material3.darkColorScheme
-import&nbsp;androidx.compose.material3.lightColorScheme
-import&nbsp;androidx.compose.runtime.Composable
+import&nbsp;androidx.compose.material3.lightColorScheme</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">33 / 60</span></div>
+  <div class="src">import&nbsp;androidx.compose.runtime.Composable
 import&nbsp;androidx.compose.runtime.CompositionLocalProvider
 
 //&nbsp;按&nbsp;AppTheme&nbsp;生成&nbsp;Material&nbsp;配色。亮暗只差基底和&nbsp;error，其余统一&nbsp;copy&nbsp;覆盖。
@@ -1826,11 +1754,8 @@ private&nbsp;fun&nbsp;createColorScheme(theme:&nbsp;AppTheme):&nbsp;ColorScheme&
 }
 
 //&nbsp;默认赛博霓虹配色。给预览和旧调用点用，直接取深色常量。
-private&nbsp;val&nbsp;PyNeonColorScheme&nbsp;=&nbsp;darkColorScheme(</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">35 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;primary&nbsp;=&nbsp;DarkTokens.primary,
+private&nbsp;val&nbsp;PyNeonColorScheme&nbsp;=&nbsp;darkColorScheme(
+&nbsp;&nbsp;&nbsp;&nbsp;primary&nbsp;=&nbsp;DarkTokens.primary,
 &nbsp;&nbsp;&nbsp;&nbsp;onPrimary&nbsp;=&nbsp;DarkTokens.bg0,
 &nbsp;&nbsp;&nbsp;&nbsp;primaryContainer&nbsp;=&nbsp;DarkTokens.surfaceHigh,
 &nbsp;&nbsp;&nbsp;&nbsp;onPrimaryContainer&nbsp;=&nbsp;DarkTokens.primary,
@@ -1848,8 +1773,11 @@ private&nbsp;val&nbsp;PyNeonColorScheme&nbsp;=&nbsp;darkColorScheme(</div>
 &nbsp;&nbsp;&nbsp;&nbsp;onSurfaceVariant&nbsp;=&nbsp;DarkTokens.textMid,
 &nbsp;&nbsp;&nbsp;&nbsp;outline&nbsp;=&nbsp;DarkTokens.textDim,
 &nbsp;&nbsp;&nbsp;&nbsp;error&nbsp;=&nbsp;DarkTokens.danger,
-&nbsp;&nbsp;&nbsp;&nbsp;onError&nbsp;=&nbsp;DarkTokens.bg0
-)
+&nbsp;&nbsp;&nbsp;&nbsp;onError&nbsp;=&nbsp;DarkTokens.bg0</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">34 / 60</span></div>
+  <div class="src">)
 
 //&nbsp;默认主题，不跟系统切换。
 @Composable
@@ -1879,11 +1807,8 @@ fun&nbsp;PyNeonTheme(
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;colorScheme&nbsp;=&nbsp;createColorScheme(appTheme),
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;typography&nbsp;=&nbsp;typographyFor(fontScale),
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;shapes&nbsp;=&nbsp;AppShapes,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;content&nbsp;=&nbsp;content</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">36 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;content&nbsp;=&nbsp;content
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
 &nbsp;&nbsp;&nbsp;&nbsp;}
 }
 package&nbsp;com.pyneon.academy.ui.theme
@@ -1901,8 +1826,11 @@ val&nbsp;AppTypography&nbsp;=&nbsp;Typography(
 &nbsp;&nbsp;&nbsp;&nbsp;headlineSmall&nbsp;=&nbsp;TextStyle(fontFamily&nbsp;=&nbsp;FontFamily.Monospace,&nbsp;fontWeight&nbsp;=&nbsp;FontWeight.Bold,&nbsp;fontSize&nbsp;=&nbsp;20.sp,&nbsp;lineHeight&nbsp;=&nbsp;28.sp),
 &nbsp;&nbsp;&nbsp;&nbsp;titleLarge&nbsp;=&nbsp;TextStyle(fontFamily&nbsp;=&nbsp;FontFamily.Monospace,&nbsp;fontWeight&nbsp;=&nbsp;FontWeight.Bold,&nbsp;fontSize&nbsp;=&nbsp;18.sp,&nbsp;lineHeight&nbsp;=&nbsp;26.sp),
 &nbsp;&nbsp;&nbsp;&nbsp;titleMedium&nbsp;=&nbsp;TextStyle(fontFamily&nbsp;=&nbsp;FontFamily.Monospace,&nbsp;fontWeight&nbsp;=&nbsp;FontWeight.Bold,&nbsp;fontSize&nbsp;=&nbsp;15.sp,&nbsp;lineHeight&nbsp;=&nbsp;22.sp),
-&nbsp;&nbsp;&nbsp;&nbsp;bodyLarge&nbsp;=&nbsp;TextStyle(fontSize&nbsp;=&nbsp;16.sp,&nbsp;lineHeight&nbsp;=&nbsp;25.sp),
-&nbsp;&nbsp;&nbsp;&nbsp;bodyMedium&nbsp;=&nbsp;TextStyle(fontSize&nbsp;=&nbsp;14.sp,&nbsp;lineHeight&nbsp;=&nbsp;22.sp),
+&nbsp;&nbsp;&nbsp;&nbsp;bodyLarge&nbsp;=&nbsp;TextStyle(fontSize&nbsp;=&nbsp;16.sp,&nbsp;lineHeight&nbsp;=&nbsp;25.sp),</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">35 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;bodyMedium&nbsp;=&nbsp;TextStyle(fontSize&nbsp;=&nbsp;14.sp,&nbsp;lineHeight&nbsp;=&nbsp;22.sp),
 &nbsp;&nbsp;&nbsp;&nbsp;bodySmall&nbsp;=&nbsp;TextStyle(fontSize&nbsp;=&nbsp;12.sp,&nbsp;lineHeight&nbsp;=&nbsp;18.sp),
 &nbsp;&nbsp;&nbsp;&nbsp;labelLarge&nbsp;=&nbsp;TextStyle(fontFamily&nbsp;=&nbsp;FontFamily.Monospace,&nbsp;fontWeight&nbsp;=&nbsp;FontWeight.Bold,&nbsp;fontSize&nbsp;=&nbsp;13.sp,&nbsp;lineHeight&nbsp;=&nbsp;20.sp),
 &nbsp;&nbsp;&nbsp;&nbsp;labelMedium&nbsp;=&nbsp;TextStyle(fontFamily&nbsp;=&nbsp;FontFamily.Monospace,&nbsp;fontWeight&nbsp;=&nbsp;FontWeight.Bold,&nbsp;fontSize&nbsp;=&nbsp;12.sp,&nbsp;lineHeight&nbsp;=&nbsp;18.sp),
@@ -1932,11 +1860,8 @@ enum&nbsp;class&nbsp;FontScale(val&nbsp;id:&nbsp;String,&nbsp;val&nbsp;label:&nb
 
 //&nbsp;按档位生成排版，只放大三档正文。标题和标签不动，
 //&nbsp;不然中文标题在窄屏上会乱换行。
-fun&nbsp;typographyFor(scale:&nbsp;FontScale):&nbsp;Typography&nbsp;{</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">37 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(scale&nbsp;==&nbsp;FontScale.NORMAL)&nbsp;return&nbsp;AppTypography
+fun&nbsp;typographyFor(scale:&nbsp;FontScale):&nbsp;Typography&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(scale&nbsp;==&nbsp;FontScale.NORMAL)&nbsp;return&nbsp;AppTypography
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;f&nbsp;=&nbsp;scale.factor
 &nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;TextStyle.scaled():&nbsp;TextStyle&nbsp;=&nbsp;copy(
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fontSize&nbsp;=&nbsp;(fontSize.value&nbsp;*&nbsp;f).sp,
@@ -1954,8 +1879,11 @@ package&nbsp;com.pyneon.academy.ui.theme
 import&nbsp;androidx.compose.foundation.shape.CutCornerShape
 import&nbsp;androidx.compose.foundation.shape.RoundedCornerShape
 import&nbsp;androidx.compose.runtime.Composable
-import&nbsp;androidx.compose.runtime.staticCompositionLocalOf
-import&nbsp;androidx.compose.ui.graphics.Shape
+import&nbsp;androidx.compose.runtime.staticCompositionLocalOf</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">36 / 60</span></div>
+  <div class="src">import&nbsp;androidx.compose.ui.graphics.Shape
 import&nbsp;androidx.compose.ui.unit.dp
 
 /**
@@ -1985,11 +1913,8 @@ enum&nbsp;class&nbsp;VisualStyle(
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;backdropEnabled:&nbsp;Boolean&nbsp;get()&nbsp;=&nbsp;this&nbsp;==&nbsp;CYBER
 
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;neonBorderEnabled:&nbsp;Boolean&nbsp;get()&nbsp;=&nbsp;this&nbsp;==&nbsp;CYBER
-</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">38 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;pressAnimationEnabled:&nbsp;Boolean&nbsp;get()&nbsp;=&nbsp;this&nbsp;==&nbsp;CYBER
+
+&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;pressAnimationEnabled:&nbsp;Boolean&nbsp;get()&nbsp;=&nbsp;this&nbsp;==&nbsp;CYBER
 
 &nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;赛博用切角，简洁用圆角。
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;cardShape:&nbsp;Shape
@@ -2007,8 +1932,11 @@ val&nbsp;LocalVisualStyle&nbsp;=&nbsp;staticCompositionLocalOf&nbsp;{&nbsp;Visua
 
 //&nbsp;必须是&nbsp;Composable&nbsp;函数：CompositionLocal&nbsp;的&nbsp;current&nbsp;只能在&nbsp;Composable&nbsp;里读。
 @Composable
-fun&nbsp;isCyberStyle():&nbsp;Boolean&nbsp;=&nbsp;LocalVisualStyle.current&nbsp;==&nbsp;VisualStyle.CYBER
-package&nbsp;com.pyneon.academy.utils
+fun&nbsp;isCyberStyle():&nbsp;Boolean&nbsp;=&nbsp;LocalVisualStyle.current&nbsp;==&nbsp;VisualStyle.CYBER</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">37 / 60</span></div>
+  <div class="src">package&nbsp;com.pyneon.academy.utils
 
 import&nbsp;com.pyneon.academy.BuildConfig
 
@@ -2038,11 +1966,8 @@ object&nbsp;AppConstants&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;隐私政策也走&nbsp;GitCode，审核员那边打开更稳。
 &nbsp;&nbsp;&nbsp;&nbsp;const&nbsp;val&nbsp;PRIVACY_POLICY_URL&nbsp;=&nbsp;&quot;$REPO_URL/blob/main/PRIVACY_POLICY.md&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;const&nbsp;val&nbsp;TERMS_URL&nbsp;=&nbsp;&quot;$REPO_URL/blob/main/TERMS_OF_SERVICE.md&quot;
-}</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">39 / 60</span></div>
-  <div class="src">package&nbsp;com.pyneon.academy.utils
+}
+package&nbsp;com.pyneon.academy.utils
 
 import&nbsp;android.content.Context
 
@@ -2060,8 +1985,11 @@ object&nbsp;AppPrefs&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;prefs&nbsp;=&nbsp;context.getSharedPreferences(PREFS_NAME,&nbsp;Context.MODE_PRIVATE)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;prefs.edit().putBoolean(KEY_FIRST_LAUNCH,&nbsp;false).apply()
 &nbsp;&nbsp;&nbsp;&nbsp;}
-
-&nbsp;&nbsp;&nbsp;&nbsp;/**
+</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">38 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;/**
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*&nbsp;是否已同意隐私政策。华为/工信部要求：在收集/处理任何数据前必须取得明示同意。
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/
 &nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;isPrivacyConsented(context:&nbsp;Context):&nbsp;Boolean&nbsp;{
@@ -2091,11 +2019,8 @@ object&nbsp;HttpText&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;const&nbsp;val&nbsp;DEFAULT_TIMEOUT_MS&nbsp;=&nbsp;6000
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;const&nbsp;val&nbsp;DEFAULT_MAX_BYTES&nbsp;=&nbsp;5&nbsp;*&nbsp;1024&nbsp;*&nbsp;1024
 
-&nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;getText(</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">40 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;url:&nbsp;String,
+&nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;getText(
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;url:&nbsp;String,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;timeoutMs:&nbsp;Int&nbsp;=&nbsp;DEFAULT_TIMEOUT_MS,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;maxBytes:&nbsp;Int&nbsp;=&nbsp;DEFAULT_MAX_BYTES,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;accept:&nbsp;String&nbsp;=&nbsp;&quot;application/json&quot;,
@@ -2113,8 +2038,11 @@ object&nbsp;HttpText&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;connectTimeout&nbsp;=&nbsp;timeoutMs
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;readTimeout&nbsp;=&nbsp;timeoutMs
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;requestMethod&nbsp;=&nbsp;&quot;GET&quot;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;setRequestProperty(&quot;Accept&quot;,&nbsp;accept)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;setRequestProperty(&quot;User-Agent&quot;,&nbsp;userAgent)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;setRequestProperty(&quot;Accept&quot;,&nbsp;accept)</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">39 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;setRequestProperty(&quot;User-Agent&quot;,&nbsp;userAgent)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;try&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(conn.responseCode&nbsp;!in&nbsp;200..299)&nbsp;{
@@ -2144,11 +2072,8 @@ object&nbsp;HttpText&nbsp;{
 }
 package&nbsp;com.pyneon.academy.utils
 
-import&nbsp;android.content.Context</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">41 / 60</span></div>
-  <div class="src">import&nbsp;java.util.Locale
+import&nbsp;android.content.Context
+import&nbsp;java.util.Locale
 
 //&nbsp;简单文案表。中文为主，英文和日文有基础版本。
 object&nbsp;I18n&nbsp;{
@@ -2166,8 +2091,11 @@ object&nbsp;I18n&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;when&nbsp;(key)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;welcome.title&quot;&nbsp;-&gt;&nbsp;&quot;欢迎使用&nbsp;CodeLearning&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;welcome.subtitle&quot;&nbsp;-&gt;&nbsp;&quot;码上编程学院&quot;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;welcome.offline.title&quot;&nbsp;-&gt;&nbsp;&quot;完全离线学习&quot;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;welcome.offline.desc&quot;&nbsp;-&gt;&nbsp;&quot;内置语言运行时\n地铁、飞机、没网的地方都能学\n随时打开随时练&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;welcome.offline.title&quot;&nbsp;-&gt;&nbsp;&quot;完全离线学习&quot;</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">40 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;welcome.offline.desc&quot;&nbsp;-&gt;&nbsp;&quot;内置语言运行时\n地铁、飞机、没网的地方都能学\n随时打开随时练&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;welcome.gamification.title&quot;&nbsp;-&gt;&nbsp;&quot;游戏化成长&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;welcome.gamification.desc&quot;&nbsp;-&gt;&nbsp;&quot;XP&nbsp;和段位\n每日任务、成就徽章\n学一点就有一点反馈&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;welcome.snapshot.title&quot;&nbsp;-&gt;&nbsp;&quot;变量快照&quot;
@@ -2197,11 +2125,8 @@ object&nbsp;I18n&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;button.skip&quot;&nbsp;-&gt;&nbsp;&quot;Skip&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;button.start&quot;&nbsp;-&gt;&nbsp;&quot;Start&nbsp;Learning&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;-&gt;&nbsp;key
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">42 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;getJaString(key:&nbsp;String):&nbsp;String&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;when&nbsp;(key)&nbsp;{
@@ -2219,8 +2144,11 @@ package&nbsp;com.pyneon.academy.utils
 
 import&nbsp;android.content.Context
 import&nbsp;android.content.Intent
-import&nbsp;android.net.Uri
-
+import&nbsp;android.net.Uri</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">41 / 60</span></div>
+  <div class="src">
 object&nbsp;ShareHelper&nbsp;{
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;用系统浏览器打开外链。
@@ -2250,11 +2178,8 @@ object&nbsp;ShareHelper&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;我在码上学的编程&quot;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;XP：$xp&quot;)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;连击：$streak&nbsp;天&quot;)</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">43 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;段位：$rank&quot;)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;连击：$streak&nbsp;天&quot;)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;段位：$rank&quot;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;完全离线，随时能练。&quot;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(AppConstants.REPO_URL)
@@ -2272,8 +2197,11 @@ object&nbsp;ShareHelper&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;chooser&nbsp;=&nbsp;Intent.createChooser(intent,&nbsp;&quot;分享到&quot;)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;context.startActivity(chooser)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">42 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;context.startActivity(chooser)
 &nbsp;&nbsp;&nbsp;&nbsp;}
 }
 package&nbsp;com.pyneon.academy.utils
@@ -2303,11 +2231,8 @@ object&nbsp;ThemePreference&nbsp;{
 
 &nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;unregisterListener(context:&nbsp;Context,&nbsp;listener:&nbsp;SharedPreferences.OnSharedPreferenceChangeListener)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;getPrefs(context).unregisterOnSharedPreferenceChangeListener(listener)
-&nbsp;&nbsp;&nbsp;&nbsp;}</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">44 / 60</span></div>
-  <div class="src">
+&nbsp;&nbsp;&nbsp;&nbsp;}
+
 &nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;自定义主题按用户给的主色现算，其余按&nbsp;id&nbsp;查表。
 &nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;getCurrentTheme(context:&nbsp;Context):&nbsp;AppTheme&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;themeId&nbsp;=&nbsp;getCurrentThemeId(context)
@@ -2325,8 +2250,11 @@ object&nbsp;ThemePreference&nbsp;{
 
 &nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;当前主题&nbsp;id。默认白纸模式，看长文舒服；换过的用户保持自己的选择。
 
-&nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;getCurrentThemeId(context:&nbsp;Context):&nbsp;String&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;getPrefs(context).getString(KEY_THEME_ID,&nbsp;DEFAULT_THEME_ID)&nbsp;?:&nbsp;DEFAULT_THEME_ID
+&nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;getCurrentThemeId(context:&nbsp;Context):&nbsp;String&nbsp;{</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">43 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;getPrefs(context).getString(KEY_THEME_ID,&nbsp;DEFAULT_THEME_ID)&nbsp;?:&nbsp;DEFAULT_THEME_ID
 &nbsp;&nbsp;&nbsp;&nbsp;}
 
 &nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;首次安装用白纸模式。
@@ -2356,11 +2284,8 @@ object&nbsp;ThemePreference&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;字号缩放。
 
 &nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;没设置过就用标准档。
-&nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;getFontScale(context:&nbsp;Context):&nbsp;FontScale&nbsp;=</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">45 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FontScale.fromId(getPrefs(context).getString(KEY_FONT_SCALE,&nbsp;null))
+&nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;getFontScale(context:&nbsp;Context):&nbsp;FontScale&nbsp;=
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FontScale.fromId(getPrefs(context).getString(KEY_FONT_SCALE,&nbsp;null))
 
 &nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;saveFontScale(context:&nbsp;Context,&nbsp;scale:&nbsp;FontScale)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;getPrefs(context).edit().putString(KEY_FONT_SCALE,&nbsp;scale.id).apply()
@@ -2378,8 +2303,11 @@ import&nbsp;org.json.JSONObject
 &nbsp;*&nbsp;不自动下载，也不申请安装权限。查不到就算了，不影响离线学习。
 &nbsp;*/
 object&nbsp;UpdateChecker&nbsp;{
-
-&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;class&nbsp;ReleaseInfo(
+</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">44 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;class&nbsp;ReleaseInfo(
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;version:&nbsp;String,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;url:&nbsp;String,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;publishedAt:&nbsp;String
@@ -2409,11 +2337,8 @@ object&nbsp;UpdateChecker&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lastError&nbsp;=&nbsp;IllegalStateException(&quot;返回内容缺少版本信息&quot;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return@withContext&nbsp;Result.success(</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">46 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ReleaseInfo(tag,&nbsp;url,&nbsp;json.optString(&quot;published_at&quot;))
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return@withContext&nbsp;Result.success(
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ReleaseInfo(tag,&nbsp;url,&nbsp;json.optString(&quot;published_at&quot;))
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;catch&nbsp;(e:&nbsp;Exception)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lastError&nbsp;=&nbsp;e
@@ -2431,8 +2356,11 @@ object&nbsp;UpdateChecker&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;n&nbsp;=&nbsp;maxOf(a.size,&nbsp;b.size)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(i&nbsp;in&nbsp;0&nbsp;until&nbsp;n)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;x&nbsp;=&nbsp;a.getOrElse(i)&nbsp;{&nbsp;0&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;y&nbsp;=&nbsp;b.getOrElse(i)&nbsp;{&nbsp;0&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(x&nbsp;!=&nbsp;y)&nbsp;return&nbsp;x&nbsp;&gt;&nbsp;y
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;y&nbsp;=&nbsp;b.getOrElse(i)&nbsp;{&nbsp;0&nbsp;}</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">45 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(x&nbsp;!=&nbsp;y)&nbsp;return&nbsp;x&nbsp;&gt;&nbsp;y
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;false
 &nbsp;&nbsp;&nbsp;&nbsp;}
@@ -2444,7 +2372,7 @@ import&nbsp;sys
 import&nbsp;threading
 import&nbsp;time
 
-from&nbsp;runner&nbsp;import&nbsp;DEFAULT_TIMEOUT,&nbsp;EXEC_LOCK,&nbsp;SandboxTimeout,&nbsp;_Watchdog,&nbsp;_truncate
+from&nbsp;runner&nbsp;import&nbsp;DEFAULT_TIMEOUT,&nbsp;EXEC_LOCK,&nbsp;SandboxTimeout,&nbsp;_Watchdog,&nbsp;_truncate,&nbsp;sandbox_guard
 
 #&nbsp;单条&nbsp;REPL&nbsp;语句最多跑多久，和&nbsp;runner.DEFAULT_TIMEOUT&nbsp;一样，
 #&nbsp;桌面和&nbsp;Android&nbsp;行为保持一致。
@@ -2462,11 +2390,8 @@ class&nbsp;NeonConsole(code_module.InteractiveConsole):
 &nbsp;&nbsp;&nbsp;&nbsp;def&nbsp;__init__(self):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;super().__init__(locals={&quot;__name__&quot;:&nbsp;&quot;__neon_console__&quot;,&nbsp;&quot;__doc__&quot;:&nbsp;None})
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self.capture&nbsp;=&nbsp;io.StringIO()
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;每条语句的预算，push&nbsp;时更新。</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">47 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self._timeout&nbsp;=&nbsp;REPL_TIMEOUT
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;每条语句的预算，push&nbsp;时更新。
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self._timeout&nbsp;=&nbsp;REPL_TIMEOUT
 
 &nbsp;&nbsp;&nbsp;&nbsp;def&nbsp;write(self,&nbsp;data):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self.capture.write(data)
@@ -2484,9 +2409,16 @@ class&nbsp;NeonConsole(code_module.InteractiveConsole):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;try:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.stdout&nbsp;=&nbsp;capture
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.stderr&nbsp;=&nbsp;capture
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.settrace(_Watchdog(deadline))
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;try:
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exec(code,&nbsp;self.locals)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.settrace(_Watchdog(deadline))</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">46 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;try:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;sandbox_guard():
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;try:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exec(code,&nbsp;self.locals)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;finally:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.settrace(None)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;finally:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.settrace(None)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;except&nbsp;SystemExit:
@@ -2515,11 +2447,8 @@ def&nbsp;_active_console()&nbsp;-&gt;&nbsp;NeonConsole:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_console&nbsp;=&nbsp;NeonConsole()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;_console
 
-</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">48 / 60</span></div>
-  <div class="src">def&nbsp;start():
+
+def&nbsp;start():
 &nbsp;&nbsp;&nbsp;&nbsp;global&nbsp;_console
 &nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;_console_lock:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_console&nbsp;=&nbsp;NeonConsole()
@@ -2533,8 +2462,11 @@ def&nbsp;reset():
 
 
 def&nbsp;push(line,&nbsp;timeout=None):
-&nbsp;&nbsp;&nbsp;&nbsp;console&nbsp;=&nbsp;_active_console()
-&nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;_console_lock:
+&nbsp;&nbsp;&nbsp;&nbsp;console&nbsp;=&nbsp;_active_console()</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">47 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;_console_lock:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;可以传单次预算，测试用；默认&nbsp;REPL_TIMEOUT。
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;console._timeout&nbsp;=&nbsp;REPL_TIMEOUT&nbsp;if&nbsp;timeout&nbsp;is&nbsp;None&nbsp;else&nbsp;float(timeout)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;console.capture.seek(0)
@@ -2551,6 +2483,7 @@ import&nbsp;threading
 import&nbsp;time
 import&nbsp;traceback
 import&nbsp;types
+from&nbsp;contextlib&nbsp;import&nbsp;contextmanager
 
 DEFAULT_TIMEOUT&nbsp;=&nbsp;8.0
 EXERCISE_TEST_TIMEOUT&nbsp;=&nbsp;2.0
@@ -2561,6 +2494,92 @@ MAX_OUTPUT&nbsp;=&nbsp;1_048_576
 #&nbsp;调&nbsp;repr&nbsp;之前先看对象多大，太大就跳过，免得&nbsp;repr&nbsp;本身把内存吃光。
 MAX_VAR_BYTES&nbsp;=&nbsp;1_000_000
 
+#&nbsp;运行台沙箱。只拦「执行用户代码」这一段，不拦&nbsp;App&nbsp;自己的课程包下载和启动。
+#&nbsp;用审计钩子而不是封&nbsp;import：课程里的&nbsp;asyncio&nbsp;会&nbsp;import&nbsp;socket&nbsp;/&nbsp;subprocess,
+#&nbsp;封&nbsp;import&nbsp;会把正常课程一起打断；这里允许&nbsp;import，等真正建&nbsp;socket、起进程时再拒绝。
+_BLOCKED_IMPORT_ROOTS&nbsp;=&nbsp;{&quot;java&quot;,&nbsp;&quot;jnius&quot;,&nbsp;&quot;ctypes&quot;,&nbsp;&quot;_ctypes&quot;,&nbsp;&quot;chaquopy&quot;}
+_BLOCKED_AUDIT_EVENTS&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&quot;os.system&quot;,&nbsp;&quot;os.popen&quot;,&nbsp;&quot;os.exec&quot;,&nbsp;&quot;os.spawn&quot;,&nbsp;&quot;os.posix_spawn&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&quot;os.fork&quot;,&nbsp;&quot;os.forkpty&quot;,&nbsp;&quot;os.kill&quot;,&nbsp;&quot;os.killpg&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&quot;socket.connect&quot;,&nbsp;&quot;socket.bind&quot;,&nbsp;&quot;socket.getaddrinfo&quot;,&nbsp;&quot;socket.gethostbyname&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&quot;socket.gethostbyaddr&quot;,&nbsp;&quot;socket.sendto&quot;,&nbsp;&quot;socket.send_fds&quot;,
+}
+_BLOCKED_AUDIT_PREFIXES&nbsp;=&nbsp;(&quot;subprocess.&quot;,&nbsp;&quot;ctypes.&quot;)
+#&nbsp;每个线程单独计数。超时线程卡在&nbsp;C&nbsp;调用里时，不能让整个&nbsp;App&nbsp;的联网也一起被锁死。
+_guard_depths&nbsp;=&nbsp;{}
+_SANDBOX_DENY&nbsp;=&nbsp;&quot;运行台处于离线沙箱：不开放网络、系统命令、Java/ctypes&nbsp;桥。&quot;
+
+
+def&nbsp;_deny(what):
+&nbsp;&nbsp;&nbsp;&nbsp;raise&nbsp;PermissionError(&quot;%s（%s）&quot;&nbsp;%&nbsp;(_SANDBOX_DENY,&nbsp;what))
+
+
+def&nbsp;_audit(event,&nbsp;args):
+&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;_guard_depths.get(threading.get_ident(),&nbsp;0)&nbsp;&lt;=&nbsp;0:</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">48 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return
+&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;event&nbsp;==&nbsp;&quot;import&quot;:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;=&nbsp;str(args[0]).split(&quot;.&quot;,&nbsp;1)[0]&nbsp;if&nbsp;args&nbsp;else&nbsp;&quot;&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;root&nbsp;in&nbsp;_BLOCKED_IMPORT_ROOTS:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_deny(&quot;import&nbsp;%s&quot;&nbsp;%&nbsp;root)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return
+&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;event&nbsp;==&nbsp;&quot;socket.__new__&quot;:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;只封&nbsp;INET/INET6。asyncio&nbsp;的事件循环会用&nbsp;AF_UNIX&nbsp;socketpair，
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;连这个也封，所有异步课程都会挂。
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;family&nbsp;=&nbsp;args[1]&nbsp;if&nbsp;len(args)&nbsp;&gt;&nbsp;1&nbsp;else&nbsp;None
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;family&nbsp;in&nbsp;(2,&nbsp;10):
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_deny(&quot;socket&nbsp;family=%s&quot;&nbsp;%&nbsp;family)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return
+&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;event&nbsp;in&nbsp;_BLOCKED_AUDIT_EVENTS&nbsp;or&nbsp;event.startswith(_BLOCKED_AUDIT_PREFIXES):
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_deny(event)
+
+
+try:
+&nbsp;&nbsp;&nbsp;&nbsp;sys.addaudithook(_audit)
+except&nbsp;Exception:
+&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;老解释器没有审计钩子时宁可少一层防护，也不能让&nbsp;App&nbsp;起不来。
+&nbsp;&nbsp;&nbsp;&nbsp;pass
+
+
+@contextmanager
+def&nbsp;sandbox_guard():
+&nbsp;&nbsp;&nbsp;&nbsp;&quot;&quot;&quot;执行用户代码期间打开操作级沙箱；可重入，按线程隔离。&quot;&quot;&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;tid&nbsp;=&nbsp;threading.get_ident()
+&nbsp;&nbsp;&nbsp;&nbsp;_guard_depths[tid]&nbsp;=&nbsp;_guard_depths.get(tid,&nbsp;0)&nbsp;+&nbsp;1
+&nbsp;&nbsp;&nbsp;&nbsp;try:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yield
+&nbsp;&nbsp;&nbsp;&nbsp;finally:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;depth&nbsp;=&nbsp;_guard_depths.get(tid,&nbsp;1)&nbsp;-&nbsp;1
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;depth&nbsp;&lt;=&nbsp;0:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_guard_depths.pop(tid,&nbsp;None)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_guard_depths[tid]&nbsp;=&nbsp;depth
+
+
+#&nbsp;用户代码&nbsp;new&nbsp;出来的线程默认不继承&nbsp;guard。包一层&nbsp;Thread.start，
+#&nbsp;让&nbsp;threading&nbsp;/&nbsp;ThreadPoolExecutor&nbsp;的子线程也留在沙箱里。
+_original_thread_start&nbsp;=&nbsp;threading.Thread.start
+
+
+def&nbsp;_guarded_thread_start(self):
+&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;_guard_depths.get(threading.get_ident(),&nbsp;0)&nbsp;&gt;&nbsp;0:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;original_run&nbsp;=&nbsp;self.run
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;def&nbsp;guarded_run():
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;sandbox_guard():</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">49 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;original_run()
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self.run&nbsp;=&nbsp;guarded_run
+&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;_original_thread_start(self)
+
+
+threading.Thread.start&nbsp;=&nbsp;_guarded_thread_start
+
 
 #&nbsp;执行锁。一次运行会改&nbsp;sys.stdout、sys.stderr&nbsp;和&nbsp;builtins.input&nbsp;这些进程级对象，
 #&nbsp;两个线程一起跑就会互相抢缓冲区，A&nbsp;的输出跑进&nbsp;B&nbsp;里。
@@ -2568,11 +2587,8 @@ MAX_VAR_BYTES&nbsp;=&nbsp;1_000_000
 #&nbsp;用&nbsp;RLock&nbsp;是允许同线程嵌套，比如&nbsp;push&nbsp;里再调&nbsp;runcode。
 EXEC_LOCK&nbsp;=&nbsp;threading.RLock()
 
-</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">49 / 60</span></div>
-  <div class="src">class&nbsp;SandboxTimeout(Exception):
+
+class&nbsp;SandboxTimeout(Exception):
 &nbsp;&nbsp;&nbsp;&nbsp;pass
 
 
@@ -2605,8 +2621,11 @@ class&nbsp;_Watchdog:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;raise&nbsp;SandboxTimeout()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;self
 
-
-def&nbsp;_error_payload(etype,&nbsp;evalue,&nbsp;tb):
+</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">50 / 60</span></div>
+  <div class="src">def&nbsp;_error_payload(etype,&nbsp;evalue,&nbsp;tb):
 &nbsp;&nbsp;&nbsp;&nbsp;trimmed_tb&nbsp;=&nbsp;tb.tb_next&nbsp;if&nbsp;tb&nbsp;is&nbsp;not&nbsp;None&nbsp;else&nbsp;None
 &nbsp;&nbsp;&nbsp;&nbsp;text&nbsp;=&nbsp;&quot;&quot;.join(traceback.format_exception(etype,&nbsp;evalue,&nbsp;trimmed_tb)).strip()
 &nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;{
@@ -2621,11 +2640,8 @@ def&nbsp;_truncate(text):
 &nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;text&nbsp;and&nbsp;len(text)&nbsp;&gt;&nbsp;MAX_OUTPUT:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;&quot;[输出过长已截断]\n&quot;&nbsp;+&nbsp;text[-MAX_OUTPUT:]
 &nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;text
-</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">50 / 60</span></div>
-  <div class="src">
+
+
 class&nbsp;OutputTooLong(Exception):
 &nbsp;&nbsp;&nbsp;&nbsp;&quot;&quot;&quot;输出超过硬上限，立即中断执行（防&nbsp;OOM）。&quot;&quot;&quot;
 
@@ -2658,13 +2674,21 @@ def&nbsp;_run_protected(code,&nbsp;namespace,&nbsp;stdin_lines,&nbsp;timeout):
 &nbsp;&nbsp;&nbsp;&nbsp;old_stderr&nbsp;=&nbsp;sys.stderr
 
 &nbsp;&nbsp;&nbsp;&nbsp;def&nbsp;target():
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;try:
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.stdout&nbsp;=&nbsp;out_buf
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;try:</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">51 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.stdout&nbsp;=&nbsp;out_buf
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.stderr&nbsp;=&nbsp;err_buf
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;builtins.input&nbsp;=&nbsp;_make_input(stdin_lines)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.settrace(_Watchdog(time.perf_counter()&nbsp;+&nbsp;timeout))
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;try:
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exec(compile(code,&nbsp;&quot;&lt;pyneon&gt;&quot;,&nbsp;&quot;exec&quot;),&nbsp;namespace)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;sandbox_guard():
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;try:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exec(compile(code,&nbsp;&quot;&lt;pyneon&gt;&quot;,&nbsp;&quot;exec&quot;),&nbsp;namespace)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;finally:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;必须在&nbsp;guard&nbsp;内先关&nbsp;trace，否则看门狗可能在清理过程中再抛一次。
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.settrace(None)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;finally:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.settrace(None)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;except&nbsp;SandboxTimeout:
@@ -2674,11 +2698,8 @@ def&nbsp;_run_protected(code,&nbsp;namespace,&nbsp;stdin_lines,&nbsp;timeout):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;%&nbsp;timeout,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;traceback&quot;:&nbsp;&quot;&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;except&nbsp;OutputTooLong:</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">51 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;state[&quot;error&quot;]&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;except&nbsp;OutputTooLong:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;state[&quot;error&quot;]&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;type&quot;:&nbsp;&quot;OutputTooLong&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;message&quot;:&nbsp;&quot;输出超过&nbsp;%d&nbsp;KB&nbsp;上限，已中断（疑似死循环打印）&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;%&nbsp;(_BoundedBuffer.HARD_LIMIT&nbsp;//&nbsp;1024),
@@ -2706,8 +2727,11 @@ def&nbsp;_run_protected(code,&nbsp;namespace,&nbsp;stdin_lines,&nbsp;timeout):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;worker.start()
 &nbsp;&nbsp;&nbsp;&nbsp;except&nbsp;RuntimeError&nbsp;as&nbsp;exc:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;无多线程能力的环境（Pyodide&nbsp;未启用&nbsp;SharedArrayBuffer&nbsp;时&nbsp;start()&nbsp;抛
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;RuntimeError:&nbsp;can&#x27;t&nbsp;start&nbsp;new&nbsp;thread）：降级为主线程直接执行。
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;settrace&nbsp;看门狗仍能中断纯&nbsp;Python&nbsp;死循环；C&nbsp;阻塞调用失去超时保护。
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;RuntimeError:&nbsp;can&#x27;t&nbsp;start&nbsp;new&nbsp;thread）：降级为主线程直接执行。</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">52 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;settrace&nbsp;看门狗仍能中断纯&nbsp;Python&nbsp;死循环；C&nbsp;阻塞调用失去超时保护。
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;&quot;can&#x27;t&nbsp;start&nbsp;new&nbsp;thread&quot;&nbsp;not&nbsp;in&nbsp;str(exc):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;raise
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;thread_started&nbsp;=&nbsp;False
@@ -2727,11 +2751,8 @@ def&nbsp;_run_protected(code,&nbsp;namespace,&nbsp;stdin_lines,&nbsp;timeout):
 &nbsp;&nbsp;&nbsp;&nbsp;error&nbsp;=&nbsp;(
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;None
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;state[&quot;finished&quot;]&nbsp;and&nbsp;state[&quot;error&quot;]&nbsp;is&nbsp;None
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;(</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">52 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;state[&quot;error&quot;]
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;(
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;state[&quot;error&quot;]
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;or&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;type&quot;:&nbsp;&quot;Timeout&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;message&quot;:&nbsp;&quot;代码运行超过&nbsp;%.1f&nbsp;秒，已被强制中断（可能是死循环）&quot;
@@ -2759,8 +2780,11 @@ def&nbsp;_snapshot(namespace):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;只展示“数据变量”：过滤内置函数/自定义函数/方法/类/模块等噪音，
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;避免快照面板出现&nbsp;random:&nbsp;module&nbsp;这类与学习无关的条目。
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;isinstance(
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;isinstance(</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">53 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;type,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;types.ModuleType,
@@ -2780,11 +2804,8 @@ def&nbsp;_snapshot(namespace):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rendered&nbsp;=&nbsp;repr(value)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;except&nbsp;BaseException:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;自定义&nbsp;__repr__&nbsp;抛异常或递归太深，也不能把整个快照带崩。
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rendered&nbsp;=&nbsp;&quot;&lt;无法显示&gt;&quot;</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">53 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;len(rendered)&nbsp;&gt;&nbsp;MAX_REPR:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rendered&nbsp;=&nbsp;&quot;&lt;无法显示&gt;&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;len(rendered)&nbsp;&gt;&nbsp;MAX_REPR:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rendered&nbsp;=&nbsp;rendered[:MAX_REPR]&nbsp;+&nbsp;&quot;…&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;items.append({&quot;name&quot;:&nbsp;key,&nbsp;&quot;type&quot;:&nbsp;type(value).__name__,&nbsp;&quot;value&quot;:&nbsp;rendered})
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;len(items)&nbsp;&gt;=&nbsp;MAX_VARS:
@@ -2812,8 +2833,11 @@ def&nbsp;check_exercise(code,&nbsp;tests,&nbsp;stdin_lines=None):
 
 def&nbsp;_check_exercise_locked(code,&nbsp;tests,&nbsp;stdin_lines,&nbsp;namespace):
 &nbsp;&nbsp;&nbsp;&nbsp;core&nbsp;=&nbsp;_run_protected(code,&nbsp;namespace,&nbsp;stdin_lines&nbsp;or&nbsp;[],&nbsp;DEFAULT_TIMEOUT)
-&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;core[&quot;error&quot;]&nbsp;is&nbsp;not&nbsp;None:
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;core[&quot;error&quot;]&nbsp;is&nbsp;not&nbsp;None:</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">54 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;ok&quot;:&nbsp;False,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;passed&quot;:&nbsp;False,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;stdout&quot;:&nbsp;core[&quot;stdout&quot;],
@@ -2833,11 +2857,8 @@ def&nbsp;_check_exercise_locked(code,&nbsp;tests,&nbsp;stdin_lines,&nbsp;namespa
 &nbsp;&nbsp;&nbsp;&nbsp;test_ns&nbsp;=&nbsp;namespace.copy()
 &nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;判题把用户&nbsp;stdout&nbsp;交给用例，允许&nbsp;assert&nbsp;输出内容。
 &nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;不然只赋值不打印也能过，l01&nbsp;就出过这个漏洞。stderr&nbsp;同样处理。
-&nbsp;&nbsp;&nbsp;&nbsp;test_ns[&quot;__stdout__&quot;]&nbsp;=&nbsp;core[&quot;stdout&quot;]</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">54 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;test_ns[&quot;__stderr__&quot;]&nbsp;=&nbsp;core[&quot;stderr&quot;]
+&nbsp;&nbsp;&nbsp;&nbsp;test_ns[&quot;__stdout__&quot;]&nbsp;=&nbsp;core[&quot;stdout&quot;]
+&nbsp;&nbsp;&nbsp;&nbsp;test_ns[&quot;__stderr__&quot;]&nbsp;=&nbsp;core[&quot;stderr&quot;]
 &nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;index,&nbsp;test&nbsp;in&nbsp;enumerate(tests,&nbsp;start=1):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;test_state&nbsp;=&nbsp;{&quot;finished&quot;:&nbsp;False,&nbsp;&quot;error&quot;:&nbsp;None}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;test_out&nbsp;=&nbsp;io.StringIO()
@@ -2865,8 +2886,11 @@ def&nbsp;_check_exercise_locked(code,&nbsp;tests,&nbsp;stdin_lines,&nbsp;namespa
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;worker&nbsp;=&nbsp;threading.Thread(target=test_target,&nbsp;daemon=True)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;test_thread_started&nbsp;=&nbsp;True
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;try:
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;worker.start()
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;except&nbsp;RuntimeError&nbsp;as&nbsp;exc:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;worker.start()</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">55 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;except&nbsp;RuntimeError&nbsp;as&nbsp;exc:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;&quot;can&#x27;t&nbsp;start&nbsp;new&nbsp;thread&quot;&nbsp;not&nbsp;in&nbsp;str(exc):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;raise
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;test_thread_started&nbsp;=&nbsp;False
@@ -2886,11 +2910,8 @@ def&nbsp;_check_exercise_locked(code,&nbsp;tests,&nbsp;stdin_lines,&nbsp;namespa
 &nbsp;&nbsp;&nbsp;&nbsp;passed&nbsp;=&nbsp;not&nbsp;failures
 &nbsp;&nbsp;&nbsp;&nbsp;message&nbsp;=&nbsp;(
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;&quot;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;passed</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">55 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;&quot;共&nbsp;%d&nbsp;个用例，%d&nbsp;个未通过；首个失败：%s&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;passed
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;&quot;共&nbsp;%d&nbsp;个用例，%d&nbsp;个未通过；首个失败：%s&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;%&nbsp;(len(tests),&nbsp;len(failures),&nbsp;failures[0][&quot;reason&quot;])
 &nbsp;&nbsp;&nbsp;&nbsp;)
 &nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;{
@@ -2918,8 +2939,11 @@ def&nbsp;info_json():
 
 def&nbsp;run_code_json(payload_json):
 &nbsp;&nbsp;&nbsp;&nbsp;payload&nbsp;=&nbsp;json.loads(payload_json)
-&nbsp;&nbsp;&nbsp;&nbsp;result&nbsp;=&nbsp;run_code(
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;payload.get(&quot;code&quot;,&nbsp;&quot;&quot;),
+&nbsp;&nbsp;&nbsp;&nbsp;result&nbsp;=&nbsp;run_code(</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">56 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;payload.get(&quot;code&quot;,&nbsp;&quot;&quot;),
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;payload.get(&quot;stdin&quot;)&nbsp;or&nbsp;[],
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;payload.get(&quot;timeout&quot;,&nbsp;DEFAULT_TIMEOUT),
 &nbsp;&nbsp;&nbsp;&nbsp;)
@@ -2939,11 +2963,8 @@ def&nbsp;check_exercise_json(payload_json):
 SQLite&nbsp;的&nbsp;execute&nbsp;是同步阻塞的，死循环&nbsp;CTE（比如漏了终止条件的&nbsp;WITH&nbsp;RECURSIVE）
 会把线程占死，界面一直转。这里用&nbsp;set_progress_handler&nbsp;做指令级看门狗：
 每&nbsp;1000&nbsp;条虚拟机指令看一眼时间，超了返回非&nbsp;0，SQLite&nbsp;自己中断并抛错。
-&quot;&quot;&quot;</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">56 / 60</span></div>
-  <div class="src">import&nbsp;json
+&quot;&quot;&quot;
+import&nbsp;json
 import&nbsp;sqlite3
 import&nbsp;time
 import&nbsp;traceback
@@ -2971,8 +2992,11 @@ def&nbsp;_split_statements(sql):
 &nbsp;&nbsp;&nbsp;&nbsp;&quot;&quot;&quot;按分号切分语句，忽略字符串与&nbsp;--&nbsp;行注释中的分号。&quot;&quot;&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;statements&nbsp;=&nbsp;[]
 &nbsp;&nbsp;&nbsp;&nbsp;buf&nbsp;=&nbsp;[]
-&nbsp;&nbsp;&nbsp;&nbsp;quote&nbsp;=&nbsp;None
-&nbsp;&nbsp;&nbsp;&nbsp;i&nbsp;=&nbsp;0
+&nbsp;&nbsp;&nbsp;&nbsp;quote&nbsp;=&nbsp;None</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">57 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;i&nbsp;=&nbsp;0
 &nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;i&nbsp;&lt;&nbsp;len(sql):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ch&nbsp;=&nbsp;sql[i]
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;quote:
@@ -2992,11 +3016,8 @@ def&nbsp;_split_statements(sql):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;ch&nbsp;==&nbsp;&quot;-&quot;&nbsp;and&nbsp;i&nbsp;+&nbsp;1&nbsp;&lt;&nbsp;len(sql)&nbsp;and&nbsp;sql[i&nbsp;+&nbsp;1]&nbsp;==&nbsp;&quot;-&quot;:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;i&nbsp;&lt;&nbsp;len(sql)&nbsp;and&nbsp;sql[i]&nbsp;!=&nbsp;&quot;\n&quot;:
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i&nbsp;+=&nbsp;1</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">57 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i&nbsp;+=&nbsp;1
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;ch&nbsp;==&nbsp;&quot;;&quot;:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;text&nbsp;=&nbsp;&quot;&quot;.join(buf).strip()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;text:
@@ -3024,8 +3045,11 @@ def&nbsp;_format_table(cursor):
 def&nbsp;_execute(sql,&nbsp;timeout=None):
 &nbsp;&nbsp;&nbsp;&nbsp;started&nbsp;=&nbsp;time.perf_counter()
 &nbsp;&nbsp;&nbsp;&nbsp;budget&nbsp;=&nbsp;DEFAULT_TIMEOUT&nbsp;if&nbsp;timeout&nbsp;is&nbsp;None&nbsp;else&nbsp;float(timeout)
-&nbsp;&nbsp;&nbsp;&nbsp;deadline&nbsp;=&nbsp;started&nbsp;+&nbsp;budget
-&nbsp;&nbsp;&nbsp;&nbsp;timed_out&nbsp;=&nbsp;{&quot;hit&quot;:&nbsp;False}
+&nbsp;&nbsp;&nbsp;&nbsp;deadline&nbsp;=&nbsp;started&nbsp;+&nbsp;budget</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">58 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;timed_out&nbsp;=&nbsp;{&quot;hit&quot;:&nbsp;False}
 
 &nbsp;&nbsp;&nbsp;&nbsp;def&nbsp;_watchdog():
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;&quot;&quot;SQLite&nbsp;每执行&nbsp;_PROGRESS_STEPS&nbsp;条指令回调一次；返回非&nbsp;0&nbsp;中断语句。&quot;&quot;&quot;
@@ -3045,11 +3069,8 @@ def&nbsp;_execute(sql,&nbsp;timeout=None):
 &nbsp;&nbsp;&nbsp;&nbsp;error&nbsp;=&nbsp;None
 &nbsp;&nbsp;&nbsp;&nbsp;last&nbsp;=&nbsp;None
 &nbsp;&nbsp;&nbsp;&nbsp;try:
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;statement&nbsp;in&nbsp;_split_statements(sql):</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">58 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cursor&nbsp;=&nbsp;conn.execute(statement)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;statement&nbsp;in&nbsp;_split_statements(sql):
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cursor&nbsp;=&nbsp;conn.execute(statement)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;cursor.description:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;columns,&nbsp;rows,&nbsp;text&nbsp;=&nbsp;_format_table(cursor)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;last&nbsp;=&nbsp;{
@@ -3077,8 +3098,11 @@ def&nbsp;_execute(sql,&nbsp;timeout=None):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;error&nbsp;=&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;type&quot;:&nbsp;getattr(etype,&nbsp;&quot;__name__&quot;,&nbsp;&quot;Error&quot;),
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;message&quot;:&nbsp;str(evalue),
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;type&quot;:&nbsp;getattr(etype,&nbsp;&quot;__name__&quot;,&nbsp;&quot;Error&quot;),</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">59 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;message&quot;:&nbsp;str(evalue),
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;traceback&quot;:&nbsp;&quot;&quot;.join(traceback.format_exception(etype,&nbsp;evalue,&nbsp;trimmed)).strip(),
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;finally:
@@ -3098,11 +3122,8 @@ def&nbsp;_execute(sql,&nbsp;timeout=None):
 
 def&nbsp;run_sql(sql,&nbsp;timeout=None):
 &nbsp;&nbsp;&nbsp;&nbsp;core&nbsp;=&nbsp;_execute(sql,&nbsp;timeout)
-&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;{</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">59 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;ok&quot;:&nbsp;core[&quot;ok&quot;],
+&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;ok&quot;:&nbsp;core[&quot;ok&quot;],
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;stdout&quot;:&nbsp;core[&quot;stdout&quot;],
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;stderr&quot;:&nbsp;core[&quot;stderr&quot;],
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;error&quot;:&nbsp;core[&quot;error&quot;],
@@ -3130,8 +3151,11 @@ def&nbsp;check_sql(sql,&nbsp;tests,&nbsp;timeout=None):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;last&quot;:&nbsp;core[&quot;last&quot;],
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;columns&quot;:&nbsp;core[&quot;last&quot;][&quot;columns&quot;]&nbsp;if&nbsp;core[&quot;last&quot;]&nbsp;else&nbsp;[],
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;rows&quot;:&nbsp;core[&quot;last&quot;][&quot;rows&quot;]&nbsp;if&nbsp;core[&quot;last&quot;]&nbsp;else&nbsp;[],
-&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;failures&nbsp;=&nbsp;[]
+&nbsp;&nbsp;&nbsp;&nbsp;}</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">60 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;failures&nbsp;=&nbsp;[]
 &nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;index,&nbsp;test&nbsp;in&nbsp;enumerate(tests,&nbsp;start=1):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;try:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exec(compile(test,&nbsp;&quot;&lt;sql-test-%d&gt;&quot;&nbsp;%&nbsp;index,&nbsp;&quot;exec&quot;),&nbsp;namespace)
@@ -3151,11 +3175,8 @@ def&nbsp;check_sql(sql,&nbsp;tests,&nbsp;timeout=None):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;stderr&quot;:&nbsp;&quot;&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;test_output&quot;:&nbsp;&quot;&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;error&quot;:&nbsp;None&nbsp;if&nbsp;passed&nbsp;else&nbsp;{&quot;type&quot;:&nbsp;&quot;TestFailed&quot;,&nbsp;&quot;message&quot;:&nbsp;message,&nbsp;&quot;traceback&quot;:&nbsp;&quot;&quot;},
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;duration_ms&quot;:&nbsp;core[&quot;duration_ms&quot;],</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">60 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;variables&quot;:&nbsp;[],
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;duration_ms&quot;:&nbsp;core[&quot;duration_ms&quot;],
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;variables&quot;:&nbsp;[],
 &nbsp;&nbsp;&nbsp;&nbsp;}
 
 
@@ -3177,27 +3198,6 @@ def&nbsp;check_sql_json(payload_json):
 
 def&nbsp;info_json():
 &nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;json.dumps({&quot;sqlite_version&quot;:&nbsp;sqlite3.sqlite_version,&nbsp;&quot;platform&quot;:&nbsp;&quot;sqlite3&quot;})
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
-&nbsp;
 &nbsp;
 &nbsp;
 &nbsp;

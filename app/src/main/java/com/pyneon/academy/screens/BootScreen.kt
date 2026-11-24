@@ -92,6 +92,13 @@ fun BootScreen(
             // 连恢复页都看不到。
             val ok = runCatching {
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    // 课程包随 APK 预装。先落盘再预热，首屏课程列表就能直接读到 245 讲；
+                    // 复制失败不阻断启动，内置 Python 主线仍可兜底。
+                    runCatching {
+                        com.pyneon.academy.data.ContentCenter().seedBundledPacks(context)
+                    }.onFailure { e ->
+                        com.pyneon.academy.debug.DebugLog.w("Boot", "预装课程包失败: ${e.message}")
+                    }
                     runtime.ensureStarted(context)
                     runtime.warmup()
                 }

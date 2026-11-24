@@ -1,0 +1,957 @@
+[
+  {
+    "id": "ts11",
+    "order": 610,
+    "chapter": 62,
+    "chapterName": "TypeScript · 核心篇",
+    "lang": "typescript",
+    "title": "泛型入门",
+    "subtitle": "把类型也变成参数",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "一个函数，多种类型"
+      },
+      {
+        "type": "text",
+        "text": "泛型是把类型当作参数：写函数时不锁定具体类型，调用时才确定。最直观的例子是「返回数组第一个元素」——数字数组返回数字，字符串数组返回字符串。如果没有泛型，要么写两个几乎一样的函数，要么退化成 any 并失去全部检查。`function first<T>(arr: T[]): T` 里的 T 就是类型参数，它在调用时被推断成 number 或 string，而函数体只有一份。\n\n调用时通常不需要手写类型参数，TypeScript 会从实参推断：传 `[1, 2, 3]`，T 就是 number；传 `['a']`，T 就是 string。这种推断让调用处保持干净。只有在推断不出来、或者你希望强制约束时，才需要显式写 `first<number>(...)`。本应用的转译器不支持这种「调用时带尖括号」的写法，所以课程里的泛型全靠推断，调用处一律不写类型参数。\n\n泛型的价值在于把「类型关系」写进签名。`function wrap<T>(v: T): T[]` 表达的不只是「参数是某个类型、返回值是数组」，而是「返回的数组元素类型和参数类型一致」。这个一致性是 any 给不了的：用 any 时，`wrap(5)` 返回 any[]，你把它当字符串数组用也不会报错；用 T，`var xs: string[] = wrap(5)` 会被 tsc 当场拦下。类型参数让输入和输出之间的关联变得可检查。"
+      },
+      {
+        "type": "text",
+        "text": "泛型参数名有约定：T 表示 Type，K 表示 Key，V 表示 Value，U、R 用于第二、第三个参数。名字可以随便取，但遵循约定能让别人一眼看懂。泛型不是越多越好，一个函数有四个以上类型参数时，通常说明它承担了太多职责，应该拆分。先写好一个类型参数，再考虑增加，是更稳妥的顺序；能用一个就别用两个。\n\n最后要记住泛型的边界：它只在编写和编译阶段存在。转译器会把 `<T>` 和 `: T[]` 一起删掉，运行时看到的是普通函数，没有任何类型检查，也没有额外开销。这意味着泛型无法阻止运行时传错值，它的全部价值是让 tsc 和编辑器提前发现错误。理解这一点，你就不会期待泛型在运行时保护你。\n\n泛型还有一层容易被忽略的价值：它让重构变得安全。假设你后来决定把 first 的返回值从 T 改成 T | undefined（因为空数组没有首元素），只要改一处签名，所有调用点都会收到提示，编译器会告诉你哪些地方需要补判空。如果没有泛型、全用 any，这个改动只能靠人工搜索，遗漏在所难免。类型越精确，重构时的自动化程度就越高。"
+      },
+      {
+        "type": "text",
+        "text": "泛型的常见误用是「为了显得高级而加」。如果一个函数只处理数字，就写 number，不要写 T；如果一个容器只装订单，就写 Order，不要写 T。泛型的正当理由只有一个：调用方需要保持类型之间的对应关系。函数内部并不关心具体类型，调用方却需要「传什么就得到什么」，这才是泛型的场景。判断时问自己一句：去掉 T 改成 any，调用方会损失什么？如果答不上来，就不需要泛型。\n\n还有一点值得注意：泛型函数的类型参数不会在运行时保留，所以无法在函数体里判断「T 是什么类型」。需要按类型分支时，要么传入类型判断函数，要么用运行时 typeof 判断具体值。这不是缺陷，而是类型擦除的必然结果。理解了这一点，你就不会写出「根据 T 做不同处理」这种在运行时无效的代码，也不会误以为泛型能替代运行时检查。"
+      },
+      {
+        "type": "code",
+        "code": "function first<T>(arr: T[]): T {\n  return arr[0];\n}\n\nfunction wrap<T>(value: T): T[] {\n  return [value];\n}\n\nconsole.log(first([10, 20, 30]));\nconsole.log(first(['V', 'Judy']));\nconsole.log(wrap('x').length);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "10\nV\n1"
+      },
+      {
+        "type": "diagram",
+        "text": "function first<T>(arr: T[]): T\n                  │\n                  ├─ 调用 first([10, 20, 30])\n                  │     T 推断为 number，返回 number\n                  │\n                  └─ 调用 first(['V', 'Judy'])\n                        T 推断为 string，返回 string\n\n转译后：function first(arr) —— 泛型参数表整体擦除"
+      },
+      {
+        "type": "tip",
+        "text": "泛型只在编写阶段存在。转译器会把 `<T>` 和 `: T[]` 一起删掉，运行时看到的是普通函数。所以泛型不会带来任何运行时代价，也不会做运行时类型检查。"
+      },
+      {
+        "type": "warn",
+        "text": "不要给泛型加约束 `T extends X`，本应用的转译器不支持，会把 extends 原样留下导致语法错误。约束的概念在进阶篇讲解，运行代码一律用简单泛型。"
+      },
+      {
+        "type": "quiz",
+        "question": "`function first<T>(arr: T[]): T` 被调用 `first(['a', 'b'])` 时，T 是什么？",
+        "options": [
+          "string",
+          "any",
+          "T",
+          "unknown"
+        ],
+        "answer": 0,
+        "explain": "TypeScript 从实参 ['a','b'] 推断出元素类型是 string，因此 T 为 string，返回值也是 string。"
+      },
+      {
+        "type": "practice",
+        "title": "泛型包装",
+        "code": "function wrap<T>(value: T): T[] {\n  return [value];\n}\n\nvar nums: number[] = wrap(7);\nconsole.log(nums[0], nums.length);",
+        "output": "7 1",
+        "hint": "wrap 返回只含一个元素的数组。"
+      }
+    ],
+    "exercise": {
+      "title": "泛型首元素与末元素",
+      "brief": "实现 firstOf(arr) 返回第一个元素，lastOf(arr) 返回最后一个元素，两者都用泛型标注；空数组时分别返回 null。",
+      "starterCode": "function firstOf<T>(arr: T[]): T {\n  // 空数组返回 null\n  return null;\n}\n\nfunction lastOf<T>(arr: T[]): T {\n  // 空数组返回 null\n  return null;\n}",
+      "hint": "先判断 arr.length === 0 返回 null；firstOf 取 arr[0]，lastOf 取 arr[arr.length - 1]。",
+      "tests": [
+        "assert(firstOf([1, 2, 3]) === 1, 'firstOf 应返回首元素')",
+        "assert(lastOf([1, 2, 3]) === 3, 'lastOf 应返回末元素')",
+        "assert(firstOf(['a']) === 'a', '字符串数组也要支持')",
+        "assert(firstOf([]) === null && lastOf([]) === null, '空数组应返回 null')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function firstOf<T>(arr: T[]): T {\n  if (arr.length === 0) {\n    return null;\n  }\n  return arr[0];\n}\n\nfunction lastOf<T>(arr: T[]): T {\n  if (arr.length === 0) {\n    return null;\n  }\n  return arr[arr.length - 1];\n}"
+    }
+  },
+  {
+    "id": "ts12",
+    "order": 611,
+    "chapter": 62,
+    "chapterName": "TypeScript · 核心篇",
+    "lang": "typescript",
+    "title": "泛型函数与泛型接口",
+    "subtitle": "让容器也带上类型",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把类型参数带进接口"
+      },
+      {
+        "type": "text",
+        "text": "泛型不仅能用在函数上，也能用在 interface 和 type 上。`interface Box<T> { value: T; }` 描述一个「装着某种东西的盒子」，T 在使用时才确定：`Box<number>` 是装数字的盒子，`Box<string>` 是装字符串的盒子。这种带参数的接口叫泛型接口，它是集合类型、响应包装、缓存容器的基础，也是标准库中 Array<T>、Promise<T> 的写法来源。\n\n泛型接口和泛型函数搭配时，类型参数会在两者之间传递。`function unbox<T>(box: Box<T>): T` 表示「不管盒子里装什么，取出后还是那个类型」。调用时传入 boxOfNumber，编译器先由实参确定 Box<number>，再把 T 定为 number，返回类型自然也是 number。整条链路上没有 any，类型信息完整保留，这就是泛型最典型的用法：让容器和操作容器的函数共享同一个类型参数。\n\n类型别名也可以带参数：`type Pair<A, B> = { first: A; second: B }`。它适合表达「两个值组合」，比写两个独立接口更紧凑。泛型接口更适合会被扩展、需要被类实现的场景；泛型类型别名适合纯组合、联合、元组。两者都能被泛型函数引用，选择时看团队习惯和是否需要 extends。本应用只支持类型别名和接口的声明，运行时都不可见。"
+      },
+      {
+        "type": "text",
+        "text": "使用泛型接口时要避免一个陷阱：不要把所有字段都写成 T。`interface ApiResponse<T> { ok: boolean; data: T; error: string | null }` 是合理的，因为只有 data 随场景变化；如果连 ok 都写成 T，调用方就无法知道它一定是布尔值了。泛型的粒度应该贴合「真正会变化的那个位置」，其余字段保持具体类型，接口才既灵活又明确。\n\n还有一个常见错误：在函数体里凭空使用 T 构造值。`function make<T>(): T { return {}; }` 在标准 TypeScript 里也不合法，因为编译器不知道 T 是否可能是 string。泛型函数只能操作「收到的 T」，不能凭空创造 T。需要构造时，把构造器或工厂函数作为参数传进来，让调用方提供创建逻辑，这样类型才对得上。\n\n把泛型接口当参数时，类型参数会沿着调用链自动传播，这个过程叫类型推断的「上下文」。`function mapBox<T>(box: Box<T>, f: Op<T>): Box<T>` 里，只要传入 Box<number>，T 立刻确定为 number，回调的参数也就确定为 number，不需要在调用处重复写。推断失败时（例如没有任何实参能提供线索），才会退化成 unknown 或报错，这时候显式标注就成了必要手段。"
+      },
+      {
+        "type": "text",
+        "text": "泛型接口的命名通常带上容器语义：Box、Result、Page、Response、Cache。名字里带 T 的接口，读者预期它是「装着某种东西的容器」；如果接口只是普通业务对象，就不要加类型参数。另一个实践是让类型参数尽量少：一个容器一个参数最清晰，两个参数通常表示「键和值」或「成功值和错误值」，三个以上就需要解释。参数越多，调用处的心智负担越重。\n\n最后说一个命名细节：泛型接口的类型参数名尽量用单个大写字母，除非有明确语义。Box<T> 比 Box<Item> 更通用，因为 Item 暗示了具体业务；Result<T, E> 里的 E 表示 Error，是有语义的约定。混用单字母和单词会让读者猜测作者的意图：这个 T 是任意类型，还是特指某种类型？统一用单字母，语义靠文档和上下文补充，是最省心的做法。\n\n再补一个泛型接口的常见组合：包装「可能失败」的结果。`interface Result<T> { ok: boolean; value: T | null; error: string | null }`，成功时 value 有值、error 为空，失败时反过来。这种结构比抛异常更容易在类型层面表达，也比返回 any 更安全。调用方拿到 Result，先看 ok 再取 value，路径清晰。本课程在进阶篇可辨识联合那一讲会用更精确的方式表达同一种模式。"
+      },
+      {
+        "type": "code",
+        "code": "interface Box<T> {\n  value: T;\n}\n\nfunction unbox<T>(box: Box<T>): T {\n  return box.value;\n}\n\ntype Pair<A, B> = { first: A; second: B };\n\nvar numBox: Box<number> = { value: 42 };\nvar strBox: Box<string> = { value: 'V' };\nvar pair: Pair<string, number> = { first: 'hp', second: 100 };\n\nconsole.log(unbox(numBox));\nconsole.log(unbox(strBox));\nconsole.log(pair.first, pair.second);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "42\nV\nhp 100"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "含义",
+          "典型用途"
+        ],
+        "rows": [
+          [
+            "interface Box<T>",
+            "带一个类型参数的接口",
+            "容器、包装、缓存"
+          ],
+          [
+            "type Pair<A, B>",
+            "带两个类型参数的别名",
+            "键值对、坐标、二元组"
+          ],
+          [
+            "Box<number>",
+            "把 T 替换为 number 后的类型",
+            "具体使用处的标注"
+          ],
+          [
+            "function unbox<T>(b: Box<T>): T",
+            "接收泛型接口并返回其内容",
+            "保持类型在链路中传递"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "泛型接口的字段不要全部写成 T。只把真正会变化的字段泛型化，其余字段用具体类型，接口的可读性和约束力都会更好。"
+      },
+      {
+        "type": "warn",
+        "text": "本应用的转译器会删除 `interface Box<T>` 整段，也会把 `Box<number>` 这样的标注擦掉。运行时 Box 只是一个普通对象，泛型不产生任何检查，也不会限制 value 的类型。"
+      },
+      {
+        "type": "quiz",
+        "question": "`interface Box<T> { value: T }` 中，`Box<string>` 的 value 字段是什么类型？",
+        "options": [
+          "T",
+          "string",
+          "any",
+          "unknown"
+        ],
+        "answer": 1,
+        "explain": "Box<string> 把类型参数 T 替换成 string，因此 value 是 string。"
+      },
+      {
+        "type": "practice",
+        "title": "泛型容器",
+        "code": "interface Box<T> {\n  value: T;\n}\n\nvar b: Box<number[]> = { value: [1, 2, 3] };\nconsole.log(b.value.length);",
+        "output": "3",
+        "hint": "把数组当作 T，容器里装的是数字数组。"
+      }
+    ],
+    "exercise": {
+      "title": "泛型缓存与二元组",
+      "brief": "实现 setItem/getItem 两个泛型函数：setItem 接收一个值并包装成 { value: T } 返回；getItem 接收包装对象并返回里面的值。再实现 makePair(a, b) 返回 { first, second }。",
+      "starterCode": "interface Box<T> {\n  value: T;\n}\n\nfunction setItem<T>(value: T): Box<T> {\n  // 把 value 装进盒子\n  return { value: null };\n}\n\nfunction getItem<T>(box: Box<T>): T {\n  // 取出盒子里的值\n  return null;\n}\n\nfunction makePair<A, B>(a: A, b: B): Pair<A, B> {\n  // 返回包含 first 与 second 的对象\n  return { first: null, second: null };\n}",
+      "hint": "makePair 的返回类型要用 type 别名声明，本应用不支持内联对象返回类型；返回值写成 { first: (a), second: (b) }。",
+      "tests": [
+        "assert(getItem(setItem(5)) === 5, '数字应能存取一致')",
+        "assert(getItem(setItem('x')) === 'x', '字符串应能存取一致')",
+        "assert(setItem([1,2]).value.length === 2, '数组也能装进盒子')",
+        "assert(makePair('a', 1).first === 'a', '二元组第一项错误')",
+        "assert(makePair('a', 1).second === 1, '二元组第二项错误')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "interface Box<T> {\n  value: T;\n}\n\ntype Pair<A, B> = { first: A; second: B };\n\nfunction setItem<T>(value: T): Box<T> {\n  return { value: (value) };\n}\n\nfunction getItem<T>(box: Box<T>): T {\n  return box.value;\n}\n\nfunction makePair<A, B>(a: A, b: B): Pair<A, B> {\n  return { first: (a), second: (b) };\n}"
+    }
+  },
+  {
+    "id": "ts13",
+    "order": 612,
+    "chapter": 62,
+    "chapterName": "TypeScript · 核心篇",
+    "lang": "typescript",
+    "title": "可选属性与 readonly",
+    "subtitle": "允许缺失，也允许禁止修改",
+    "xp": 80,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "两种修饰，两种契约"
+      },
+      {
+        "type": "text",
+        "text": "可选属性用问号标记：`interface User { name: string; age?: number }`。它表示 age 可以不存在，读取时类型是 number | undefined，使用前必须判断。可选属性和「值可以是 null」是两件事：可选表示字段本身可能没有，null 表示字段存在但值是空。设计接口时先想清楚你要表达哪一种，混用会让调用方无所适从，也会让判空逻辑越来越长。\n\nreadonly 表示「初始化后不应再赋值」。`readonly id: number` 让 tsc 在你写 `user.id = 2` 时报错，但运行时对象并没有被冻结，仍然可以被改写。它是一份编译期约定，不是运行时保护。需要真正的运行时不可变时，要用 Object.freeze；本应用的 enum 就是这么做的。readonly 适合描述 ID、创建时间、外部系统分配的单号这类不该被本地修改的字段。\n\n可选属性和 readonly 可以组合：`readonly createdAt?: string` 表示字段可能不存在，存在时不应修改。组合的顺序是 readonly 在前、问号在后，写在字段名后面。数组也有只读形式 `readonly number[]`，但本应用的转译器对 readonly 前缀的处理是直接删除关键字，写在数组类型前面可能留下残渣，所以课程只在 interface 字段上用 readonly。"
+      },
+      {
+        "type": "text",
+        "text": "判断可选属性是否存在，推荐写 `obj.age === undefined`，不要写 `if (obj.age)`——年龄为 0 时会被误判成不存在。如果接口里允许 null，还要同时判 `=== null`。这类判断在本应用里是运行时真实执行的，所以它同时保护了程序不崩溃；而 readonly 只是编写阶段的提醒，运行时完全不设防。两种修饰的强度不同，不要混为一谈。\n\n工程上还有一个建议：把可选字段集中在对象末尾，并且在函数入口统一归一化。例如先算出 `var age: number = u.age === undefined ? 0 : u.age;`，后面所有逻辑都用这个局部变量，不再反复判 undefined。这样既避免了遗漏，也让主逻辑保持扁平。归一化之后，可选属性只在边界出现一次，内部代码面对的都是确定值。\n\n对象展开是更新不可变对象的常用手法，但本应用不支持展开运算符 `...`，所以更新字段时要显式构造新对象：把旧字段逐个复制、再覆盖要改的那个。这种写法啰嗦，却完全兼容 ES5，而且读起来一目了然——哪些字段被保留、哪些被替换，全在代码里。等你在支持 ES6 的环境里工作时，可以换回展开写法，语义是一样的。"
+      },
+      {
+        "type": "text",
+        "text": "可选属性在继承和组合时会累积。父接口有可选字段，子接口继承后仍然可选，不会因为子接口「更具体」就变成必填。如果子接口确实要求该字段必填，必须在子接口里重新声明一次：`interface Strict extends Base { age: number }`。tsc 允许子接口把可选收窄为必填，这表示子类型承诺了更强的约束，赋值方向仍然安全。\n\n可选属性是接口里最容易失控的部分。每增加一个可选字段，所有读取它的地方都要多一次判空；可选字段越多，函数体里的防御代码越多。控制方法是在边界处归一化：解析外部数据时把可选字段一次性补成必填，之后内部传递的对象不再有可选字段。这样「可选」只出现在最外层，核心逻辑保持干净。这也是为什么很多项目区分 Input 类型和 Model 类型。\n\n再补一个判断可选字段的实用方法：问自己「这个字段缺失时，业务上是否仍然成立」。用户没填年龄，用户档案仍然成立，所以 age 可选；订单没有金额，订单就不成立，所以 total 必填。用业务规则决定可选性，而不是用「暂时没有数据」决定，能避免把必填字段误标成可选，导致后续到处判空、到处兜底。"
+      },
+      {
+        "type": "code",
+        "code": "interface Profile {\n  readonly id: number;\n  name: string;\n  age?: number;\n}\n\nfunction describe(p: Profile): string {\n  var age: string = p.age === undefined ? '?' : String(p.age);\n  return p.id + ':' + p.name + '(' + age + ')';\n}\n\nconsole.log(describe({ id: 1, name: 'V' }));\nconsole.log(describe({ id: 2, name: 'Judy', age: 30 }));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "1:V(?)\n2:Judy(30)"
+      },
+      {
+        "type": "diagram",
+        "text": "interface Profile {\n  readonly id: number;   ← 不可改写（仅编译期）\n  name: string;          ← 必填\n  age?: number;          ← 可选，读取时是 number | undefined\n}\n\n运行时：三个修饰全部消失，只剩普通对象字段。"
+      },
+      {
+        "type": "tip",
+        "text": "给可选属性写默认值时，用 `var age: number = p.age === undefined ? 0 : p.age;` 这种显式判断，比 `p.age || 0` 安全——后者会把 0 也当成缺失。"
+      },
+      {
+        "type": "warn",
+        "text": "readonly 不阻止运行时修改。`p.id = 99` 在 tsc 下报错，在本应用里照常执行。要真正的不可变，请在构造函数或工厂函数里一次性建好对象，不对外暴露写入口。"
+      },
+      {
+        "type": "quiz",
+        "question": "`interface U { age?: number }` 中，读取 `u.age` 的静态类型是什么？",
+        "options": [
+          "number",
+          "number | undefined",
+          "any",
+          "null"
+        ],
+        "answer": 1,
+        "explain": "可选属性可能不存在，读取结果是 number | undefined，使用前必须判空。"
+      },
+      {
+        "type": "practice",
+        "title": "可选字段默认值",
+        "code": "interface Cfg {\n  retries?: number;\n}\n\nfunction retriesOf(c: Cfg): number {\n  return c.retries === undefined ? 3 : c.retries;\n}\n\nconsole.log(retriesOf({}), retriesOf({ retries: 0 }));",
+        "output": "3 0",
+        "hint": "0 是合法值，不能用 || 兜底。"
+      }
+    ],
+    "exercise": {
+      "title": "用户档案格式化",
+      "brief": "实现 formatUser(u)：返回 'id:name:age'，age 缺失时输出 '?'。再实现 rename(u, name) 返回一个新对象，id 保持不变、name 用新值、age 原样保留。",
+      "starterCode": "interface User {\n  readonly id: number;\n  name: string;\n  age?: number;\n}\n\nfunction formatUser(u: User): string {\n  // 缺失 age 时输出 ?\n  return '';\n}\n\nfunction rename(u: User, name: string): User {\n  // 返回新对象，id 与 age 保留\n  return u;\n}",
+      "hint": "formatUser 先算 age 字符串；rename 构造新对象时把 id、age 都复制过去，age 可能是 undefined，直接赋给可选字段即可。",
+      "tests": [
+        "assert(formatUser({id:1, name:'V'}) === '1:V:?', '缺失 age 应输出问号')",
+        "assert(formatUser({id:2, name:'J', age:30}) === '2:J:30', '有 age 时应输出数字')",
+        "assert(formatUser({id:3, name:'K', age:0}) === '3:K:0', '0 岁不能被当成缺失')",
+        "assert(rename({id:1, name:'V', age:9}, 'W').name === 'W', '改名应生效')",
+        "assert(rename({id:1, name:'V', age:9}, 'W').id === 1, 'id 应保持原值')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "interface User {\n  readonly id: number;\n  name: string;\n  age?: number;\n}\n\nfunction formatUser(u: User): string {\n  var age: string = u.age === undefined ? '?' : String(u.age);\n  return u.id + ':' + u.name + ':' + age;\n}\n\nfunction rename(u: User, name: string): User {\n  return { id: (u.id), name: (name), age: (u.age) };\n}"
+    }
+  },
+  {
+    "id": "ts14",
+    "order": 613,
+    "chapter": 62,
+    "chapterName": "TypeScript · 核心篇",
+    "lang": "typescript",
+    "title": "索引签名",
+    "subtitle": "描述「键不固定」的对象",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "当对象是一张表"
+      },
+      {
+        "type": "text",
+        "text": "有些对象的键在写代码时并不知道，比如统计字符频率的计数器、按 ID 索引的缓存、从配置里读出来的键值表。这类对象用 interface 逐个列字段不现实，要用索引签名：`interface Counter { [key: string]: number }` 表示「任意字符串键，对应的值都是数字」。它把对象描述成一张字典，键的类型和值的类型分别约束，既保留了结构，又不限定具体有哪些键。\n\n索引签名有两种键：string 和 number。`[key: string]: number` 覆盖所有字符串键；`[key: number]: string` 描述数字下标的数组式对象。JavaScript 里数字键最终也会被转成字符串，所以同时写两种签名时，number 键的值类型必须是 string 值类型的子类型，否则 tsc 会报错。课程里统一用 string 键，避免这层复杂度，也符合大多数字典场景。\n\n索引签名和具体字段可以共存：`interface Config { name: string; [key: string]: string }` 表示 name 必须存在，其余任意字符串键的值也必须是字符串。注意所有具名字段的类型都必须兼容索引签名的值类型，否则 tsc 会拒绝。这条规则保证了「用任意键访问」时返回的类型是可信的，不会出现某些键是数字、某些键是字符串的混乱局面。"
+      },
+      {
+        "type": "text",
+        "text": "读取索引签名时有一个必须处理的细节：TypeScript 默认认为任意键都存在，但运行时不一定。`var c: Counter = {}; c['a']` 在类型上是 number，运行时是 undefined。开启 noUncheckedIndexedAccess 可以把这个差异暴露出来，但本应用不做类型检查，所以代码里要自己判断 `=== undefined`。统计频率、累加计数这类逻辑，第一步永远是判断键是否存在。\n\n索引签名也适合做简单的内存缓存：用 ID 当键、对象当值，读取前先判空，没有就计算并存进去。这种模式在数据量不大时非常有效，缺点是键会一直增长，需要定期清理。类型层面它能正常工作，但索引签名不限制键的数量，也不提供过期语义，真正的缓存还是要靠带有淘汰策略的库。类型系统负责结构正确，不负责运行时策略。\n\n索引签名还常与 Object.keys 配合做遍历。`Object.keys(dict)` 返回字符串数组，循环里用 `dict[keys[i]]` 取值，这是 ES5 里遍历字典的标准写法。注意 for...in 会遍历原型链上的可枚举属性，风险更大，课程统一用 Object.keys 加下标循环。遍历顺序在旧引擎里不保证，如果顺序重要，应该另外维护一个键数组，而不是依赖对象自身的顺序。"
+      },
+      {
+        "type": "text",
+        "text": "索引签名描述的是「开放集合」，interface 描述的是「封闭结构」。判断用哪个：如果键的数量和名字在写代码时已知，用 interface；如果键由运行时数据决定，用索引签名。两者可以共存，但要注意具名字段的类型必须兼容索引签名的值类型。实践中，索引签名最常用于计数器、缓存、配置表和分组结果，这四类场景的共同点是「键是数据，不是设计」。\n\n最后提醒性能上的一个细节：频繁用字符串键读写对象时，V8 等引擎会把它当成字典模式，访问速度比固定形状的对象慢。数据量小的时候完全无感，数据量大时可以考虑用 Map，但 Map 不在本课程范围内。类型层面无法表达这种性能差异，只能靠经验判断。索引签名适合中小规模的数据，超大字典应该换数据结构。"
+      },
+      {
+        "type": "code",
+        "code": "interface Counter {\n  [key: string]: number;\n}\n\nfunction countChars(text: string): Counter {\n  var out: Counter = {};\n  for (var i = 0; i < text.length; i++) {\n    var ch: string = text[i];\n    if (out[ch] === undefined) {\n      out[ch] = 1;\n    } else {\n      out[ch] = out[ch] + 1;\n    }\n  }\n  return out;\n}\n\nvar c: Counter = countChars('aab');\nconsole.log(c['a'], c['b']);\nconsole.log(c['z'] === undefined);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "2 1\ntrue"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "含义",
+          "读取未存在的键"
+        ],
+        "rows": [
+          [
+            "[key: string]: number",
+            "任意字符串键，值为数字",
+            "类型上是 number，运行时是 undefined"
+          ],
+          [
+            "[key: number]: string",
+            "数字下标，值为字符串",
+            "同上，需自行判空"
+          ],
+          [
+            "name: string 与索引签名共存",
+            "具名字段 + 任意键",
+            "具名字段必须有值"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "统计类逻辑用 `if (out[ch] === undefined) { out[ch] = 1; } else { out[ch] = out[ch] + 1; }`，不要写 `out[ch]++`——undefined 加一会得到 NaN，而且本应用的 Rhino 对自增的边界处理不如显式赋值直观。"
+      },
+      {
+        "type": "warn",
+        "text": "索引签名不会在运行时创建任何限制。给 Counter 赋一个字符串值，tsc 会报错，本应用照常运行。所有运行时校验都要自己写，不能指望类型标注。"
+      },
+      {
+        "type": "quiz",
+        "question": "`interface D { [key: string]: number }`，执行 `var d: D = {}; console.log(d['x'])` 输出什么？",
+        "options": [
+          "0",
+          "null",
+          "undefined",
+          "报错"
+        ],
+        "answer": 2,
+        "explain": "索引签名只是类型层约定，空对象里没有这个键，运行时读到 undefined。类型标注不会凭空造出 0。"
+      },
+      {
+        "type": "practice",
+        "title": "词频统计",
+        "code": "interface Counter {\n  [key: string]: number;\n}\n\nfunction countWords(words: string[]): Counter {\n  var out: Counter = {};\n  for (var i = 0; i < words.length; i++) {\n    var w: string = words[i];\n    out[w] = out[w] === undefined ? 1 : out[w] + 1;\n  }\n  return out;\n}\n\nvar c: Counter = countWords(['a', 'b', 'a']);\nconsole.log(c['a'], c['b']);",
+        "output": "2 1",
+        "hint": "用三元表达式处理首次出现。"
+      }
+    ],
+    "exercise": {
+      "title": "字符频率与去重",
+      "brief": "实现 freq(text) 返回字符频率对象，实现 unique(text) 返回按首次出现顺序排列的不重复字符数组。",
+      "starterCode": "interface Counter {\n  [key: string]: number;\n}\n\nfunction freq(text: string): Counter {\n  // 统计每个字符出现次数\n  return {};\n}\n\nfunction unique(text: string): string[] {\n  // 按首次出现顺序返回不重复字符\n  return [];\n}",
+      "hint": "freq 用 out[ch] === undefined 判断首次；unique 先查 out[ch] 是否存在，不存在就 push 并置 1。",
+      "tests": [
+        "assert(freq('aab')['a'] === 2, 'a 应出现 2 次')",
+        "assert(freq('aab')['b'] === 1, 'b 应出现 1 次')",
+        "assert(freq('')['a'] === undefined, '空串不应产生键')",
+        "assert(unique('abac').join('') === 'abc', '去重应保留首次出现顺序')",
+        "assert(unique('').length === 0, '空串去重结果为空数组')"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "interface Counter {\n  [key: string]: number;\n}\n\nfunction freq(text: string): Counter {\n  var out: Counter = {};\n  for (var i = 0; i < text.length; i++) {\n    var ch: string = text[i];\n    if (out[ch] === undefined) {\n      out[ch] = 1;\n    } else {\n      out[ch] = out[ch] + 1;\n    }\n  }\n  return out;\n}\n\nfunction unique(text: string): string[] {\n  var out: Counter = {};\n  var list: string[] = [];\n  for (var i = 0; i < text.length; i++) {\n    var ch: string = text[i];\n    if (out[ch] === undefined) {\n      out[ch] = 1;\n      list.push(ch);\n    }\n  }\n  return list;\n}"
+    }
+  },
+  {
+    "id": "ts15",
+    "order": 614,
+    "chapter": 62,
+    "chapterName": "TypeScript · 核心篇",
+    "lang": "typescript",
+    "title": "函数类型与回调",
+    "subtitle": "把行为也写进类型",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "函数也是一种类型"
+      },
+      {
+        "type": "text",
+        "text": "在 TypeScript 里，函数是值，也有类型。函数类型写成 `(参数: 类型) => 返回类型`，例如 `(n: number) => number` 表示「接收一个数字、返回一个数字」。它可以直接标注变量，也可以作为参数类型或接口字段类型。把函数类型命名成别名 `type Op = (n: number) => number`，既方便复用，也能避开本应用对「内联函数类型标注」的处理缺陷。\n\n回调是函数类型最常见的用途。数组的 map、filter、forEach，事件的监听器，异步任务的完成通知，都是把函数当参数传。给回调标注类型后，实现回调的人立刻知道参数是什么、要返回什么；调用回调的人也能确认自己传的实参正确。回调的类型写错时，错误会在传入处就报出来，而不是等到回调被调用时才崩溃，这就是把行为写进类型的价值。\n\n写回调时要注意 this 和闭包。普通函数的 this 由调用方式决定，回调被单独拿出来执行时可能丢失上下文；箭头函数没有自己的 this，会沿用外层的 this。本应用的 Rhino 支持箭头函数，所以需要访问外层 this 时优先用箭头函数。另一个常见问题是回调里修改外部变量——语法上完全允许，但会让函数的副作用变得隐蔽，尽量让回调只负责计算并返回值。"
+      },
+      {
+        "type": "text",
+        "text": "高阶函数是函数类型的自然延伸：接收函数、返回函数。`function makeAdder(base: number): Op` 返回一个把参数加上 base 的函数，这种写法把配置和执行分离，调用方可以先把 base 固定下来，反复使用。返回函数时，被返回的函数通过闭包记住 base，这个能力与类型无关，但类型签名要同时描述输入和输出，否则使用处会退回 any，前面做的类型工作就白费了。\n\n回调签名设计有三个实用原则：参数尽量少、顺序从「数据」到「配置」、返回值含义单一。一个回调如果既返回状态又返回错误又返回数据，调用方每次都要判断半天；拆成两个回调或者返回一个明确的结果对象，可读性会好很多。类型系统能保证形状正确，但无法保证语义清晰，后者要靠命名和拆分来达成。\n\n函数类型的参数名只是文档，不影响兼容性。`(n: number) => number` 和 `(value: number) => number` 是同一个类型；参数个数和类型才决定兼容。理解这一点，你在实现回调时就能自由命名，不必和类型声明保持一致。另一个实践是给回调类型起名时带上语义：Op、Predicate、Reducer、Comparator、Handler，这些词在函数式编程里有确定含义，读者一看就知道回调该做什么。"
+      },
+      {
+        "type": "text",
+        "text": "最后是一个调试技巧：回调不执行时，先确认它真的被传进去了，再确认调用点确实调用了它。常见原因是条件分支提前返回、循环一次都没进、或者参数位置传错。类型系统能发现「传错形状」，但发现不了「传错位置」——两个都是函数类型时尤其危险。给回调参数起明确的名字，并在调用处用变量名而不是内联匿名函数，能显著降低这类错误。\n\n再补充一点：给回调传参时，参数的顺序应该固定为「数据在前、索引在后」，这与数组原生方法的约定一致。`function each(list: T[], fn: (item: T, index: number) => void)` 读起来自然，调用方也不会搞混。如果回调需要更多上下文，用对象包起来传，而不是继续往后加参数——参数超过三个，调用处就需要靠记忆而不是靠阅读来理解。"
+      },
+      {
+        "type": "code",
+        "code": "type Op = (n: number) => number;\ntype Predicate = (n: number) => boolean;\n\nfunction applyAll(nums: number[], op: Op): number[] {\n  var out: number[] = [];\n  for (var i = 0; i < nums.length; i++) {\n    out.push(op(nums[i]));\n  }\n  return out;\n}\n\nfunction countIf(nums: number[], test: Predicate): number {\n  var c: number = 0;\n  for (var i = 0; i < nums.length; i++) {\n    if (test(nums[i])) {\n      c += 1;\n    }\n  }\n  return c;\n}\n\nconsole.log(applyAll([1, 2, 3], function (n: number): number { return n * 2; }).join(','));\nconsole.log(countIf([1, 2, 3, 4], function (n: number): boolean { return n % 2 === 0; }));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "2,4,6\n2"
+      },
+      {
+        "type": "diagram",
+        "text": "type Op = (n: number) => number\n           │        │\n           │        └─ 返回类型\n           └─ 参数类型\n\napplyAll(nums: number[], op: Op): number[]\n                        │\n                        └─ 行为作为参数传入\n\n输出是数据，回调是行为，类型把两者都描述清楚。"
+      },
+      {
+        "type": "tip",
+        "text": "回调类型优先抽成 type 别名。内联写 `op: (n: number) => number` 在本应用里会擦除失败，留下无法解析的碎片。别名写法既安全又易读。"
+      },
+      {
+        "type": "warn",
+        "text": "本应用不支持默认参数和剩余参数，回调相关的高阶用法要避开 `...args`。需要传多个值时，用对象或数组包起来，再在回调里按字段访问。"
+      },
+      {
+        "type": "quiz",
+        "question": "`type Op = (n: number) => number` 表示什么？",
+        "options": [
+          "一个名为 Op 的变量，值是数字",
+          "一个接收数字、返回数字的函数类型",
+          "一个返回函数的数字",
+          "一个数字数组"
+        ],
+        "answer": 1,
+        "explain": "箭头左边是参数列表，右边是返回类型，整体描述函数形状。"
+      },
+      {
+        "type": "practice",
+        "title": "回调计数器",
+        "code": "type Predicate = (n: number) => boolean;\n\nfunction countIf(nums: number[], test: Predicate): number {\n  var c: number = 0;\n  for (var i = 0; i < nums.length; i++) {\n    if (test(nums[i])) { c += 1; }\n  }\n  return c;\n}\n\nconsole.log(countIf([1, 2, 3], function (n: number): boolean { return n > 1; }));",
+        "output": "2",
+        "hint": "大于 1 的有 2 和 3。"
+      }
+    ],
+    "exercise": {
+      "title": "高阶函数三件套",
+      "brief": "实现 mapNums(nums, op) 返回每个元素经过 op 处理后的新数组；实现 filterNums(nums, test) 返回满足条件的元素；实现 reduceNums(nums, init, step) 从 init 开始依次用 step 合并每个元素。",
+      "starterCode": "type Op = (n: number) => number;\ntype Predicate = (n: number) => boolean;\ntype Reducer = (acc: number, n: number) => number;\n\nfunction mapNums(nums: number[], op: Op): number[] {\n  return [];\n}\n\nfunction filterNums(nums: number[], test: Predicate): number[] {\n  return [];\n}\n\nfunction reduceNums(nums: number[], init: number, step: Reducer): number {\n  return init;\n}",
+      "hint": "三个函数都用 for 循环；map 把 op 的结果 push 进新数组，filter 只在 test 为真时 push，reduce 把 step(acc, n) 的结果赋回 acc。",
+      "tests": [
+        "assert(mapNums([1,2], function (n: number): number { return n + 1; }).join(',') === '2,3', 'map 结果错误')",
+        "assert(filterNums([1,2,3], function (n: number): boolean { return n > 1; }).join(',') === '2,3', 'filter 结果错误')",
+        "assert(reduceNums([1,2,3], 0, function (a: number, n: number): number { return a + n; }) === 6, 'reduce 求和错误')",
+        "assert(reduceNums([], 10, function (a: number, n: number): number { return a + n; }) === 10, '空数组应返回初始值')"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "type Op = (n: number) => number;\ntype Predicate = (n: number) => boolean;\ntype Reducer = (acc: number, n: number) => number;\n\nfunction mapNums(nums: number[], op: Op): number[] {\n  var out: number[] = [];\n  for (var i = 0; i < nums.length; i++) {\n    out.push(op(nums[i]));\n  }\n  return out;\n}\n\nfunction filterNums(nums: number[], test: Predicate): number[] {\n  var out: number[] = [];\n  for (var i = 0; i < nums.length; i++) {\n    if (test(nums[i])) {\n      out.push(nums[i]);\n    }\n  }\n  return out;\n}\n\nfunction reduceNums(nums: number[], init: number, step: Reducer): number {\n  var acc: number = init;\n  for (var i = 0; i < nums.length; i++) {\n    acc = step(acc, nums[i]);\n  }\n  return acc;\n}"
+    }
+  },
+  {
+    "id": "ts16",
+    "order": 615,
+    "chapter": 62,
+    "chapterName": "TypeScript · 核心篇",
+    "lang": "typescript",
+    "title": "对象类型组合",
+    "subtitle": "交叉与继承，把小块拼成大块",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "小形状拼成大形状"
+      },
+      {
+        "type": "text",
+        "text": "真实项目里的对象往往由多个关注点组成：一个订单有标识信息、有时间戳、有金额、有状态。把所有字段塞进一个 interface 会越来越臃肿，也不利于复用。组合的思路是先定义小形状，再把它们拼起来。TypeScript 提供两种拼法：interface 的 extends 继承，以及 type 的交叉类型 `A & B`。两种写法结果相似，语义略有差别。\n\ninterface 的 extends 可以一次继承多个父接口：`interface Order extends Base, Timestamped { total: number }`。子接口拥有父接口的全部字段，还可以覆盖同名但兼容的类型。继承关系是「是一个」的语义：Order 是一个 Base，也是一个 Timestamped。这种语义在阅读时很自然，也让类型错误信息更友好，所以描述领域对象时优先用 extends。\n\n交叉类型用 & 把多个类型合并成一个，`type Order = Base & Timestamped & { total: number }`。它适合组合类型别名、联合类型、函数类型这些 extends 无法处理的场景。交叉的语义是「同时满足」，合并后的对象必须拥有所有成员。两个类型有同名但类型不同的字段时，交叉会得到 never，这是使用时要留意的陷阱。"
+      },
+      {
+        "type": "text",
+        "text": "本应用的转译器不支持交叉类型的真实运行语义，`A & B` 只应出现在类型标注或 type 别名里，运行时对象的字段仍要手工构造。写组合逻辑时，最稳妥的方式是让函数显式接收多个小对象，返回拼好的大对象：`function merge(a: A, b: B): AB { return { x: (a.x), y: (b.y) }; }`。这样运行时行为完全可控，类型标注则负责表达组合关系。\n\n组合的另一个好处是测试。小形状可以单独构造、单独断言，大对象只是把小形状拼起来，测试时只需要验证拼接逻辑，不必为每个字段准备数据。当一个 interface 超过十几个字段时，先停下来看看能不能拆成三四个小接口，再组合起来。拆分的标准不是字段数量，而是「这些字段是否总是一起变化」——一起变化的放一起，独立变化的拆开。\n\n组合类型时还要注意「多余属性检查」。直接传对象字面量给函数时，tsc 会检查有没有接口里未声明的字段；把对象先赋给变量再传，检查就宽松一些。这个差异经常让人困惑：同样一个多出字段的对象，直接传参报错、经变量中转却不报。理解它的方式是记住「字面量会触发更严格的检查」，需要绕过时用变量中转或调整接口定义。"
+      },
+      {
+        "type": "text",
+        "text": "组合类型时要抵抗「大接口」的诱惑。一个接口超过十几个字段，通常意味着它承担了多个职责：展示、存储、传输混在一起。拆分的信号是「这些字段是否总是一起出现」——总是一起出现的放一个接口，偶尔才出现的拆出去。拆分之后，函数可以只声明自己真正需要的那部分，依赖面变小，测试也更容易构造数据。接口越小，复用越容易。\n\n组合类型还要注意循环引用。A 包含 B、B 又包含 A，TypeScript 允许接口循环引用，但构造对象时会变成无限嵌套，运行时很快就会栈溢出。真实业务里，循环结构应该用「引用 ID」而不是「嵌套对象」表达：订单里存 userId，需要用户信息时再查。类型层面能表达循环，不代表数据结构应该循环，这个判断需要工程经验。"
+      },
+      {
+        "type": "code",
+        "code": "interface Base {\n  id: string;\n}\n\ninterface Timestamped {\n  createdAt: string;\n}\n\ninterface Order extends Base, Timestamped {\n  total: number;\n}\n\ntype Audited = Base & Timestamped;\n\nfunction stamp(id: string, createdAt: string): Audited {\n  return { id: (id), createdAt: (createdAt) };\n}\n\nvar o: Order = { id: 'A1', createdAt: '2026-01-01', total: 30 };\nvar a: Audited = stamp('B2', '2026-02-02');\n\nconsole.log(o.id, o.createdAt, o.total);\nconsole.log(a.id, a.createdAt);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "A1 2026-01-01 30\nB2 2026-02-02"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "组合方式",
+          "写法",
+          "适用场景"
+        ],
+        "rows": [
+          [
+            "接口继承",
+            "interface C extends A, B",
+            "领域对象，语义是「是一个」"
+          ],
+          [
+            "交叉类型",
+            "type C = A & B",
+            "类型别名、联合、函数类型的组合"
+          ],
+          [
+            "手工合并",
+            "function merge(a, b): C",
+            "需要运行时构造完整对象"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "继承层级不要超过三层。三层以上时，父接口往往承担了过多职责，改一处会牵连很多子类型。宁可多写几个平级的接口，用组合而不是深层继承。"
+      },
+      {
+        "type": "warn",
+        "text": "同名但类型不同的字段交叉后会变成 never，赋值时任何值都不满足。遇到这种情况说明两个父类型的语义冲突，应该改名或重新设计，而不是硬拼。"
+      },
+      {
+        "type": "quiz",
+        "question": "`type C = A & B` 表示什么？",
+        "options": [
+          "C 只能是 A 或 B 之一",
+          "C 同时拥有 A 和 B 的全部成员",
+          "C 是 A 和 B 的数组",
+          "C 继承 A 并覆盖 B"
+        ],
+        "answer": 1,
+        "explain": "交叉类型要求同时满足所有成员，合并后的对象必须拥有 A 与 B 的全部字段。"
+      },
+      {
+        "type": "practice",
+        "title": "组合基础字段",
+        "code": "interface Base {\n  id: string;\n}\n\ninterface Named {\n  name: string;\n}\n\ninterface Entity extends Base, Named {\n  level: number;\n}\n\nvar e: Entity = { id: 'a', name: 'V', level: 3 };\nconsole.log(e.id + '/' + e.name + '/' + e.level);",
+        "output": "a/V/3",
+        "hint": "Entity 同时拥有三个字段。"
+      }
+    ],
+    "exercise": {
+      "title": "订单字段组合",
+      "brief": "定义 Base（id）、Timestamped（createdAt）、Amount（total）三个接口，用 extends 组合出 Order，实现 makeOrder(id, createdAt, total) 返回 Order，实现 describe(o) 返回 'id@createdAt=total'。",
+      "starterCode": "interface Base {\n  id: string;\n}\n\ninterface Timestamped {\n  createdAt: string;\n}\n\ninterface Amount {\n  total: number;\n}\n\ninterface Order extends Base, Timestamped, Amount {\n}\n\nfunction makeOrder(id: string, createdAt: string, total: number): Order {\n  return { id: (id), createdAt: (createdAt), total: (total) };\n}\n\nfunction describe(o: Order): string {\n  // 返回 id + '@' + createdAt + '=' + total\n  return '';\n}",
+      "hint": "describe 直接按格式拼接三个字段；makeOrder 已经给出，不需要改。",
+      "tests": [
+        "assert(makeOrder('A1','2026',30).id === 'A1', 'makeOrder 的 id 错误')",
+        "assert(makeOrder('A1','2026',30).total === 30, 'makeOrder 的 total 错误')",
+        "assert(describe({id:'A1', createdAt:'2026', total:30}) === 'A1@2026=30', 'describe 格式错误')",
+        "assert(describe({id:'B2', createdAt:'x', total:0}) === 'B2@x=0', '0 金额也要输出')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "interface Base {\n  id: string;\n}\n\ninterface Timestamped {\n  createdAt: string;\n}\n\ninterface Amount {\n  total: number;\n}\n\ninterface Order extends Base, Timestamped, Amount {\n}\n\nfunction makeOrder(id: string, createdAt: string, total: number): Order {\n  return { id: (id), createdAt: (createdAt), total: (total) };\n}\n\nfunction describe(o: Order): string {\n  return o.id + '@' + o.createdAt + '=' + o.total;\n}"
+    }
+  },
+  {
+    "id": "ts17",
+    "order": 616,
+    "chapter": 62,
+    "chapterName": "TypeScript · 核心篇",
+    "lang": "typescript",
+    "title": "类型断言与 as",
+    "subtitle": "告诉编译器你比它更了解",
+    "xp": 80,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "断言不是转换"
+      },
+      {
+        "type": "text",
+        "text": "类型断言用 as 写：`var s = value as string`。它的含义是「我确定这个值在这里是 string，请按 string 处理」，编译器不再检查。注意用词：断言不是转换，运行时一个字节都不会变，数字还是数字，对象还是对象。写 `var n = '5' as number`，运行时 n 是字符串 '5'，对它做加法会得到 '51' 而不是 6。\n\n断言最常见的合法场景是收窄外部数据。`JSON.parse` 返回 any，但你知道响应结构符合某个 interface，于是写 `var order: Order = JSON.parse(raw) as Order;`。这一步把无类型的值接进了类型系统，后续代码就能享受补全和检查。代价是责任转移：如果实际数据不符合 Order，编译器不会发现，运行时会以 undefined 的形式在很远的地方爆炸。\n\n另一种场景是处理联合类型中编译器无法推断的分支。例如你刚刚用自定义函数判断了类型，但那个函数返回的是普通 boolean，编译器不知道它意味着什么，此时用 as 强制收窄。更好的做法是把判断函数写成类型守卫 `v is string`，让编译器自动收窄，第二十六讲会详细讲。断言应该作为最后手段，而不是遇到类型错误就加 as。"
+      },
+      {
+        "type": "text",
+        "text": "断言的语法在本应用里是 `expr as Type`，`as` 前面必须有空格，Type 只能是标识符或带泛型参数的标识符。尖括号写法 `<Type>expr` 在 TypeScript 里也合法，但会被误认为比较运算符，本应用的转译器故意不支持。断言可以链式写 `a as any as string`，但不建议——连续两次断言通常说明类型设计有问题，应该回头改结构而不是强行绕过。\n\n滥用断言会让类型系统失效。一个实用判断标准是：如果 as 的目标类型和源类型毫无关系，那多半是错的；如果目标类型是源类型的子集（例如从 any、unknown 或联合类型收窄到具体成员），那可能合理。团队代码评审时可以把所有 as 列出来逐条看，数量突然增多往往意味着某处的类型建模出了问题。\n\n断言还有一种合法用途是处理库的类型缺口。某些老库的声明文件把参数写成 any 或过于宽泛的联合类型，你明知运行时是具体类型，却无法让编译器相信，这时用一个局部断言比全局改声明更省事。处理完立刻在注释里记下原因，将来库更新了就可以删掉。断言本身不可怕，可怕的是没有记录的断言，后人不知道它为什么存在、能不能删。"
+      },
+      {
+        "type": "text",
+        "text": "把断言当成「需要写理由的代码」。每次写 as，都在心里补一句「因为……所以这里一定是这个类型」。如果理由说不出来，就应该改成运行时校验或调整类型设计。评审时看到 as，第一反应应该是问理由，而不是问语法。团队里可以约定：断言必须紧邻一行注释说明依据，或者封装进有名字的函数里。让断言可见、可审查，是控制它滥用的有效办法。\n\n断言的另一个替代方案是「解析函数」：接收 unknown，返回具体类型或 null。例如 parseOrder(raw) 返回 Order | null，调用方必须判空才能使用。这样错误被显式建模，而不是被断言掩盖。解析函数的成本是要写校验逻辑，但它把「可能失败」这件事写进了类型签名，调用方无法忽略。对外部数据，这几乎总是比 as 更好的选择。"
+      },
+      {
+        "type": "code",
+        "code": "interface Order {\n  id: string;\n  total: number;\n}\n\nfunction parseOrder(raw: string): Order {\n  var data: Order = JSON.parse(raw) as Order;\n  return data;\n}\n\nvar o: Order = parseOrder('{\"id\":\"A1\",\"total\":30}');\nconsole.log(o.id, o.total);\n\nvar n: number = 5;\nvar m = n as number;\nconsole.log(typeof m);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "A1 30\nnumber"
+      },
+      {
+        "type": "diagram",
+        "text": "value as Type\n     │\n     ├─ 编写阶段：告诉 tsc「按 Type 处理」，不再检查\n     ├─ 运行阶段：什么都没发生，值原样保留\n     └─ 责任：由写代码的人承担\n\n断言 ≠ 转换。转换要用 Number()、String()、JSON.parse()。"
+      },
+      {
+        "type": "tip",
+        "text": "从 any 或 unknown 断言成具体类型时，最好紧接着做一次运行时校验：检查关键字段是否存在、类型是否对。断言只解决编译期，运行时的正确性仍要自己保证。"
+      },
+      {
+        "type": "warn",
+        "text": "本应用不做类型检查，as 的唯一作用是被擦除。也就是说 `var s = 5 as string` 在本应用里完全可行，运行时 s 就是数字。不要用它来「假装」类型正确。"
+      },
+      {
+        "type": "quiz",
+        "question": "`var s = ('5' as number) + 1` 的运行时结果是什么？",
+        "options": [
+          "6",
+          "'51'",
+          "NaN",
+          "报错"
+        ],
+        "answer": 1,
+        "explain": "as 只影响编写阶段，运行时 '5' 仍是字符串，加 1 触发字符串拼接得到 '51'。"
+      },
+      {
+        "type": "practice",
+        "title": "断言后验证",
+        "code": "interface Point {\n  x: number;\n  y: number;\n}\n\nvar data: any = { x: 1, y: 2 };\nvar p: Point = data as Point;\nconsole.log(p.x + p.y);",
+        "output": "3",
+        "hint": "断言只是让编译器接受，字段本身是真实存在的。"
+      }
+    ],
+    "exercise": {
+      "title": "解析并格式化订单",
+      "brief": "实现 parseOrder(raw)：把 JSON 字符串断言成 Order 后返回。实现 safeTotal(raw)：解析后如果 total 不是数字，返回 0。",
+      "starterCode": "interface Order {\n  id: string;\n  total: number;\n}\n\nfunction parseOrder(raw: string): Order {\n  // JSON.parse 后 as Order\n  return { id: '', total: 0 };\n}\n\nfunction safeTotal(raw: string): number {\n  // 解析后检查 typeof total === 'number'\n  return 0;\n}",
+      "hint": "parseOrder 直接 `return JSON.parse(raw) as Order;`；safeTotal 先取 order，再用 `typeof order.total === 'number'` 判断，不是数字就返回 0。",
+      "tests": [
+        "assert(parseOrder('{\"id\":\"A1\",\"total\":30}').id === 'A1', 'parseOrder 的 id 错误')",
+        "assert(parseOrder('{\"id\":\"A1\",\"total\":30}').total === 30, 'parseOrder 的 total 错误')",
+        "assert(safeTotal('{\"id\":\"A1\",\"total\":30}') === 30, '正常订单应返回 total')",
+        "assert(safeTotal('{\"id\":\"A1\"}') === 0, '缺少 total 应返回 0')",
+        "assert(safeTotal('{\"id\":\"A1\",\"total\":\"x\"}') === 0, 'total 非数字应返回 0')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "interface Order {\n  id: string;\n  total: number;\n}\n\nfunction parseOrder(raw: string): Order {\n  return JSON.parse(raw) as Order;\n}\n\nfunction safeTotal(raw: string): number {\n  var order: Order = parseOrder(raw);\n  if (typeof order.total === 'number') {\n    return order.total;\n  }\n  return 0;\n}"
+    }
+  },
+  {
+    "id": "ts18",
+    "order": 617,
+    "chapter": 62,
+    "chapterName": "TypeScript · 核心篇",
+    "lang": "typescript",
+    "title": "非空断言",
+    "subtitle": "用一个感叹号去掉 null",
+    "xp": 80,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "我确定它不是空"
+      },
+      {
+        "type": "text",
+        "text": "非空断言写在表达式后面：`value!`。它的含义是「我确定这个值不是 null 也不是 undefined，请按去掉空值的类型处理」。`var name: string | null = ...; name!.length` 在 tsc 下能通过，因为感叹号把 string | null 收窄成了 string。和 as 一样，它只影响编写阶段，运行时什么都不做，如果真的为 null，照样抛出 TypeError。\n\n非空断言最适合用在「刚刚检查过但编译器不知道」的场景。典型例子是查表函数的返回值：`findById(users, id)` 返回 User | null，你在上一行已经判断过它不为空，但编译器在跨函数调用后不一定能保持收窄。这时用 ! 是合理的，前提是你的判断真的成立。更稳妥的做法是保留判断结果到局部变量，让编译器自己收窄。\n\n非空断言也常用于数组查找后立即访问：`items[i]!.name`，前提是你已经确认 i 在范围内。它不适合用来掩盖「可能真的没有」的情况，例如用户输入的查询结果、网络请求的响应、可选配置项。这些场景应该老实判空并给出默认值或错误提示，而不是用一个感叹号把风险推给运行时。"
+      },
+      {
+        "type": "text",
+        "text": "本应用的转译器会删除非空断言：`value!` 变成 `value`，`obj!.prop` 变成 `obj.prop`。这个擦除是安全的，因为运行时本来就没有空值检查。但要注意不要把它和逻辑非混淆：`!value` 是取反，`value!` 是断言，位置不同、含义完全不同。写成 `if (!value!)` 这种组合既难读又容易出错，课程里一律避免。\n\n一个团队级的建议：把非空断言控制在很少的数量，并在代码评审时特别关注。每出现一个 !，都应该能说出「为什么这里一定不为空」——是因为刚刚判过、是因为数据结构保证、还是因为构造函数一定会赋值。说不出来就说明应该改成显式判空。类型断言的强度越大，越需要纪律来约束。\n\n非空断言在数组下标场景要格外小心。`arr[i]!` 只在你确认 i 合法时成立，而循环边界写错恰恰是最常见的 bug 来源。更稳的写法是先取出来放到局部变量，判断不为 null 再使用：`var item = arr[i]; if (item !== undefined) { ... }`。多写一行判断，换来的是运行时不会崩，这笔账任何时候都划算。"
+      },
+      {
+        "type": "text",
+        "text": "把非空断言和本书的判题结合起来看会更清楚：判题里经常写 `getAt(rows, 0)!.name`，前提是那一行确实知道下标合法。如果测试传入越界下标，感叹号救不了你，运行时直接抛错，判题失败。所以在写练习时，先想清楚每个断言的成立条件，再决定用 ! 还是用显式判空，这比记住语法更重要。\n\n非空断言最危险的地方是它会「传染」：一个地方用了 !，后续代码就默认这个值永远不为空，一旦前提被破坏，错误会在很远的地方爆发。防止传染的办法是把断言限制在最小范围：取到值后立刻放进局部变量，断言只作用于这一个变量，不作用于链式调用。更稳的做法是把「查不到」变成显式的返回值，让调用方必须处理，而不是靠断言跳过。\n\n如果发现自己频繁使用非空断言，通常说明数据结构设计有问题：要么该字段其实总是存在，应该改成必填；要么它确实可能缺失，应该老实判空。两种修正都比断言更彻底。断言只是让编译器闭嘴，不解决「为什么这里可能是空」这个根本问题。把每次使用 ! 当成一次设计复盘的机会，类型建模能力会提升得很快。"
+      },
+      {
+        "type": "code",
+        "code": "interface User {\n  id: number;\n  name: string;\n}\n\nfunction findById(users: User[], id: number): User | null {\n  for (var i = 0; i < users.length; i++) {\n    if (users[i].id === id) {\n      return users[i];\n    }\n  }\n  return null;\n}\n\nvar users: User[] = [{ id: 1, name: 'V' }, { id: 2, name: 'Judy' }];\nvar hit: User | null = findById(users, 2);\n\nconsole.log(hit!.name);\nconsole.log(findById(users, 9) === null);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "Judy\ntrue"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "含义",
+          "运行时行为"
+        ],
+        "rows": [
+          [
+            "value!",
+            "断言 value 不为空",
+            "原样保留 value"
+          ],
+          [
+            "value as T",
+            "断言 value 是类型 T",
+            "原样保留 value"
+          ],
+          [
+            "value === null",
+            "真实的判空",
+            "按判断结果分支"
+          ],
+          [
+            "value || fallback",
+            "假值兜底",
+            "0 与空串也会被替换"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "能用 `if (hit !== null)` 收窄时就不要用 `hit!`。显式判断既让编译器满意，也让运行时安全，还让读代码的人知道这里确实可能为空。"
+      },
+      {
+        "type": "warn",
+        "text": "非空断言和可选链不是一回事。本应用不支持可选链 `obj?.prop`，也不支持空值合并 `a ?? b`。判空请写 `obj === null || obj === undefined`，兜底请写三元表达式。"
+      },
+      {
+        "type": "quiz",
+        "question": "`var s: string | null = null; console.log(s!.length)` 在 tsc 下会怎样？",
+        "options": [
+          "编译报错",
+          "编译通过，运行时抛 TypeError",
+          "编译通过，输出 0",
+          "输出 null"
+        ],
+        "answer": 1,
+        "explain": "非空断言让编译器闭嘴，但运行时 s 确实是 null，访问 length 会抛 TypeError。"
+      },
+      {
+        "type": "practice",
+        "title": "查找并读取",
+        "code": "interface Row {\n  name: string;\n}\n\nfunction pick(rows: Row[], i: number): Row {\n  return rows[i]!;\n}\n\nconsole.log(pick([{ name: 'a' }], 0).name);",
+        "output": "a",
+        "hint": "下标在范围内，断言成立。"
+      }
+    ],
+    "exercise": {
+      "title": "列表查找与安全读取",
+      "brief": "实现 getAt(rows, i) 返回第 i 个元素，越界时返回 null；实现 nameAt(rows, i) 用非空断言取 name，调用前已保证 i 合法。",
+      "starterCode": "interface Row {\n  name: string;\n}\n\nfunction getAt(rows: Row[], i: number): Row | null {\n  // 越界返回 null\n  return null;\n}\n\nfunction nameAt(rows: Row[], i: number): string {\n  // 用 getAt 取到后加 ! 再访问 name\n  return '';\n}",
+      "hint": "getAt 判断 i < 0 或 i >= rows.length 时返回 null；nameAt 写 `return getAt(rows, i)!.name;`。",
+      "tests": [
+        "assert(getAt([{name:'a'}], 0)!.name === 'a', 'getAt 应返回元素')",
+        "assert(getAt([{name:'a'}], 5) === null, '越界应返回 null')",
+        "assert(nameAt([{name:'a'},{name:'b'}], 1) === 'b', 'nameAt 应返回对应名字')",
+        "assert(getAt([], 0) === null, '空数组应返回 null')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "interface Row {\n  name: string;\n}\n\nfunction getAt(rows: Row[], i: number): Row | null {\n  if (i < 0 || i >= rows.length) {\n    return null;\n  }\n  return rows[i];\n}\n\nfunction nameAt(rows: Row[], i: number): string {\n  return getAt(rows, i)!.name;\n}"
+    }
+  },
+  {
+    "id": "ts19",
+    "order": 618,
+    "chapter": 62,
+    "chapterName": "TypeScript · 核心篇",
+    "lang": "typescript",
+    "title": "类型别名建模",
+    "subtitle": "先给业务概念起名字",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "类型是业务的语言"
+      },
+      {
+        "type": "text",
+        "text": "类型别名最被低估的用途是建模：把业务概念翻译成代码里的名字。`type UserId = string`、`type Cents = number`、`type OrderStatus = 'pending' | 'paid' | 'shipped'`，这些名字让函数签名直接表达业务含义。`function refund(orderId: OrderId, amount: Cents): RefundResult` 比 `function refund(a: string, b: number): any` 清楚一百倍，而且编译器和编辑器都能沿着名字找到定义。\n\n建模的第一步是区分「同一种底层类型、不同业务含义」的值。用户 ID 和订单 ID 都是字符串，但混用会导致严重 bug：把订单 ID 传给按用户 ID 查询的函数，类型系统如果能区分就会立刻报错。TypeScript 的结构化类型系统默认不区分，但可以通过交叉一个标记字段模拟标称类型，本课程不展开，只要求养成「给每个业务 ID 起独立别名」的习惯。\n\n第二步是给状态和结果建模。业务状态往往是封闭集合，用字面量联合描述最合适；操作结果往往分为成功和失败，用可辨识联合描述最清晰，第二十五讲会展开。把这些类型集中放在一个文件里，作为模块的类型词汇表，所有函数都从这里引用，能避免同一个概念在不同文件里被写成不同形状——这是大型项目里最常见、也最难查的一类 bug。"
+      },
+      {
+        "type": "text",
+        "text": "第三步是让函数签名使用这些名字，而不是重复底层类型。`function pay(order: Order, amount: Cents): PaymentResult` 这样的签名，读起来像业务文档，改起来也方便：将来金额从分改成元，只需要改 Cents 的定义和转换函数，所有签名自动跟着变。类型别名不产生运行时开销，却能显著降低沟通成本，是投入产出比最高的工程实践之一。\n\n建模时要避免过度抽象。给每个字段都起一个别名，会让代码充满跳转，反而难读。判断标准是：这个概念是否在多个函数、多个文件里出现？是否有独立的业务含义？是否可能单独变化？三个都满足才值得起名。只在一个函数里用一次的临时结构，交给类型推断或者直接写内联类型即可，不必兴师动众。\n\n建模还有一个细节：把「输入类型」和「输出类型」分开。同一个业务概念，创建时需要的字段和查询后返回的字段往往不同：新建订单只需要商品和数量，查询订单会返回 ID、创建时间、状态。用两个 interface 描述（例如 OrderInput 和 Order），比用一个带大量可选字段的接口更清晰，也能避免「创建时忘了传 ID」这类低级错误。"
+      },
+      {
+        "type": "text",
+        "text": "类型词汇表应该像业务词典一样维护：每个概念一条，说明含义、取值范围、由谁产生。代码里的别名只是这份词典的实现形式。当团队对某个概念有分歧时，先改词典再改代码，比直接在代码里各写各的要高效。一个健康的项目，新人读完类型文件就能理解八成业务；一个不健康的项目，类型文件里全是 any 和重复定义。类型文件的整洁程度，往往反映了团队对业务的理解决程度。\n\n类型词汇表还要防止「同义词泛滥」。用户编号叫 userId、uid、user_id、UserID，四个名字可能同时出现在一个项目里，类型系统无法判断它们是不是一回事。解决办法是集中定义、禁止就地新建，并在评审时统一叫法。命名一致性带来的收益很难量化，但它直接决定了新人上手的速度和跨模块协作的顺畅程度。"
+      },
+      {
+        "type": "code",
+        "code": "type UserId = string;\ntype Cents = number;\ntype OrderStatus = 'pending' | 'paid' | 'shipped';\n\ninterface Order {\n  id: UserId;\n  status: OrderStatus;\n  total: Cents;\n}\n\nfunction formatCents(v: Cents): string {\n  return (v / 100).toFixed(2);\n}\n\nfunction summarize(o: Order): string {\n  return o.id + '/' + o.status + '/' + formatCents(o.total);\n}\n\nconsole.log(summarize({ id: 'U1', status: 'paid', total: 1999 }));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "U1/paid/19.99"
+      },
+      {
+        "type": "diagram",
+        "text": "业务概念                类型别名                使用处\n─────────              ─────────              ─────────\n用户编号        →       type UserId = string   →   id: UserId\n金额（分）      →       type Cents = number    →   total: Cents\n订单状态        →       type OrderStatus = ... →   status: OrderStatus\n\n名字固定概念，概念固定行为。"
+      },
+      {
+        "type": "tip",
+        "text": "类型词汇表建议单独放一个文件，按「标识 → 枚举 → 实体 → 结果」的顺序排列。新同事读一遍就能理解业务的主要概念，比读十个函数实现更快。"
+      },
+      {
+        "type": "warn",
+        "text": "别名不会做运行时校验。`var id: UserId = ''` 在运行时就是一个空字符串，类型系统不会阻止。业务规则（例如 ID 不能为空）必须写在函数里，类型只能表达「这是一个用户编号」。"
+      },
+      {
+        "type": "quiz",
+        "question": "给金额定义 `type Cents = number` 的主要收益是什么？",
+        "options": [
+          "运行时会自动把元转成分",
+          "签名可读性提高，且概念只需在一个地方修改",
+          "能防止金额被篡改",
+          "可以减少内存占用"
+        ],
+        "answer": 1,
+        "explain": "类型别名只影响编写阶段，收益是可读性和单点修改；它不做转换，也不提供运行时保护。"
+      },
+      {
+        "type": "practice",
+        "title": "用别名表达金额",
+        "code": "type Cents = number;\n\nfunction yuan(c: Cents): string {\n  return (c / 100).toFixed(2);\n}\n\nconsole.log(yuan(250));",
+        "output": "2.50",
+        "hint": "分转元，保留两位小数。"
+      }
+    ],
+    "exercise": {
+      "title": "订单类型词汇表",
+      "brief": "定义 UserId、Cents、OrderStatus 三个别名和 Order 接口，实现 formatCents(c) 返回两位小数的元字符串，实现 describe(o) 返回 'id:status:元金额'。",
+      "starterCode": "type UserId = string;\ntype Cents = number;\ntype OrderStatus = 'pending' | 'paid' | 'shipped';\n\ninterface Order {\n  id: UserId;\n  status: OrderStatus;\n  total: Cents;\n}\n\nfunction formatCents(c: Cents): string {\n  return '';\n}\n\nfunction describe(o: Order): string {\n  return '';\n}",
+      "hint": "formatCents 用 (c / 100).toFixed(2)；describe 用 o.id + ':' + o.status + ':' + formatCents(o.total)。",
+      "tests": [
+        "assert(formatCents(1999) === '19.99', '1999 分应为 19.99')",
+        "assert(formatCents(0) === '0.00', '0 分应为 0.00')",
+        "assert(describe({id:'U1', status:'paid', total:1999}) === 'U1:paid:19.99', 'describe 格式错误')",
+        "assert(describe({id:'U2', status:'shipped', total:5}) === 'U2:shipped:0.05', '5 分应为 0.05')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "type UserId = string;\ntype Cents = number;\ntype OrderStatus = 'pending' | 'paid' | 'shipped';\n\ninterface Order {\n  id: UserId;\n  status: OrderStatus;\n  total: Cents;\n}\n\nfunction formatCents(c: Cents): string {\n  return (c / 100).toFixed(2);\n}\n\nfunction describe(o: Order): string {\n  return o.id + ':' + o.status + ':' + formatCents(o.total);\n}"
+    }
+  },
+  {
+    "id": "ts20",
+    "order": 619,
+    "chapter": 62,
+    "chapterName": "TypeScript · 核心篇",
+    "lang": "typescript",
+    "title": "从 JS 迁移到 TS",
+    "subtitle": "渐进式加类型，而不是重写",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "迁移是一步步来的"
+      },
+      {
+        "type": "text",
+        "text": "把老 JavaScript 项目迁到 TypeScript，最忌讳的是推倒重写。正确做法是渐进式：先把文件后缀改成 .ts，让编译器以宽松模式跑通，再逐个函数补类型。TypeScript 的设计初衷就是「JavaScript 的超集」，任何合法的 JS 都是合法的 TS，所以第一步几乎不需要改代码，只需要配置一个允许隐式 any 的 tsconfig。\n\n第二步是给边界补类型。所谓边界，是模块的导出函数、外部输入、公共数据结构。内部的临时变量可以先留给推断，边界的参数和返回值必须标注，因为它们是别人依赖的契约。本应用虽然不跑 tsc，但同样的原则适用于阅读和改写：先写 interface 描述数据结构，再给处理这些结构的函数加签名，最后处理内部逻辑。\n\n第三步是消除隐式 any。每加一个类型标注，就把对应的 any 缩小一圈。开启 strict 和 noImplicitAny 后，编译器会列出所有没标注的地方，逐个处理即可。遇到确实无法确定类型的第三方库，先写一个最小的 .d.ts 声明文件，把用到的函数和类型补上，不必追求完整。声明文件是桥梁，不是负担。"
+      },
+      {
+        "type": "text",
+        "text": "第四步是把运行时校验补上。类型在运行时不存在，从网络、存储、用户输入来的数据都必须验证。常见做法是写一个解析函数：接收 unknown，用 typeof、Array.isArray、字段存在性检查逐层验证，通过后返回具体类型，失败则抛错或返回默认值。这个函数是类型系统与真实世界之间的唯一接口，写好了，后面所有代码都可以信任类型标注。\n\n迁移过程中还有两个实践建议。第一，保持一次改动可回滚：一个 PR 只迁一个模块，不要把所有文件塞进同一次提交。第二，把 any 的数量当指标：每迁完一个模块，统计一下剩余的 any，看着它下降会很有成就感，也能及时发现哪些地方在反复绕过类型。迁移的终点不是「零 any」，而是「每个 any 都有正当理由」。\n\n迁移完成后，建议补一份简短的迁移记录：哪些模块已迁、哪些还是 any、哪些外部数据没有校验。这份记录不必很长，但它能让团队知道当前类型覆盖的真实水平，避免误以为「用了 TypeScript 就万事大吉」。类型覆盖率和测试覆盖率一样，是过程指标，不是终点；真正重要的是线上错误是否减少、重构是否更快。"
+      },
+      {
+        "type": "text",
+        "text": "迁移的最后一步是把「临时方案」清理掉。迁移期间常见的临时手段包括：大量 as any、注释掉的类型、为绕过报错而放宽的配置。每完成一个模块，就应该回头清一遍这些痕迹，否则它们会沉淀成新的技术债。判断标准是：这段代码如果明天交给新人维护，他能不能看懂类型意图？看不懂就说明迁移只完成了一半。类型覆盖率是数字，可维护性才是目标。\n\n迁移完成后，建议补一份简短的迁移记录：哪些模块已迁、哪些还是 any、哪些外部数据没有校验。这份记录不必很长，但它能让团队知道当前类型覆盖的真实水平，避免误以为「用了 TypeScript 就万事大吉」。类型覆盖率和测试覆盖率一样，是过程指标，不是终点；真正重要的是线上错误是否减少、重构是否更快。"
+      },
+      {
+        "type": "code",
+        "code": "interface RawUser {\n  id: number;\n  name: string;\n}\n\nfunction parseUser(input: any): RawUser {\n  var id: number = typeof input.id === 'number' ? input.id : 0;\n  var name: string = typeof input.name === 'string' ? input.name : 'unknown';\n  return { id: (id), name: (name) };\n}\n\nfunction greet(user: RawUser): string {\n  return 'HI ' + user.name + '#' + user.id;\n}\n\nconsole.log(greet(parseUser({ id: 7, name: 'V' })));\nconsole.log(greet(parseUser({ name: 'J' })));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "HI V#7\nHI J#0"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "迁移阶段",
+          "动作",
+          "验收标准"
+        ],
+        "rows": [
+          [
+            "改名",
+            "js → ts，宽松配置",
+            "能编译，行为不变"
+          ],
+          [
+            "补边界",
+            "导出函数、数据结构加标注",
+            "公共 API 有完整签名"
+          ],
+          [
+            "消 any",
+            "开启 strict，逐个处理",
+            "any 数量持续下降"
+          ],
+          [
+            "加校验",
+            "外部输入写解析函数",
+            "未知数据不会进入类型系统"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "迁移时先给「数据」建模，再给「行为」标注。interface 写对了，函数签名水到渠成；反过来先写函数签名，常常会发现数据结构没想清楚，反复返工。"
+      },
+      {
+        "type": "warn",
+        "text": "不要把迁移和重构混在一起。迁移阶段只加类型、不改逻辑，这样出问题时能确定是类型标注引起的还是行为改动引起的。等迁移完成、测试稳定后，再单独做重构。"
+      },
+      {
+        "type": "quiz",
+        "question": "把 JS 迁到 TS 时，第一步应该做什么？",
+        "options": [
+          "重写所有函数，加上完整类型",
+          "把文件改成 .ts，用宽松配置跑通",
+          "先开启最严格的编译选项",
+          "删除所有 any"
+        ],
+        "answer": 1,
+        "explain": "渐进迁移的第一步是让代码在 TS 下跑通，再逐步收紧类型；一上来就开最严格模式会产生大量错误，打击信心也难以定位。"
+      },
+      {
+        "type": "practice",
+        "title": "宽松解析",
+        "code": "interface User {\n  id: number;\n  name: string;\n}\n\nfunction normalize(input: any): User {\n  return {\n    id: typeof input.id === 'number' ? input.id : 0,\n    name: typeof input.name === 'string' ? input.name : 'unknown'\n  };\n}\n\nconsole.log(normalize({ id: 1 }).name);",
+        "output": "unknown",
+        "hint": "缺失字段用默认值兜底。"
+      }
+    ],
+    "exercise": {
+      "title": "把 JS 函数迁成 TS",
+      "brief": "把下面这段 JS 思路迁成带类型的实现：normalize(input) 把任意输入整理成 User，缺失或类型不对的字段用默认值；describe(user) 返回 'name(id)'；countValid(list) 统计 id 大于 0 的用户数量。",
+      "starterCode": "interface User {\n  id: number;\n  name: string;\n}\n\nfunction normalize(input: any): User {\n  var id: number = typeof input.id === 'number' ? input.id : 0;\n  var name: string = typeof input.name === 'string' ? input.name : 'unknown';\n  return { id: (id), name: (name) };\n}\n\nfunction describe(user: User): string {\n  // 返回 name + '(' + id + ')'\n  return '';\n}\n\nfunction countValid(list: User[]): number {\n  // 统计 id > 0 的用户\n  return 0;\n}",
+      "hint": "describe 按格式拼接；countValid 用 for 循环，遇到 id > 0 就累加。",
+      "tests": [
+        "assert(normalize({ id: 1, name: 'V' }).name === 'V', 'normalize 应保留合法字段')",
+        "assert(normalize({ id: 'x' }).id === 0, '非法 id 应回退为 0')",
+        "assert(describe({ id: 3, name: 'V' }) === 'V(3)', 'describe 格式错误')",
+        "assert(countValid([{id:1,name:'a'},{id:0,name:'b'},{id:2,name:'c'}]) === 2, 'countValid 统计错误')",
+        "assert(countValid([]) === 0, '空数组应为 0')"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "interface User {\n  id: number;\n  name: string;\n}\n\nfunction normalize(input: any): User {\n  var id: number = typeof input.id === 'number' ? input.id : 0;\n  var name: string = typeof input.name === 'string' ? input.name : 'unknown';\n  return { id: (id), name: (name) };\n}\n\nfunction describe(user: User): string {\n  return user.name + '(' + user.id + ')';\n}\n\nfunction countValid(list: User[]): number {\n  var c: number = 0;\n  for (var i = 0; i < list.length; i++) {\n    if (list[i].id > 0) {\n      c += 1;\n    }\n  }\n  return c;\n}"
+    }
+  }
+]

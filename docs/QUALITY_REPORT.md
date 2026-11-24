@@ -1,7 +1,7 @@
 # 质量报告
 
 更新日期：2026-11-24
-版本：0.7.4（versionCode 23）
+版本：0.7.5（versionCode 24）
 适用安装包：arm64-v8a，Android 10 及以上
 
 ## 结论
@@ -15,14 +15,23 @@
 | 项目 | 结果 |
 | --- | --- |
 | Kotlin 编译 | `compileDebugKotlin` 通过 |
-| Android 单元测试 | 306 项，0 失败，1 跳过 |
-| Python 测试 | 249 项通过，551 个 subtest 通过 |
+| Android 单元测试 | 311 项，0 失败，1 跳过 |
+| Python 测试 | 260 项通过，551 个 subtest 通过 |
 | Lint | 0 Error，47 Warning，6 Hint |
 | 内容结构校验 | 245 讲、22 道挑战、267 个判题项、1,097 条用例，结构问题 0，判题失败 0 |
 | 网页端语法 | `node --check web/app.js`、`web/data.js`、`web/engine.js` 通过 |
 | 官网结构 | HTML 标签检查无错误、无未闭合标签 |
 
-## 0.7.4 修正与验证
+## 0.7.5 修正与验证
+
+| 项目 | 修正 | 验证 |
+| --- | --- | --- |
+| Python 可联网/起子进程，与隐私口径不一致 | `runner.py` 增加操作级审计钩子，执行用户代码时拒绝 INET/INET6 socket、`os.system`、`subprocess.Popen`、`os.exec`/`fork`/`kill`、`java`/`ctypes` 桥 | `test_engine_sandbox` 11 项；`asyncio`/`threading`/`os.path` 仍可用 |
+| 用户代码新开的线程可能绕过 guard | `threading.Thread.start` 在 guard 内自动包一层 `sandbox_guard` | 子线程建 socket 返回 PermissionError |
+| 全新安装只内置 39 讲，206 讲要联网 | 24 个包 + 离线 catalog 打进 assets，首启复制到 `filesDir/courses`；已有更高版本不覆盖 | `BundledContentTest` 5 项；APK 探针 24 包/245 讲 |
+| 语言中心首屏没网时不显示已装包 | 初始读取 `assets/catalog.json`，离线也能列出 24 包；联网只检查更新 | `bundledCatalog` 测试 + 文案同步 |
+
+## 0.7.4 修正与验证（历史）
 
 | 问题 | 修正 | 验证 |
 | --- | --- | --- |
@@ -67,7 +76,7 @@ Python 含 1 讲综合项目、DSA 10 讲、彩蛋 1 讲；SQL 含 5 讲边界�
 
 ## 离线能力验证
 
-- 课程、判题脚本、Python 运行时和进度存储都在应用内，断网不影响已下载内容。
+- 课程、判题脚本、Python 运行时和进度存储都在应用内；245 讲和 24 个课程包随 APK 预装，断网不影响已装内容。
 - `pytest` 的判题用例在本地直接执行 Python、SQLite 和 Node，不依赖远端服务。
 - JavaScript 用 Rhino，Lua 用 LuaJ，C 用内置教学解释器，均在 JVM/设备本地执行。
 - 网页版是例外：首次打开要下载 Pyodide，之后靠浏览器缓存；它只覆盖 Python。
@@ -77,6 +86,7 @@ Python 含 1 讲综合项目、DSA 10 讲、彩蛋 1 讲；SQL 含 5 讲边界�
 - 离线助教是“规则 + 课程检索”，没有把大模型权重打进 APK；它不联网、不编造课程外内容，但也不是通用聊天模型。
 - Android 10 及以上，只打 arm64-v8a；没有 iOS 版。
 - 不预装第三方 Python 包，不能当数据分析环境。
+- Python 操作沙箱拦的是正常执行路径上的网络/命令调用；同一解释器内不是进程级隔离，不能承诺对抗恶意代码绝对不可绕过。
 - TypeScript 不做类型检查，C 是教学子集，Lua 不是完整 5.4。
 - 挑战编辑器只支持单文件，没有多文件项目模式。
 - 没有账号、云同步、社区；学习数据只在本机，换机靠备份 JSON。
@@ -92,13 +102,13 @@ Python 含 1 讲综合项目、DSA 10 讲、彩蛋 1 讲；SQL 含 5 讲边界�
 
 ## 发布门禁
 
-发布前按顺序执行（0.7.4 实测均通过）：
+发布前按顺序执行（0.7.5 实测均通过）：
 
 ```bash
 python3 -m pytest tests -q
-JAVA_HOME=/home/user/tools/jdk17 ANDROID_HOME=/home/user/android-sdk ./gradlew testDebugUnitTest --no-daemon
-JAVA_HOME=/home/user/tools/jdk17 ANDROID_HOME=/home/user/android-sdk ./gradlew lintDebug --no-daemon
-JAVA_HOME=/home/user/tools/jdk17 ANDROID_HOME=/home/user/android-sdk ./gradlew :app:assembleRelease --no-daemon
+JAVA_HOME=/home/user/tools/jdk17 ANDROID_HOME=/home/user/tools/android-sdk ./gradlew testDebugUnitTest --no-daemon
+JAVA_HOME=/home/user/tools/jdk17 ANDROID_HOME=/home/user/tools/android-sdk ./gradlew lintDebug --no-daemon
+JAVA_HOME=/home/user/tools/jdk17 ANDROID_HOME=/home/user/tools/android-sdk ./gradlew :app:assembleRelease --no-daemon
 ```
 
 签名后的 APK 还要过 `apksigner verify` 和 `tests/ci_apk_probe.py --require-release`，确认不是 debug 证书、包名和版本号正确，再上传 Release。

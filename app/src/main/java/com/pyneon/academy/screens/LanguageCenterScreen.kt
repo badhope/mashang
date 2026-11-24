@@ -58,8 +58,10 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val center = remember { ContentCenter() }
 
-    var catalog by remember { mutableStateOf<ContentCatalog?>(null) }
-    var catalogBase by remember { mutableStateOf("") }
+    // 先读 APK 内置目录，没网也能把 24 个预装包列出来；联网只用来检查有没有新版本。
+    val bundledCatalog = remember { center.bundledCatalog(context) }
+    var catalog by remember { mutableStateOf(bundledCatalog) }
+    var catalogBase by remember { mutableStateOf(if (bundledCatalog != null) ContentCenter.FALLBACK_BASE_URL else "") }
     var loading by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var installed by remember { mutableStateOf(center.installedVersions(context)) }
@@ -73,7 +75,11 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
                 catalog = cat
                 catalogBase = base
             } catch (e: Exception) {
-                message = "连接失败：${e.message?.take(60) ?: "网络不可用"}（离线课程不受影响）"
+                message = if (bundledCatalog != null) {
+                    "更新检查失败：${e.message?.take(60) ?: "网络不可用"}（正在使用 APK 内置目录）"
+                } else {
+                    "连接失败：${e.message?.take(60) ?: "网络不可用"}（离线课程不受影响）"
+                }
             }
             loading = false
         }
@@ -95,7 +101,7 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
         }
 
         Text(
-            "运行时随 APK 内置，课程包按需下载。下载前不会出现在课程列表里。",
+            "运行时随 APK 内置，24 个基础课程包也已预装，245 讲开箱即学。联网只用于检查更新。",
             style = MaterialTheme.typography.bodySmall,
             color = TextDim
         )
@@ -132,9 +138,9 @@ fun LanguageCenterScreen(onBack: () -> Unit) {
             )
         }
 
-        SectionHeader("课程包（按需下载）", accent = NeonYellow)
+        SectionHeader("课程包（已预装，可更新）", accent = NeonYellow)
         Text(
-            "每门语言至少 38 讲；SQL 另有 4 讲边界专题。课程拆成基础 / 核心 / 进阶 / 专业四包。点哪包下哪包，也可以整门一次装齐。",
+            "每门语言至少 38 讲；SQL 另有 4 讲边界专题。基础 / 核心 / 进阶 / 专业四包已随 APK 预装，联网只检查新版本。",
             style = MaterialTheme.typography.bodySmall,
             color = TextDim
         )

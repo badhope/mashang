@@ -36,6 +36,17 @@ def _fake_pyc():
     return header + marshal.dumps(compile(_runner_src(), "runner.py", "exec"))
 
 
+
+
+def _add_pack_assets(z):
+    """给假 APK 补 24 个预装包与 catalog，匹配 R7。"""
+    for i in range(24):
+        z.writestr(f"assets/content_packs/pack{i:02d}.v2.json", "[]")
+    z.writestr(
+        "assets/catalog.json",
+        json.dumps({"packs": [{"id": f"pack{i:02d}"} for i in range(24)]}),
+    )
+
 def _write_apk(path, layout="py", *, with_assets=True, runner=None, repl=None):
     runner = runner if runner is not None else _runner_src()
     repl = repl if repl is not None else _repl_src()
@@ -60,6 +71,7 @@ def _write_apk(path, layout="py", *, with_assets=True, runner=None, repl=None):
                 z.writestr(f"assets/{name}", json.dumps([]))
             for _lang in ("python", "javascript", "typescript", "c", "lua", "sql"):
                 z.writestr(f"assets/syntaxes/{_lang}.tmLanguage.json", "{}")
+            _add_pack_assets(z)
         z.writestr("AndroidManifest.xml", "com.pyneon.academy".encode("utf-16-le"))
         z.writestr("classes.dex", b"dex-035")
         # R9 检查要求 arm64-v8a 原生库就位（国内商店强制 64 位）
@@ -104,6 +116,7 @@ class ApkProbeTests(unittest.TestCase):
                             z.writestr(f"assets/{n}", "[]")
                         for _lang in ("python", "javascript", "typescript", "c", "lua", "sql"):
                             z.writestr(f"assets/syntaxes/{_lang}.tmLanguage.json", "{}")
+                        _add_pack_assets(z)
                         z.writestr("AndroidManifest.xml", "com.pyneon.academy".encode("utf-16-le"))
                         z.writestr("classes.dex", b"dex-035")
                         for i in range(520):
@@ -130,6 +143,7 @@ class ApkProbeTests(unittest.TestCase):
                     z.writestr(f"assets/{n}", "[]")
                 for _lang in ("python", "javascript", "typescript", "c", "lua", "sql"):
                     z.writestr(f"assets/syntaxes/{_lang}.tmLanguage.json", "{}")
+                _add_pack_assets(z)
                 z.writestr("AndroidManifest.xml", "com.pyneon.academy".encode("utf-16-le"))
                 z.writestr("classes.dex", b"dex-035")
                 for i in range(520):

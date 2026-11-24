@@ -1,0 +1,1216 @@
+[
+  {
+    "id": "c21",
+    "order": 720,
+    "chapter": 73,
+    "chapterName": "C · 进阶篇",
+    "lang": "c",
+    "title": "动态内存概念",
+    "subtitle": "栈、堆与 malloc / free",
+    "xp": 160,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "内存从哪里来"
+      },
+      {
+        "type": "text",
+        "text": "程序运行时用到的内存大致分三块：全局区存放全局变量和静态变量，生命周期贯穿整个程序；栈区存放函数调用时的局部变量和参数，函数返回就自动回收，容量有限；堆区由程序员手动申请和释放，容量大、生命周期由你控制。前面课程里的数组都在栈上，长度必须在编译期确定，函数一返回就消失。当你需要「运行时才知道多大」或者「跨函数长期存在」的数据时，就要用堆。理解这三块区域的差别，你才能判断一个变量什么时候失效、一块内存该由谁负责释放。栈上的数据不需要你操心，堆上的每一块都有明确的主人。最后强调责任边界：谁申请，谁释放；申请和释放写在同一个函数里最安全。跨函数传递堆内存时，必须在接口注释里写清楚所有权归谁，否则接手的人只能靠猜。真实项目里可以用「创建函数配销毁函数」的成对接口，把所有权约定固化下来。"
+      },
+      {
+        "type": "text",
+        "text": "C 用 malloc 申请堆内存：传入要多少字节，返回一个指向这块内存起始位置的指针；申请失败返回空指针，必须检查。free 把这块内存还给系统。malloc 不会清零，需要清零用 calloc，调整已有块大小用 realloc。堆内存不会自动回收：忘记 free 就是内存泄漏；free 之后继续使用就是悬空指针；对同一块内存 free 两次是未定义行为。这三类是 C 程序最典型的事故来源，也是很多安全漏洞的根源。申请时用「元素个数乘以单个元素大小」算字节数，不要手算错的常量；释放后立刻把指针置空，能挡掉一部分重复释放。动态内存的替代方案值得提前了解：固定缓冲区加长度变量，能满足大多数教学和小规模场景；需要增长时按倍数扩容，避免频繁复制。这种「容量、长度、扩容」的模型在真实项目里到处都是，字符串、动态数组、队列都按这个思路实现。理解模型之后，即使换成真正的动态内存，也只是把「预分配数组」换成「申请堆内存」，把「扩容」换成「重新申请并复制」，逻辑完全一样。"
+      },
+      {
+        "type": "text",
+        "text": "本课程的解释器没有真实内存分配器，因此不支持 malloc 和 free：下面的动态内存代码是参考块，标注为不可运行，需要你在装有 GCC 的电脑上编译验证。课程里可运行的例子用「固定容量数组加长度变量」模拟动态数组的行为，这也是真实 C 项目里常见的做法：先预分配一块缓冲区，用长度记录已用空间，满了再扩容。理解容量、长度、扩容这三个概念，比记住 malloc 的语法更重要。扩容时新容量通常取原来的两倍，避免每加一个元素就复制一次；旧数据要复制过去，旧块要及时释放，这两步漏一步就是泄漏或丢数据。最后一个记忆点：malloc 申请的是字节数，不是元素个数；释放的是指针保存的地址，不是指针变量本身。这两句话能解释大部分动态内存的初学错误。申请时用元素个数乘以元素大小，释放后把指针置空，申请后先判空，三条规则覆盖了绝大多数场景。"
+      },
+      {
+        "type": "code",
+        "code": "int main() {\n    int buffer[8];\n    int len = 0;\n\n    for (int i = 0; i < 5; i++) {\n        buffer[len] = i * i;\n        len++;\n    }\n    printf(\"len=%d cap=%d\\n\", len, 8);\n    for (int i = 0; i < len; i++) {\n        printf(\"%d \", buffer[i]);\n    }\n    printf(\"\\n\");\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "len=5 cap=8\n0 1 4 9 16 "
+      },
+      {
+        "type": "code",
+        "code": "/* 参考块：需要真实编译器，本课程解释器不执行 */\nint main() {\n    int n = 5;\n    int *a = malloc(n * sizeof(int));\n    if (a == NULL) {\n        printf(\"out of memory\\n\");\n        return 1;\n    }\n    for (int i = 0; i < n; i++) {\n        a[i] = i * i;\n    }\n    printf(\"%d\\n\", a[4]);\n    free(a);\n    a = NULL;\n    return 0;\n}",
+        "runnable": false
+      },
+      {
+        "type": "table",
+        "headers": [
+          "区域",
+          "谁管理",
+          "生命周期",
+          "典型用途"
+        ],
+        "rows": [
+          [
+            "全局区",
+            "编译器",
+            "整个程序",
+            "全局变量、静态变量"
+          ],
+          [
+            "栈",
+            "编译器自动",
+            "函数调用期间",
+            "局部变量、参数"
+          ],
+          [
+            "堆",
+            "程序员手动",
+            "从 malloc 到 free",
+            "运行时决定大小的数据"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "malloc 之后先判 NULL，free 之后把指针置 NULL。这两步能挡掉大量崩溃和重复释放。"
+      },
+      {
+        "type": "warn",
+        "text": "malloc/free 不在本课程解释器的支持范围内，上面第二个代码块是参考块，runnable 为 false，不会被当作可运行示例。请勿在练习中使用。"
+      },
+      {
+        "type": "quiz",
+        "question": "malloc 申请的内存，什么时候被自动释放？",
+        "options": [
+          "函数返回时",
+          "程序结束时",
+          "不会自动释放，必须 free",
+          "作用域结束时"
+        ],
+        "answer": 2,
+        "explain": "堆内存的生命周期完全由程序员控制，不 free 就一直占用，直到进程结束。"
+      },
+      {
+        "type": "task",
+        "text": "把上面的固定缓冲区例子改成容量 4，插入 6 个元素，观察需要怎样处理「满了」的情况。"
+      }
+    ],
+    "exercise": {
+      "title": "定容队列追加",
+      "brief": "实现 append(int *buf, int *len, int cap, int value)：容量未满时写入并让长度加 1，返回 1；已满返回 0 且不写入。",
+      "starterCode": "int append(int *buf, int *len, int cap, int value) {\n    // 先判断容量，再写入\n    return 0;\n}",
+      "hint": "if (*len >= cap) return 0; buf[*len] = value; (*len)++; return 1;",
+      "tests": [
+        "int main() { int b[3]; int len = 0; assert(append(b, &len, 3, 7) == 1, \"应写入成功\"); assert(b[0] == 7 && len == 1, \"内容和长度应更新\"); return 0; }",
+        "int main() { int b[2]; int len = 2; assert(append(b, &len, 2, 9) == 0, \"已满应返回 0\"); assert(len == 2, \"长度不应变化\"); return 0; }",
+        "int main() { int b[2]; int len = 0; append(b, &len, 2, 1); append(b, &len, 2, 2); assert(append(b, &len, 2, 3) == 0, \"第三个应失败\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 170,
+      "solution": "int append(int *buf, int *len, int cap, int value) {\n    if (*len >= cap) return 0;\n    buf[*len] = value;\n    (*len)++;\n    return 1;\n}\n"
+    }
+  },
+  {
+    "id": "c22",
+    "order": 721,
+    "chapter": 73,
+    "chapterName": "C · 进阶篇",
+    "lang": "c",
+    "title": "结构体嵌套与链表思维",
+    "subtitle": "自引用结构与节点串联",
+    "xp": 160,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "结构体可以包含别的结构体"
+      },
+      {
+        "type": "text",
+        "text": "嵌套结构体让类型层次更清晰：先定义日期类型，再定义学生类型，学生里包含一个完整的日期成员。访问多层成员用点号连续写，读作「学生的生日里的年份」。嵌套是按值包含，外层结构体里真的有一个完整的内层结构体，大小会把两者加起来再对齐。嵌套层数不宜过深，超过两三层通常说明应该拆成独立的概念，否则每次访问都要写一长串成员链，改结构时牵一发动全身。设计时先问「这个内层类型能不能单独使用」，能就值得单独命名；只是临时打包两个字段，才考虑直接展开。链表练习从三个函数开始：求长度、求和、查找。三个都写熟之后，再练头插、尾插、删除。每写一步就在纸上更新箭头，确认没有节点被孤立、没有指针指向已失效的内存。链表代码短，但指针顺序错一步就会断链，画图是最便宜的调试手段。"
+      },
+      {
+        "type": "text",
+        "text": "链表是结构体最经典的应用。节点结构体包含数据和指向下一个同类型节点的指针。这个定义里用到了自己，所以成员只能是指针——如果写成值成员，类型会要求自己包含一个完整的自己，尺寸无限递归，编译器直接报错。每个节点单独存在，指针把它们串起来；最后一个节点的指针是空，表示结束。链表不需要连续内存，插入删除只改指针，代价是不支持随机访问，找第 k 个元素必须从头走。与数组相比，链表适合频繁在中间插入删除、长度经常变化的场景；数组适合频繁按下标访问、长度稳定的场景。链表的价值在于「关系与数据分离」：节点只关心自己的值和下一个节点，整条链的顺序由指针表达。这种结构让插入删除变得便宜，代价是访问变慢、指针容易出错。理解链表之后，树只是「一个节点有多个后继」，图只是「后继可以指回前面」，本质都是指针关系。学习时先把单链表的长度、求和、查找写熟，再练插入删除，最后再考虑更复杂的结构。每一步都用画图验证，错误会少很多。"
+      },
+      {
+        "type": "text",
+        "text": "遍历链表的标准写法是循环判断当前节点是否为空，处理数据后把指针移到下一个。删除节点要先保存后继，再修改前驱的链接；插入节点要让新节点的后继指向原后继，再让前驱的后继指向新节点，顺序反了会丢失后面的链。链表思维的核心是用指针表达关系：树、图、哈希桶都是它的变体。常见错误是丢失头指针、忘记置空、以及遍历时修改后继导致断链。画图是写链表代码最有效的方法：三个方框加箭头，标清楚每一步谁指向谁，比在脑子里模拟可靠。本课程不支持动态内存，所有节点都是局部变量，地址在作用域内有效。最后一个结构设计建议：节点里除了数据和后继指针，不要再塞太多字段。链表节点越简单，插入删除的代码越短，出错概率越低。需要附加信息时，可以再包一层结构体，或者用单独的映射表。保持节点精简，是链表代码可维护的关键。"
+      },
+      {
+        "type": "code",
+        "code": "struct Date {\n    int year;\n    int month;\n};\n\nstruct Student {\n    int id;\n    struct Date birthday;\n    int score;\n};\n\nint main() {\n    struct Student s;\n    s.id = 1;\n    s.birthday.year = 2026;\n    s.birthday.month = 11;\n    s.score = 90;\n    printf(\"%d %d-%d %d\\n\", s.id, s.birthday.year, s.birthday.month, s.score);\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "1 2026-11 90"
+      },
+      {
+        "type": "code",
+        "code": "struct Node {\n    int value;\n    struct Node *next;\n};\n\nint list_sum(struct Node *head) {\n    int sum = 0;\n    while (head != NULL) {\n        sum += head->value;\n        head = head->next;\n    }\n    return sum;\n}\n\nint main() {\n    struct Node a;\n    struct Node b;\n    struct Node c;\n    a.value = 10;\n    b.value = 20;\n    c.value = 30;\n    a.next = &b;\n    b.next = &c;\n    c.next = NULL;\n\n    printf(\"sum=%d\\n\", list_sum(&a));\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "sum=60"
+      },
+      {
+        "type": "diagram",
+        "text": "a(10) ──► b(20) ──► c(30) ──► NULL\nhead = &a\n遍历：head = head->next 直到 NULL"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "操作",
+          "关键步骤",
+          "风险"
+        ],
+        "rows": [
+          [
+            "遍历",
+            "p = p->next 直到 NULL",
+            "忘记推进会死循环"
+          ],
+          [
+            "头插",
+            "新节点 next 指向原 head",
+            "丢失原链表"
+          ],
+          [
+            "尾插",
+            "找到 next 为 NULL 的节点",
+            "空链表要单独处理"
+          ],
+          [
+            "删除",
+            "先存 next 再改链接",
+            "顺序错会断链"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "画图再写链表代码：三个方框加箭头，标清楚每一步谁指向谁，比在脑子里模拟可靠。"
+      },
+      {
+        "type": "warn",
+        "text": "本课程不支持 malloc，所以链表节点都用局部变量构造，节点地址在 main 返回前有效。真实项目里节点来自堆，必须成对 malloc/free。"
+      },
+      {
+        "type": "quiz",
+        "question": "struct Node { int v; struct Node next; }; 为什么编译不通过？",
+        "options": [
+          "缺少分号",
+          "结构体不能自引用值成员，会无限大",
+          "int 不能做成员",
+          "必须 typedef"
+        ],
+        "answer": 1,
+        "explain": "值成员会要求 Node 包含一个完整的 Node，尺寸无限递归；自引用只能用指针。"
+      },
+      {
+        "type": "task",
+        "text": "再增加一个节点 d，把 c.next 指向 &d，重新计算链表和。"
+      }
+    ],
+    "exercise": {
+      "title": "链表长度",
+      "brief": "实现 list_length(struct Node *head)：返回链表中节点个数。",
+      "starterCode": "struct Node {\n    int value;\n    struct Node *next;\n};\n\nint list_length(struct Node *head) {\n    return 0;\n}",
+      "hint": "用计数器，while (head != NULL) { count++; head = head->next; }。",
+      "tests": [
+        "int main() { struct Node a; a.value = 1; a.next = NULL; assert(list_length(&a) == 1, \"单节点应为 1\"); return 0; }",
+        "int main() { struct Node a; struct Node b; a.value = 1; b.value = 2; a.next = &b; b.next = NULL; assert(list_length(&a) == 2, \"两个节点应为 2\"); return 0; }",
+        "int main() { assert(list_length(NULL) == 0, \"空链表应为 0\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 170,
+      "solution": "struct Node {\n    int value;\n    struct Node *next;\n};\n\nint list_length(struct Node *head) {\n    int count = 0;\n    while (head != NULL) {\n        count++;\n        head = head->next;\n    }\n    return count;\n}\n"
+    }
+  },
+  {
+    "id": "c23",
+    "order": 722,
+    "chapter": 73,
+    "chapterName": "C · 进阶篇",
+    "lang": "c",
+    "title": "字符串库函数实战",
+    "subtitle": "拷贝、拼接、比较与格式化",
+    "xp": 160,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把字符串函数用对而不是用熟"
+      },
+      {
+        "type": "text",
+        "text": "真实项目里的字符串处理，难点从来不是会不会调用，而是缓冲区够不够。复制函数不检查目标容量，拼接函数也不检查，比较函数只比较内容不管长度。安全的写法是先算清楚需要多少字节，确认目标数组足够，再调用；或者使用带长度上限的版本。每次看到字符串复制和拼接，都应在心里问一遍：目标缓冲区多大，内容最长多少，结尾的零有没有位置。这个检查只要几秒钟，却能挡掉一整类崩溃和安全问题。目标容量的计算必须包含结尾零，差一个字节就足以让程序在别处莫名其妙地出错。字符串实战题做完后，建议做一次容量复盘：把每个缓冲区的声明大小、最长可能内容、实际写入长度列成一张表，检查是否处处留有结尾零的位置。这张表能暴露大部分潜在的溢出点，比运行时的崩溃日志更早发现问题。"
+      },
+      {
+        "type": "text",
+        "text": "比较函数返回的是字典序差值的符号，不要假设一定是负一或正一。判断相等写等于零，判断大小写小于零。字符串数组可以用二维字符数组存，每一行是一个字符串；也可以用一个指针数组指向各个字面量，但那样不能修改内容，而且指针数组在参数传递上需要二级指针，本课程不支持。结构体里的字符数组成员是常见做法：每条记录带一个固定长度的名字字段，遍历记录时直接打印。名字长度要按实际需求留足，中文名字在 UTF-8 下占三个字节，按字符数估算会不够。字符串库函数的选择可以按「是否需要写入」分两类：只读操作用求长度、比较、字符判断；写入操作用复制、拼接、格式化。写入类函数必须同时确认目标容量，这是唯一不能省的检查。只读类函数要注意字符串必须以零结尾，否则会读过界。把这两类分开记，调用时就不会混淆。实战中还可以自己封装一层带容量检查的辅助函数，把长度计算和边界判断收进去，调用处会干净很多。"
+      },
+      {
+        "type": "text",
+        "text": "常见实战任务包括：统计单词数、大小写转换、去除首尾空格、按分隔符切分、拼接路径、格式化输出。通用套路是：用一个下标或指针走到字符串结尾，遇到分隔符或状态变化时处理，注意不要越界，最后补上结尾零。格式化函数适合把数字和文本拼成一条记录，返回值是写入的字符数，可以用来判断是否超出预期长度。统计单词数需要一个「当前是否在单词内」的状态变量，状态从零变一时计数加一，这是状态机思想最简单的应用。做完这类题后，用空串、全空格、单字符、超长输入各测一遍，边界问题会立刻暴露。最后一个和接口有关的建议：如果某个函数要往调用者提供的缓冲区写字符串，把容量作为参数显式传进去，并在函数开头检查是否够用。返回写入长度或成功标志，让调用者知道结果。这样的接口虽然多一个参数，却把「谁负责容量」这件事写清楚了，比隐式约定安全得多。"
+      },
+      {
+        "type": "code",
+        "code": "int main() {\n    char name[16] = \"night\";\n    char full[32];\n\n    strcpy(full, name);\n    strcat(full, \" city\");\n    printf(\"%s len=%d\\n\", full, strlen(full));\n    printf(\"cmp=%d\\n\", strcmp(name, full));\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "night city len=10\ncmp=-1"
+      },
+      {
+        "type": "code",
+        "code": "int word_count(char *s) {\n    int count = 0;\n    int in_word = 0;\n    while (*s != 0) {\n        if (*s == ' ') {\n            in_word = 0;\n        } else if (in_word == 0) {\n            in_word = 1;\n            count++;\n        }\n        s++;\n    }\n    return count;\n}\n\nint main() {\n    printf(\"%d\\n\", word_count(\"hello c world\"));\n    printf(\"%d\\n\", word_count(\"  one  two \"));\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "3\n2"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "任务",
+          "推荐函数",
+          "必须检查"
+        ],
+        "rows": [
+          [
+            "复制",
+            "strcpy",
+            "目标容量 >= 源长度 + 1"
+          ],
+          [
+            "拼接",
+            "strcat",
+            "目标剩余空间足够"
+          ],
+          [
+            "比较",
+            "strcmp",
+            "结果与 0 比较，不要假设 -1/1"
+          ],
+          [
+            "格式化",
+            "sprintf",
+            "目标容量与返回值"
+          ],
+          [
+            "求长度",
+            "strlen",
+            "字符串必须以 0 结尾"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "字符串函数返回的指针大多指向目标缓冲区，可以直接链式使用，但可读性优先，分步写更清楚。"
+      },
+      {
+        "type": "warn",
+        "text": "中文在 UTF-8 下占多个字节。strlen 返回字节数而不是汉字数，按字节切分可能切出半个字符，需要专门的编码处理。"
+      },
+      {
+        "type": "quiz",
+        "question": "判断两个字符串内容相等，正确写法是？",
+        "options": [
+          "a == b",
+          "strcmp(a, b) == 0",
+          "strlen(a) == strlen(b)",
+          "a[0] == b[0]"
+        ],
+        "answer": 1,
+        "explain": "== 比较的是地址；strcmp 返回 0 才表示内容完全一致。"
+      },
+      {
+        "type": "steps",
+        "items": [
+          "算清最长内容长度",
+          "给结尾 0 留一个字节",
+          "选择拷贝或格式化函数",
+          "检查返回值与目标容量"
+        ]
+      }
+    ],
+    "exercise": {
+      "title": "格式化成绩记录",
+      "brief": "实现 make_record(char *out, int id, int score)：把记录格式化成 id=<id> score=<score> 写入 out，返回写入的字符数。",
+      "starterCode": "int make_record(char *out, int id, int score) {\n    // 用 sprintf\n    return 0;\n}",
+      "hint": "return sprintf(out, \"id=%d score=%d\", id, score);",
+      "tests": [
+        "int main() { char b[64]; int n = make_record(b, 7, 95); assert(strcmp(b, \"id=7 score=95\") == 0, \"内容应为 id=7 score=95\"); assert(n == 13, \"长度应为 13\"); return 0; }",
+        "int main() { char b[64]; make_record(b, 100, 60); assert(strcmp(b, \"id=100 score=60\") == 0, \"三位学号也要正确\"); return 0; }",
+        "int main() { char b[64]; int n = make_record(b, 1, 5); assert(n == strlen(b), \"返回值应等于字符串长度\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 170,
+      "solution": "int make_record(char *out, int id, int score) {\n    return sprintf(out, \"id=%d score=%d\", id, score);\n}\n"
+    }
+  },
+  {
+    "id": "c24",
+    "order": 723,
+    "chapter": 73,
+    "chapterName": "C · 进阶篇",
+    "lang": "c",
+    "title": "文件读写概念",
+    "subtitle": "FILE、打开模式与缓冲",
+    "xp": 160,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "文件是持久化的数据"
+      },
+      {
+        "type": "text",
+        "text": "程序退出后，内存里的数据就没了；要长期保存，必须写进文件。C 标准库用文件指针表示一个打开的文件流：打开、关闭、写入、读取各有一组函数。打开模式决定行为：只读模式要求文件必须存在；只写模式在文件不存在时创建、存在时清空；追加模式写在末尾；读写模式允许双向操作，但文件必须存在，而且读写切换之间往往需要定位。忘记关闭会导致缓冲区数据没有落盘、文件句柄泄漏；程序长时间运行、反复打开不关闭，最终会耗尽系统资源。习惯是打开后立刻检查是否为空，用完立刻关闭。文件操作的最后一条经验：所有打开的文件都应在同一条退出路径上关闭，包括出错提前返回的路径。真实项目里常用「单一清理段」的写法，把关闭操作集中到函数末尾，避免中途 return 漏掉关闭。本课程不执行文件代码，但这条纪律值得现在就记住。"
+      },
+      {
+        "type": "text",
+        "text": "文件读写是带缓冲的：写入函数写进的是内存缓冲区，缓冲区满了或关闭时才真正写盘；按行读取一次读一行，包含换行符，需要自己处理。文本模式与二进制模式在不同平台上换行处理不同，跨平台代码要留意。判断读写是否成功很重要：打开返回空说明失败，原因可能是权限、路径或文件不存在；按格式读取返回成功读到的项数；按行读取返回空表示读到结尾或出错。不要假设文件一定存在、一定可写，也不要把打开失败当成异常情况，它是每天都会发生的正常分支。给用户看的错误信息要说明是哪个文件、哪种操作失败。文件读写与字符串处理的关系比想象中紧密：读进来的是字符缓冲区，写出去的也是字符缓冲区，中间靠格式化函数拼接。所以字符串那一讲练熟的容量计算、结尾零、按行处理，在文件场景里全部适用。区别只在于数据来源从内存变成了磁盘，以及需要处理打开失败、读到结尾这些状态。把文件操作看成「带状态的字符串处理」，学习曲线会平缓很多。本课程不执行文件代码，但概念要理解到位。"
+      },
+      {
+        "type": "text",
+        "text": "本课程的解释器没有文件系统访问能力，所以文件操作只做概念讲解，代码块是参考块，需要真实编译器验证。可运行的例子用内存中的字符缓冲区模拟「写入记录再按行读取」的过程：用格式化函数生成文本，用求长度函数计算写入长度，用循环数出换行符个数。掌握了字符串与格式化，迁移到文件流只是把目标从数组换成文件指针，核心逻辑完全一样。文件读写的常见坑还包括：读完一行忘记去掉换行符就参与比较；写入后没有关闭就去读同一个文件；以及在循环里反复打开关闭，效率极低。把这些坑记下来，换到真实项目里能省很多时间。最后一个观念上的提醒：文件不是数据库，没有事务，也没有并发保护。多个进程同时写同一个文件，结果取决于操作系统和时序，通常不是你想要的样子。真实项目里要么加锁，要么用专门的数据库。理解这一点，你就不会把教学示例里的简单读写直接搬到生产环境。"
+      },
+      {
+        "type": "code",
+        "code": "int main() {\n    char log[128];\n    int written = sprintf(log, \"id=1 score=90\\nid=2 score=85\\n\");\n    int lines = 0;\n    for (int i = 0; i < written; i++) {\n        if (log[i] == '\\n') lines++;\n    }\n    printf(\"written=%d lines=%d\\n\", written, lines);\n    printf(\"%s\", log);\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "written=28 lines=2\nid=1 score=90\nid=2 score=85\n"
+      },
+      {
+        "type": "code",
+        "code": "/* 参考块：需要真实编译器和文件系统，本课程解释器不执行 */\nint main() {\n    FILE *fp = fopen(\"scores.txt\", \"w\");\n    if (fp == NULL) {\n        printf(\"open failed\\n\");\n        return 1;\n    }\n    fprintf(fp, \"id=%d score=%d\\n\", 1, 90);\n    fclose(fp);\n\n    fp = fopen(\"scores.txt\", \"r\");\n    if (fp == NULL) {\n        printf(\"open failed\\n\");\n        return 1;\n    }\n    char line[64];\n    while (fgets(line, 64, fp) != NULL) {\n        printf(\"%s\", line);\n    }\n    fclose(fp);\n    return 0;\n}",
+        "runnable": false
+      },
+      {
+        "type": "table",
+        "headers": [
+          "函数",
+          "作用",
+          "失败时"
+        ],
+        "rows": [
+          [
+            "fopen",
+            "打开文件",
+            "返回 NULL"
+          ],
+          [
+            "fclose",
+            "关闭并刷新缓冲",
+            "返回非 0 表示失败"
+          ],
+          [
+            "fprintf",
+            "格式化写入",
+            "返回负值"
+          ],
+          [
+            "fgets",
+            "读一行",
+            "返回 NULL 表示结尾或出错"
+          ],
+          [
+            "fscanf",
+            "按格式读",
+            "返回成功项数"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "所有文件操作都先判断返回值。文件不存在、磁盘满、权限不足都是正常会发生的情况，不是异常。"
+      },
+      {
+        "type": "warn",
+        "text": "本课程不支持文件读写，上面的 FILE 代码是参考块，runnable 为 false。练习和可运行示例都不使用 fopen/fprintf。"
+      },
+      {
+        "type": "quiz",
+        "question": "以 \"w\" 模式打开一个已存在的文件会发生什么？",
+        "options": [
+          "保留原内容",
+          "清空原内容",
+          "打开失败",
+          "自动备份"
+        ],
+        "answer": 1,
+        "explain": "\"w\" 表示只写，打开时会把文件截断为 0 字节；需要保留内容用 \"a\" 追加。"
+      },
+      {
+        "type": "task",
+        "text": "把内存日志例子改成三条记录，写一个循环统计每行的分数总和。"
+      }
+    ],
+    "exercise": {
+      "title": "统计文本行数",
+      "brief": "实现 count_lines(char *text)：返回字符串中换行符的个数（即行数，假设最后一行也有换行）。",
+      "starterCode": "int count_lines(char *text) {\n    // 遍历到 0，统计 '\\n'\n    return 0;\n}",
+      "hint": "while (*text != 0) { if (*text == '\\n') count++; text++; }",
+      "tests": [
+        "int main() { assert(count_lines(\"a\\nb\\n\") == 2, \"两行应为 2\"); return 0; }",
+        "int main() { assert(count_lines(\"\") == 0, \"空文本应为 0\"); return 0; }",
+        "int main() { assert(count_lines(\"one\\n\") == 1, \"单行应为 1\"); return 0; }",
+        "int main() { assert(count_lines(\"a\\nb\\nc\\n\") == 3, \"三行应为 3\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 170,
+      "solution": "int count_lines(char *text) {\n    int count = 0;\n    while (*text != 0) {\n        if (*text == '\\n') count++;\n        text++;\n    }\n    return count;\n}\n"
+    }
+  },
+  {
+    "id": "c25",
+    "order": 724,
+    "chapter": 73,
+    "chapterName": "C · 进阶篇",
+    "lang": "c",
+    "title": "枚举概念",
+    "subtitle": "用有名字的整数表达状态",
+    "xp": 150,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "枚举是把整数的含义写清楚"
+      },
+      {
+        "type": "text",
+        "text": "C 的枚举用关键字定义一组有名字的整数常量，默认从零开始依次递增；也可以显式赋值，后面的值继续递增。枚举的价值不在语法，而在可读性和约束：函数参数传枚举名比传数字清楚得多，读代码的人不需要查文档就知道某个数字代表什么。枚举常量本身是整数，参与运算、比较、传参都和整数一样。现代编译器还能对 switch 漏掉某个枚举值给出警告，这是枚举相对宏常量的一个实际优势。命名时给枚举类型和成员都加上前缀，能避免不同模块的常量重名。用常量模拟枚举时，建议把一组常量连续声明在一起，并加一行注释说明它们的取值范围和含义。取值不要跳号，除非有外部协议约束。switch 的 default 分支要处理非法值，返回明确的错误或默认文案，不要静默忽略。"
+      },
+      {
+        "type": "text",
+        "text": "枚举常用于状态机、错误码、菜单选项、协议字段。设计时先列出所有可能的值，再决定是否需要显式指定数值：如果数值要写进文件或网络协议，就必须固定下来，不能依赖默认顺序；如果只在内存中使用，默认递增即可。switch 配合枚举是最常见的写法：每个分支写一个枚举名，default 处理非法值。状态机里还可以用枚举表示当前状态，用 switch 决定下一步动作，代码结构会非常清晰。枚举值不要随意重排，因为外部数据可能还在用旧编号，这种兼容性问题往往在版本升级后才暴露。枚举的替代方案除了常量，还可以用一组宏定义，但宏没有类型、没有作用域，调试时也看不到名字，所以现代 C 更推荐枚举。本课程不支持枚举，用常量模拟时要接受两个损失：一是没有编译期检查，传错值只能靠测试发现；二是常量名会进入普通标识符空间，可能与变量名冲突。知道损失在哪里，将来用真实枚举时就会更珍惜它带来的约束。状态值尽量集中定义、集中使用，是把损失降到最低的办法。"
+      },
+      {
+        "type": "text",
+        "text": "本课程的解释器不支持枚举关键字，代码里不能出现它，否则会直接报「暂不支持」。教学中用 const int 常量模拟同样的效果：为每个状态定义一个常量，用 int 变量保存状态，再用 switch 分支处理。这样写丢失了类型检查，但保留了可读性，也是很多老代码的做法。理解枚举的语义后，在真实项目里优先使用枚举；在本课程里，用常量加 switch 表达同样的逻辑。用常量模拟时，把一组常量连续写在一起并加注释，读起来接近枚举；分散在各处定义则完全失去意义。最后一个建议：状态值不要用裸数字在代码里到处出现。即使本课程用常量模拟枚举，也要坚持用名字而不是数字，这样读代码的人不需要查表。数字只应该出现在定义常量的那一处，其他地方一律用名字，这条规则能消掉大量「魔法数字」带来的误解。最后一个和可读性有关的细节：状态常量名用全大写和下划线分隔，和普通变量区分开。打印状态时把数字映射回名字再输出，日志里只出现数字，排查时还要回查定义，非常低效。映射函数保持和常量定义放在一起，新增状态时只改这一处，不会出现定义了常量却忘记加映射的情况。"
+      },
+      {
+        "type": "code",
+        "code": "const int RED = 0;\nconst int GREEN = 1;\nconst int BLUE = 2;\n\nconst char *color_name(int c) {\n    switch (c) {\n        case RED:\n            return \"red\";\n        case GREEN:\n            return \"green\";\n        case BLUE:\n            return \"blue\";\n        default:\n            return \"unknown\";\n    }\n}\n\nint main() {\n    printf(\"%s %s %s\\n\", color_name(RED), color_name(GREEN), color_name(9));\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "red green unknown"
+      },
+      {
+        "type": "code",
+        "code": "const int PENDING = 0;\nconst int PAID = 1;\nconst int DONE = 2;\n\nconst char *next_step(int state) {\n    switch (state) {\n        case PENDING:\n            return \"pay\";\n        case PAID:\n            return \"ship\";\n        case DONE:\n            return \"none\";\n        default:\n            return \"invalid\";\n    }\n}\n\nint main() {\n    printf(\"%s %s %s\n\", next_step(PENDING), next_step(PAID), next_step(DONE));\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "pay ship none"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "概念",
+          "真实 C 写法",
+          "本课程替代写法"
+        ],
+        "rows": [
+          [
+            "定义一组常量",
+            "enum Color { RED, GREEN };",
+            "const int RED = 0;"
+          ],
+          [
+            "声明变量",
+            "enum Color c = RED;",
+            "int c = RED;"
+          ],
+          [
+            "switch 分支",
+            "case RED:",
+            "case RED:"
+          ],
+          [
+            "类型检查",
+            "有（有限的）",
+            "无，需自己保证取值"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "枚举值只在内存里用时可以默认递增；一旦要写进文件或协议，就显式写数字，避免以后调整顺序破坏兼容。"
+      },
+      {
+        "type": "warn",
+        "text": "本课程代码中不要出现 enum 关键字。解释器会拒绝，这不是语法错误而是课程边界。"
+      },
+      {
+        "type": "quiz",
+        "question": "一组枚举常量默认从 0 递增；若第二个常量被显式赋值为 5，第三个常量按默认规则继续递增，它的值是？",
+        "options": [
+          "2",
+          "5",
+          "6",
+          "未定义"
+        ],
+        "answer": 2,
+        "explain": "第二个常量显式设为 5，第三个在它之后继续递增，所以是 6。"
+      },
+      {
+        "type": "task",
+        "text": "用常量模拟一个订单状态：待支付、已支付、已发货、已完成，写函数返回对应的中文名称。"
+      }
+    ],
+    "exercise": {
+      "title": "状态码转文字",
+      "brief": "定义常量 PENDING=0、PAID=1、SHIPPED=2、DONE=3，实现 status_text(code)：返回对应的英文状态名，未知返回 unknown。",
+      "starterCode": "const int PENDING = 0;\nconst int PAID = 1;\nconst int SHIPPED = 2;\nconst int DONE = 3;\n\nconst char *status_text(int code) {\n    return \"unknown\";\n}",
+      "hint": "用 switch (code)，每个 case 返回一个字符串字面量，default 返回 unknown。",
+      "tests": [
+        "int main() { assert(strcmp(status_text(0), \"pending\") == 0, \"0 应为 pending\"); return 0; }",
+        "int main() { assert(strcmp(status_text(1), \"paid\") == 0, \"1 应为 paid\"); return 0; }",
+        "int main() { assert(strcmp(status_text(3), \"done\") == 0, \"3 应为 done\"); return 0; }",
+        "int main() { assert(strcmp(status_text(9), \"unknown\") == 0, \"未知应为 unknown\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 160,
+      "solution": "const int PENDING = 0;\nconst int PAID = 1;\nconst int SHIPPED = 2;\nconst int DONE = 3;\n\nconst char *status_text(int code) {\n    switch (code) {\n        case PENDING: return \"pending\";\n        case PAID: return \"paid\";\n        case SHIPPED: return \"shipped\";\n        case DONE: return \"done\";\n        default: return \"unknown\";\n    }\n}\n"
+    }
+  },
+  {
+    "id": "c26",
+    "order": 725,
+    "chapter": 73,
+    "chapterName": "C · 进阶篇",
+    "lang": "c",
+    "title": "函数指针概念",
+    "subtitle": "把函数当作可传递的行为",
+    "xp": 150,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "函数也有地址"
+      },
+      {
+        "type": "text",
+        "text": "编译后的每个函数都占据一段代码，函数名在表达式里会退化为指向该函数的指针。函数指针的声明要同时写出返回类型和参数类型：先写返回类型，再写括号加星号加名字，再写参数表。括号不能省，省掉就变成「返回指针的函数声明」，语义完全不同。赋值时函数名前加不加取地址符都可以，调用时加不加解引用也都可以，编译器会自动处理。读函数指针声明有个口诀：从名字往外读，先看括号里的星号说明它是指针，再看右边的参数表，最后看左边的返回类型。函数指针的替代方案不止 switch：还可以用一组平行的数组，把操作码当下标，数组元素存对应的结果或标记，这叫查表法。查表法在分支很多时比 switch 更简洁，也更容易扩展。理解「用数据表达行为」这个思路，比记住函数指针的语法更有长期价值。"
+      },
+      {
+        "type": "text",
+        "text": "函数指针的典型用途是回调：把「做什么」作为参数传进去，让同一段框架代码处理不同行为。排序的比较函数、事件处理、状态机跳转表都是这个模式。它也是 C 实现多态的一种方式：结构体里放函数指针，不同实例指向不同实现。代价是可读性下降、编译器难以内联优化、调试时调用栈多一层。现代 C 里可以用内联函数或宏替代一部分场景，但回调接口仍然离不开函数指针。设计回调接口时，把上下文指针作为参数一起传进去，能让回调访问调用者的状态，这个模式在真实库里非常普遍。回调思想在日常代码里随处可见：排序时传比较规则、按钮点击时传处理函数、解析配置时传错误处理器。函数指针只是实现回调的一种手段，理解「把行为作为参数」这个思想，比记住语法更重要。本课程用操作码加分支模拟回调，本质是把「行为选择」变成「数据选择」。这种转换在工程上很常见：配置表、状态机、命令表，都是把行为编码成数据，再用一个分发函数执行。"
+      },
+      {
+        "type": "text",
+        "text": "本课程的解释器不支持函数指针：声明、赋值、调用都会报「暂不支持」，代码里不要出现括号星号名字括号这种形式。教学中我们用 switch 分发来模拟同样的效果：把操作码和具体实现放进分支，调用方只传操作码。理解函数指针的语义后，读真实 C 代码会轻松很多，尤其是标准库的排序函数和线程创建函数。在本课程里，用 switch 加函数调用表达同样的行为即可。判断该不该用回调，看行为是否需要在运行时决定；如果行为在编译期就固定，直接调用函数更简单，也更容易调试。最后一个判断标准：如果行为的选择在编译期就能确定，直接调用函数；只有需要在运行时根据数据决定行为时，才引入回调或操作码分发。过早引入间接层会让代码难读、难调试，收益却为零。简单直接永远是默认选项，复杂机制只在确有需要时使用。"
+      },
+      {
+        "type": "code",
+        "code": "int add(int a, int b) {\n    return a + b;\n}\n\nint mul(int a, int b) {\n    return a * b;\n}\n\nint apply(int op, int a, int b) {\n    switch (op) {\n        case 0:\n            return add(a, b);\n        case 1:\n            return mul(a, b);\n        default:\n            return 0;\n    }\n}\n\nint main() {\n    printf(\"add=%d mul=%d\\n\", apply(0, 3, 4), apply(1, 3, 4));\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "add=7 mul=12"
+      },
+      {
+        "type": "code",
+        "code": "int op_add(int a, int b) { return a + b; }\nint op_sub(int a, int b) { return a - b; }\n\nint dispatch(int op, int a, int b) {\n    if (op == 0) return op_add(a, b);\n    if (op == 1) return op_sub(a, b);\n    return 0;\n}\n\nint main() {\n    int code = 1;\n    int result = dispatch(code, 9, 4);\n    printf(\"code=%d result=%d\n\", code, result);\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "code=1 result=5"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "真实 C 含义",
+          "本课程"
+        ],
+        "rows": [
+          [
+            "int (*op)(int, int);",
+            "函数指针变量",
+            "不支持"
+          ],
+          [
+            "op = add;",
+            "指向函数",
+            "不支持"
+          ],
+          [
+            "op(3, 4)",
+            "通过指针调用",
+            "不支持"
+          ],
+          [
+            "switch (op)",
+            "按操作码分发",
+            "支持的替代方案"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "函数指针声明从名字往外读：(*op) 说明 op 是指针，右边是参数表，左边是返回类型。"
+      },
+      {
+        "type": "warn",
+        "text": "本课程代码不要出现函数指针语法，解释器会拒绝。需要「传行为」时用操作码加 switch 模拟。"
+      },
+      {
+        "type": "quiz",
+        "question": "int (*f)(int); 声明的是什么？",
+        "options": [
+          "返回 int* 的函数",
+          "指向「接收 int、返回 int」的函数的指针",
+          "接收 int 的函数数组",
+          "语法错误"
+        ],
+        "answer": 1,
+        "explain": "(*f) 表明 f 是指针，(int) 是参数表，最左边的 int 是返回类型。"
+      },
+      {
+        "type": "task",
+        "text": "给 apply 增加一个减法操作码 2，比较 switch 分发与函数指针在实际项目里的取舍。"
+      }
+    ],
+    "exercise": {
+      "title": "四则运算分发",
+      "brief": "实现 calc(a, b, op)：op 为 0 时返回 a+b，1 时返回 a-b，2 时返回 a*b，其他返回 0。",
+      "starterCode": "int calc(int a, int b, int op) {\n    // 用 switch 分发\n    return 0;\n}",
+      "hint": "switch (op) { case 0: return a + b; case 1: return a - b; case 2: return a * b; default: return 0; }",
+      "tests": [
+        "int main() { assert(calc(7, 3, 0) == 10, \"加法\"); return 0; }",
+        "int main() { assert(calc(7, 3, 1) == 4, \"减法\"); return 0; }",
+        "int main() { assert(calc(7, 3, 2) == 21, \"乘法\"); return 0; }",
+        "int main() { assert(calc(7, 3, 9) == 0, \"未知操作码应返回 0\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 160,
+      "solution": "int calc(int a, int b, int op) {\n    switch (op) {\n        case 0: return a + b;\n        case 1: return a - b;\n        case 2: return a * b;\n        default: return 0;\n    }\n}\n"
+    }
+  },
+  {
+    "id": "c27",
+    "order": 726,
+    "chapter": 73,
+    "chapterName": "C · 进阶篇",
+    "lang": "c",
+    "title": "算法：排序与查找",
+    "subtitle": "冒泡排序、选择排序与二分查找",
+    "xp": 170,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把数据排好，查找才会快"
+      },
+      {
+        "type": "text",
+        "text": "排序是最基础的算法训练。冒泡排序重复比较相邻元素，逆序就交换，每一轮把当前最大的元素推到末尾；n 个元素最多 n 减一轮，每轮比较次数递减。它的实现简单、稳定，但时间复杂度是平方级，只适合小数据或教学。选择排序每轮从未排序区间里选出最小值，放到已排序区间的末尾，交换次数少，同样平方级。插入排序在数据基本有序时接近线性，实际项目中常作为小数组的补充方案。三种排序都要能手写，但真正上线时优先用标准库的排序函数，除非你有明确的理由自己实现。排序和查找的练习建议：先用小数组手算每一轮的结果，再和程序输出对比。冒泡排序每轮结束后，末尾的元素已经就位；选择排序每轮结束后，开头的最小值已经就位。抓住这些不变量，调试时就知道该看哪一段。二分查找则在纸上标出低位、中间、高位三个指针，逐轮缩小范围。"
+      },
+      {
+        "type": "text",
+        "text": "二分查找要求数据已经有序。思路是每次取中间元素与目标比较：相等就返回下标；目标更小就到左半区继续；更大就到右半区。每轮区间缩小一半，时间复杂度是对数级，一千个元素最多十轮，一百万个元素最多二十轮。实现时中间下标用「低位加上高低差的一半」，比「两者相加再除以二」更不容易溢出；循环条件是低位不大于高位，更新时用中间下标减一和加一，写错一处就会死循环或漏掉边界。二分查找的变体很多，查找第一个等于目标的位置、最后一个等于目标的位置、第一个大于目标的位置，边界处理各不相同，写之前先明确要找哪一个。排序算法的选择可以按数据特征来：数据量小用插入排序，基本有序也用插入排序，需要稳定且数据量中等用归并排序，追求平均性能用快速排序，内存紧张用堆排序。二分查找则要求数据有序，如果数据经常变动，维护有序的成本可能超过查找收益，这时哈希表更合适。理解每种方法的适用条件，比背实现代码更重要。面试和实际开发中，先说清楚数据特征和约束，再选算法，才是专业的回答方式。"
+      },
+      {
+        "type": "text",
+        "text": "选择排序与冒泡排序都是原地排序，额外空间是常数级。判断排序算法是否稳定，要看相等元素的相对顺序是否保持；冒泡和插入稳定，选择排序在交换时可能破坏稳定性。实际工程中优先用标准库排序，自己手写排序主要用于理解和面试。查找方面，无序数据只能线性扫描，有序数据用二分，哈希表可以做到平均常数级，各有适用场景。复杂度分析要结合数据规模：n 很小时平方级算法可能更快，因为常数因子小；n 一大，增长趋势就压倒一切。优化前先测量，不要凭直觉改算法。最后一个实践建议：排序和查找写完先用小数据手算验证，再用随机数据对比标准结果。手算能发现边界错误，随机对比能发现偶发问题。两种验证都做完，才敢说算法实现正确。不要只测一组数据就下结论，排序和查找的 bug 往往只在特定顺序或特定规模下出现。"
+      },
+      {
+        "type": "code",
+        "code": "void bubble_sort(int a[], int n) {\n    for (int i = 0; i < n - 1; i++) {\n        for (int j = 0; j < n - 1 - i; j++) {\n            if (a[j] > a[j + 1]) {\n                int t = a[j];\n                a[j] = a[j + 1];\n                a[j + 1] = t;\n            }\n        }\n    }\n}\n\nint main() {\n    int a[5] = {5, 2, 9, 1, 7};\n    bubble_sort(a, 5);\n    for (int i = 0; i < 5; i++) printf(\"%d \", a[i]);\n    printf(\"\\n\");\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "1 2 5 7 9 "
+      },
+      {
+        "type": "code",
+        "code": "int binary_search(int a[], int n, int target) {\n    int low = 0;\n    int high = n - 1;\n    while (low <= high) {\n        int mid = low + (high - low) / 2;\n        if (a[mid] == target) return mid;\n        if (a[mid] < target) low = mid + 1;\n        else high = mid - 1;\n    }\n    return -1;\n}\n\nint main() {\n    int a[6] = {1, 3, 5, 7, 9, 11};\n    printf(\"%d %d %d\\n\", binary_search(a, 6, 7), binary_search(a, 6, 1), binary_search(a, 6, 4));\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "3 0 -1"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "算法",
+          "最好",
+          "平均",
+          "最坏",
+          "是否稳定"
+        ],
+        "rows": [
+          [
+            "冒泡排序",
+            "O(n)",
+            "O(n^2)",
+            "O(n^2)",
+            "稳定"
+          ],
+          [
+            "选择排序",
+            "O(n^2)",
+            "O(n^2)",
+            "O(n^2)",
+            "不稳定"
+          ],
+          [
+            "插入排序",
+            "O(n)",
+            "O(n^2)",
+            "O(n^2)",
+            "稳定"
+          ],
+          [
+            "线性查找",
+            "O(1)",
+            "O(n)",
+            "O(n)",
+            "—"
+          ],
+          [
+            "二分查找",
+            "O(1)",
+            "O(log n)",
+            "O(log n)",
+            "需有序"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "二分查找的三个易错点：循环条件用 <=、mid 用 low + (high - low) / 2、更新边界用 mid ± 1。"
+      },
+      {
+        "type": "warn",
+        "text": "二分查找的前提是有序。对无序数组直接二分，结果没有意义，而且往往不报错，只是返回错误的下标。"
+      },
+      {
+        "type": "quiz",
+        "question": "长度为 1024 的有序数组，二分查找最多需要比较多少次？",
+        "options": [
+          "10 次左右",
+          "512 次",
+          "1024 次",
+          "2 次"
+        ],
+        "answer": 0,
+        "explain": "每次区间减半，log2(1024) = 10，所以最多约 10 次。"
+      },
+      {
+        "type": "steps",
+        "items": [
+          "先确认数据是否有序",
+          "选择排序或查找算法",
+          "在纸上跑一遍边界用例",
+          "用随机小数组验证结果"
+        ]
+      }
+    ],
+    "exercise": {
+      "title": "选择排序",
+      "brief": "实现 selection_sort(int a[], int n)：把数组升序排序，原地修改。",
+      "starterCode": "void selection_sort(int a[], int n) {\n    // 每轮选出最小值放到前面\n}",
+      "hint": "外层 i 从 0 到 n-2，内层 j 从 i+1 到 n-1 找最小下标，最后交换 a[i] 与 a[min]。",
+      "tests": [
+        "int main() { int a[5] = {5, 2, 9, 1, 7}; selection_sort(a, 5); assert(a[0] == 1 && a[1] == 2 && a[4] == 9, \"应升序\"); return 0; }",
+        "int main() { int a[3] = {3, 3, 1}; selection_sort(a, 3); assert(a[0] == 1 && a[1] == 3 && a[2] == 3, \"重复元素也要正确\"); return 0; }",
+        "int main() { int a[1] = {7}; selection_sort(a, 1); assert(a[0] == 7, \"单元素不变\"); return 0; }",
+        "int main() { int a[4] = {-1, -5, 2, 0}; selection_sort(a, 4); assert(a[0] == -5 && a[3] == 2, \"含负数\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 180,
+      "solution": "void selection_sort(int a[], int n) {\n    for (int i = 0; i < n - 1; i++) {\n        int min = i;\n        for (int j = i + 1; j < n; j++) {\n            if (a[j] < a[min]) min = j;\n        }\n        if (min != i) {\n            int t = a[i];\n            a[i] = a[min];\n            a[min] = t;\n        }\n    }\n}\n"
+    }
+  },
+  {
+    "id": "c28",
+    "order": 727,
+    "chapter": 73,
+    "chapterName": "C · 进阶篇",
+    "lang": "c",
+    "title": "复杂度分析",
+    "subtitle": "用增长趋势判断算法好坏",
+    "xp": 160,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "大 O 描述的是增长趋势"
+      },
+      {
+        "type": "text",
+        "text": "复杂度分析不关心具体跑了多少毫秒，而关心输入规模变大时，工作量如何增长。常数时间表示与规模无关；对数增长每次把问题减半，二分查找是典型；线性增长是遍历一次数组；线性对数增长是排序的下界级别；平方增长是双层循环，冒泡和选择排序属于这一档；指数增长是朴素递归求斐波那契那种。大 O 忽略常数和低阶项，所以两倍的 n 加一百记作线性。分析时先找执行次数最多的语句，再看它被几层循环包着，这是最快的方法。复杂度分析的常见误区是把「循环嵌套层数」直接当成复杂度。两层循环如果内层次数与规模无关，整体仍是线性；一层循环如果每次规模减半，则是对数。分析时看的是总执行次数随规模如何增长，而不是数大括号。写完后用几个不同规模的输入实测步数，能验证你的判断。"
+      },
+      {
+        "type": "text",
+        "text": "分析代码时按结构数循环：单层循环线性，两层嵌套平方，循环里每次把规模减半是对数，递归要看调用树。两个先后执行的循环取较大者，嵌套则相乘。空间复杂度同理，看额外申请了多少与规模相关的存储：原地排序是常数级，归并排序是线性级，递归调用栈也占空间。注意复杂度和实际性能不是一回事：规模很小时平方级可能比线性对数更快，因为常数因子小；但规模一大，增长趋势就压倒一切。工程上还要考虑最坏、平均和最好情况，快速排序平均线性对数，最坏平方；哈希表平均常数，最坏线性。复杂度分析的练习方法：写一个计数函数，把最内层语句包起来统计执行次数，用规模十、一百、一千各跑一遍，把结果画成表。线性增长的次数大致按比例增加，平方增长按平方增加，对数增长每翻十倍只多几步。实测数据比背结论更有说服力，也能帮你发现自己对循环结构的误判。分析空间复杂度时，别忘了递归调用栈，深度为 n 的递归至少占线性空间。"
+      },
+      {
+        "type": "text",
+        "text": "优化的顺序是：先测量，找到真正的热点，再改算法或数据结构，最后才考虑微优化。不要凭直觉把平方级的代码改成更难读的线性实现，如果规模永远只有十，收益为零。复杂度是决策工具，不是炫耀工具。写代码时可以用计数器统计内层语句执行次数，用几个不同规模的输入跑一遍，把结果列成表，增长趋势会非常直观。面试里描述复杂度要说清楚是时间还是空间、最好还是最坏、有没有额外假设，含糊其辞往往比答错更减分。最后一个提醒：复杂度分析是估算，不是精确计算。同一个算法在不同硬件、不同数据分布下表现可能差很多。用它做方案取舍，不要用它给程序性能下最终结论。真正的结论来自测量，测量来自可重复的基准测试，而基准测试本身也需要设计，避免把缓存效应误当成算法优势。"
+      },
+      {
+        "type": "code",
+        "code": "int linear_steps(int n) {\n    int steps = 0;\n    for (int i = 0; i < n; i++) steps++;\n    return steps;\n}\n\nint quadratic_steps(int n) {\n    int steps = 0;\n    for (int i = 0; i < n; i++) {\n        for (int j = 0; j < n; j++) steps++;\n    }\n    return steps;\n}\n\nint main() {\n    printf(\"n=10 linear=%d quadratic=%d\\n\", linear_steps(10), quadratic_steps(10));\n    printf(\"n=100 linear=%d quadratic=%d\\n\", linear_steps(100), quadratic_steps(100));\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "n=10 linear=10 quadratic=100\nn=100 linear=100 quadratic=10000"
+      },
+      {
+        "type": "code",
+        "code": "int halve_steps(int n) {\n    int steps = 0;\n    while (n > 1) {\n        n = n / 2;\n        steps++;\n    }\n    return steps;\n}\n\nint main() {\n    printf(\"8 -> %d\\n\", halve_steps(8));\n    printf(\"1024 -> %d\\n\", halve_steps(1024));\n    printf(\"1000000 -> %d\\n\", halve_steps(1000000));\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "8 -> 3\n1024 -> 10\n1000000 -> 19"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "复杂度",
+          "名称",
+          "n 翻倍时",
+          "典型例子"
+        ],
+        "rows": [
+          [
+            "O(1)",
+            "常数",
+            "不变",
+            "数组下标访问"
+          ],
+          [
+            "O(log n)",
+            "对数",
+            "只多 1 步",
+            "二分查找"
+          ],
+          [
+            "O(n)",
+            "线性",
+            "翻倍",
+            "遍历数组"
+          ],
+          [
+            "O(n log n)",
+            "线性对数",
+            "略多于翻倍",
+            "归并排序"
+          ],
+          [
+            "O(n^2)",
+            "平方",
+            "变 4 倍",
+            "冒泡排序"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "分析复杂度时先找最内层执行次数最多的语句，再看它被几层循环包着。"
+      },
+      {
+        "type": "warn",
+        "text": "大 O 忽略常数，不代表常数不重要。n 很小时，O(n^2) 的简单循环常常比 O(n log n) 的复杂实现更快。"
+      },
+      {
+        "type": "quiz",
+        "question": "两层嵌套循环，外层 n 次、内层也是 n 次，时间复杂度是？",
+        "options": [
+          "O(n)",
+          "O(n log n)",
+          "O(n^2)",
+          "O(2n)"
+        ],
+        "answer": 2,
+        "explain": "总执行次数是 n × n = n^2，记作 O(n^2)。"
+      },
+      {
+        "type": "task",
+        "text": "把 quadratic_steps 的内层循环改成 j < i，重新估算总次数并说明复杂度是否改变。"
+      }
+    ],
+    "exercise": {
+      "title": "折半次数",
+      "brief": "实现 halve_count(n)：返回把 n 不断除以 2 直到不大于 1 所需的次数。n >= 1。",
+      "starterCode": "int halve_count(int n) {\n    // 每轮 n /= 2，计数\n    return 0;\n}",
+      "hint": "用 while (n > 1) { n = n / 2; count++; }，最后返回 count。",
+      "tests": [
+        "int main() { assert(halve_count(1) == 0, \"1 不需要折半\"); return 0; }",
+        "int main() { assert(halve_count(8) == 3, \"8 -> 4 -> 2 -> 1 共 3 次\"); return 0; }",
+        "int main() { assert(halve_count(1024) == 10, \"1024 应折半 10 次\"); return 0; }",
+        "int main() { assert(halve_count(1000000) == 19, \"一百万应 19 次\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 170,
+      "solution": "int halve_count(int n) {\n    int count = 0;\n    while (n > 1) {\n        n = n / 2;\n        count++;\n    }\n    return count;\n}\n"
+    }
+  },
+  {
+    "id": "c29",
+    "order": 728,
+    "chapter": 73,
+    "chapterName": "C · 进阶篇",
+    "lang": "c",
+    "title": "调试与常见未定义行为",
+    "subtitle": "先复现，再定位，最后修复",
+    "xp": 170,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "未定义行为不是「结果不确定」这么简单"
+      },
+      {
+        "type": "text",
+        "text": "C 标准里有一类行为叫未定义行为：数组越界、解引用空指针或野指针、有符号整数溢出、除以零、读取未初始化的局部变量、修改字符串字面量、同一表达式里多次修改同一变量。未定义行为的可怕之处在于编译器可以假设它永远不会发生，从而做出任何优化——程序可能崩溃、可能输出错误结果、也可能看起来完全正常，换一台机器或换一个优化等级就变了。所以「我这里跑通了」不能证明代码正确。排查这类问题的第一步，是承认它可能存在，而不是等上线后被动救火。最后记住一句话：C 不会保护你，但工具可以。打开编译器的全部警告、把警告当错误处理、在本地用检查工具跑一遍，能提前发现大量未定义行为。修复一个线上崩溃的成本，远高于在编译阶段挡住它。"
+      },
+      {
+        "type": "text",
+        "text": "调试的基本流程：先稳定复现，记录输入、环境和现象；再缩小范围，用二分法注释代码或打印中间变量，找到第一次出现错误的位置；然后形成假设并验证，一次只改一处；最后补一个能覆盖该场景的测试，防止回归。打印调试很有效，但要给输出加标签和行号，例如写明是第几行、哪个变量、当前值是多少，否则一堆数字分不清来源。断点调试适合逻辑复杂、状态多的场景；打印适合循环和嵌入式环境。两种手段都要会，按场景选择。未定义行为的排查工具值得了解：编译器的地址检查、未定义行为检查、内存检查工具，能在开发阶段抓出越界、泄漏、未初始化读取。这些工具不在本课程范围内，但概念要知道：它们通过额外记录内存状态来发现问题，运行慢但覆盖广。日常写代码时，把数组边界、指针判空、除数检查写全，是最便宜的预防；工具是第二道防线，不能替代第一道。修复 bug 后补测试，是第三道防线。"
+      },
+      {
+        "type": "text",
+        "text": "防御性编程能挡掉大部分低级错误：函数入口检查指针是否为空、长度是否为负、下标是否在范围内；数组访问前确认下标上下界；除法前确认除数不为零；字符串操作前确认缓冲区容量。断言适合检查「绝不应该发生」的内部不变量，不适合处理用户输入——用户输入的错误应该用返回值或错误码处理。修复 bug 后一定要写回归测试，否则同样的错误迟早会回来。代码评审时重点看边界和错误路径，正常路径往往在开发时就被反复跑过了，边界才是事故高发区。最后一个习惯：每次修复 bug，都在注释里写一句「为什么之前会错」。这不是给别人看，是给三个月后的自己看。同类的错误往往会在相似的地方再次出现，一句原因说明能让你下次更快识别。代码会变，原因不会。未定义行为还有一个隐蔽之处：它可能被编译器优化掉。例如编译器发现某段代码必然触发越界，可以直接把整段删除，于是你看到的现象和源码完全对不上。这就是为什么排查这类问题时不能只靠读代码，还要看优化等级、用检查工具、看生成的中间结果。相信工具，不要相信直觉。"
+      },
+      {
+        "type": "code",
+        "code": "int safe_get(int a[], int n, int index, int *out) {\n    if (a == NULL || out == NULL) return 0;\n    if (index < 0 || index >= n) return 0;\n    *out = a[index];\n    return 1;\n}\n\nint main() {\n    int a[3] = {10, 20, 30};\n    int v = 0;\n\n    printf(\"ok=%d v=%d\\n\", safe_get(a, 3, 1, &v), v);\n    printf(\"bad=%d\\n\", safe_get(a, 3, 5, &v));\n    printf(\"null=%d\\n\", safe_get(NULL, 3, 0, &v));\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "ok=1 v=20\nbad=0\nnull=0"
+      },
+      {
+        "type": "code",
+        "code": "int main() {\n    int a[5] = {1, 2, 3, 4, 5};\n    int sum = 0;\n\n    for (int i = 0; i < 5; i++) {\n        printf(\"[loop] i=%d a[i]=%d\\n\", i, a[i]);\n        sum += a[i];\n    }\n    printf(\"sum=%d\\n\", sum);\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "[loop] i=0 a[i]=1\n[loop] i=1 a[i]=2\n[loop] i=2 a[i]=3\n[loop] i=3 a[i]=4\n[loop] i=4 a[i]=5\nsum=15"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "UB 场景",
+          "后果",
+          "正确做法"
+        ],
+        "rows": [
+          [
+            "数组越界",
+            "读写他人内存、崩溃",
+            "检查 0 <= i < n"
+          ],
+          [
+            "空指针解引用",
+            "立即崩溃",
+            "使用前判 NULL"
+          ],
+          [
+            "有符号溢出",
+            "结果不可预测",
+            "提前判边界或用更大类型"
+          ],
+          [
+            "除以零",
+            "崩溃或异常",
+            "除法前检查除数"
+          ],
+          [
+            "未初始化局部变量",
+            "读到垃圾值",
+            "声明时就初始化"
+          ],
+          [
+            "修改字符串字面量",
+            "崩溃或只读段错误",
+            "改用 char 数组"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "每写一个数组访问，就在心里问一句：下标会不会越界？这个习惯能消掉一半的 C 崩溃。"
+      },
+      {
+        "type": "warn",
+        "text": "本课程会拦截越界和空指针并报错，但真实 C 不会。不要因为课程里看到友好提示，就以为线上代码也会这么安全。"
+      },
+      {
+        "type": "quiz",
+        "question": "以下哪种情况属于未定义行为？",
+        "options": [
+          "读取已初始化的数组元素",
+          "访问 a[n]（数组长度为 n）",
+          "对 int 变量赋值",
+          "调用 printf"
+        ],
+        "answer": 1,
+        "explain": "合法下标是 0 到 n-1，a[n] 越界，属于未定义行为，可能读写到数组外的内存。"
+      },
+      {
+        "type": "steps",
+        "items": [
+          "稳定复现并记录输入",
+          "缩小范围定位第一处异常",
+          "提出假设并一次改一处",
+          "补回归测试防止再次出现"
+        ]
+      }
+    ],
+    "exercise": {
+      "title": "安全除法",
+      "brief": "实现 safe_div(a, b, out)：b 不为 0 时把 a / b 写入 out 并返回 1；b 为 0 或 out 为 NULL 时返回 0，不写入。",
+      "starterCode": "int safe_div(int a, int b, int *out) {\n    // 先检查 out 和除数\n    return 0;\n}",
+      "hint": "if (out == NULL || b == 0) return 0; *out = a / b; return 1;",
+      "tests": [
+        "int main() { int r = 0; assert(safe_div(10, 2, &r) == 1, \"正常除法应成功\"); assert(r == 5, \"结果应为 5\"); return 0; }",
+        "int main() { int r = 99; assert(safe_div(10, 0, &r) == 0, \"除零应返回 0\"); assert(r == 99, \"失败时不应写入\"); return 0; }",
+        "int main() { assert(safe_div(10, 2, NULL) == 0, \"空输出指针应返回 0\"); return 0; }",
+        "int main() { int r = 0; safe_div(-9, 3, &r); assert(r == -3, \"负数除法\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 180,
+      "solution": "int safe_div(int a, int b, int *out) {\n    if (out == NULL || b == 0) return 0;\n    *out = a / b;\n    return 1;\n}\n"
+    }
+  },
+  {
+    "id": "c30",
+    "order": 729,
+    "chapter": 73,
+    "chapterName": "C · 进阶篇",
+    "lang": "c",
+    "title": "综合项目：学生成绩管理",
+    "subtitle": "结构体数组、统计与查询",
+    "xp": 220,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把前面学的拼成一个完整程序"
+      },
+      {
+        "type": "text",
+        "text": "这个项目用一个固定容量的结构体数组管理学生成绩，功能包括录入、统计总分与平均分、统计及格人数、按学号查找、找出最高分。数据用结构体表示，容量用常量控制。所有函数都接收数组和实际人数，不依赖全局变量；每个函数只做一件事，通过返回值或输出参数把结果交给调用者。这正是真实 C 项目里「数据加操作」的基本组织方式。项目虽小，但接口设计、边界处理、测试思路都和大型项目一致，把这一套流程走顺，换一个业务场景也能照搬。项目收尾时做三件事：把每个函数的边界条件再走一遍；用空数据、单条数据、满容量数据各跑一次；把关键假设写进注释，例如学号唯一、分数在零到一百之间。这三件事做完，代码才算真正交付，而不是「在我机器上能跑」。"
+      },
+      {
+        "type": "text",
+        "text": "先设计接口再写实现：总分、及格人数、按学号查找、最高分下标，各自一个函数。接口定好后，每个函数都可以单独测试。主流程负责录入和展示，把计算结果交给打印函数格式化。注意空数组、人数为零、学号重复这些边界情况，函数要先处理再走正常逻辑。查找函数找不到时返回负一，调用者用「大于等于零」判断是否成功，这个约定要在函数注释里写清楚。输出参数在函数开头先写入默认值，即使提前返回，调用者也不会读到未初始化的内容。综合项目的价值在于把分散的知识串成一条链：结构体定义数据，数组组织数据，函数封装操作，指针输出结果，循环和分支实现逻辑。每学一讲都觉得简单，串起来就会发现接口设计和边界处理才是难点。做完这个项目，建议再换一个业务场景重写一遍，例如图书管理或库存管理，代码结构几乎一样，只是字段和规则不同。能迁移，才说明真的掌握了。"
+      },
+      {
+        "type": "text",
+        "text": "这个项目还可以继续扩展：按分数排序、按分数段统计人数、计算标准差、把结果格式化成多行文本。如果要做成真正的成绩管理系统，下一步就是把数组换成文件读写和动态内存——那两章在本课程里只讲概念，需要真实编译器实践。把当前版本写扎实，你就已经掌握了 C 里最常用的数据组织方式。扩展功能时保持「先加测试再改代码」的顺序，每加一个函数就跑一遍全部用例，避免新功能把旧功能改坏。项目结束后回头看一遍代码，把重复的循环和打印抽成小函数，是一次很好的复盘练习。最后一个建议：把项目拆成「数据定义、核心操作、界面输出」三层，每层只依赖下一层。这样替换输出方式时不用改核心逻辑，增加新统计时也不用动数据定义。分层不是为了显得专业，而是为了让每次修改的影响范围可预测。这个小项目里养成习惯，以后做大项目会轻松很多。项目的最后一步是写一份简短的使用说明：每个函数做什么、参数含义、返回值的约定、边界条件。不要求长篇大论，几行就够。这份说明既是给别人的接口文档，也是你自查的清单。写不清楚的地方，通常就是设计还没想清楚的地方，趁早改比上线后改便宜得多。"
+      },
+      {
+        "type": "code",
+        "code": "typedef struct {\n    int id;\n    int score;\n} Student;\n\nint total_score(Student s[], int n) {\n    int total = 0;\n    for (int i = 0; i < n; i++) total += s[i].score;\n    return total;\n}\n\nint pass_count(Student s[], int n) {\n    int count = 0;\n    for (int i = 0; i < n; i++) {\n        if (s[i].score >= 60) count++;\n    }\n    return count;\n}\n\nint main() {\n    Student s[4] = {{1, 90}, {2, 58}, {3, 76}, {4, 60}};\n    printf(\"total=%d pass=%d\\n\", total_score(s, 4), pass_count(s, 4));\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "total=284 pass=3"
+      },
+      {
+        "type": "code",
+        "code": "typedef struct {\n    int id;\n    int score;\n} Student;\n\nint find_by_id(Student s[], int n, int id) {\n    for (int i = 0; i < n; i++) {\n        if (s[i].id == id) return i;\n    }\n    return -1;\n}\n\nint top_index(Student s[], int n) {\n    int best = 0;\n    for (int i = 1; i < n; i++) {\n        if (s[i].score > s[best].score) best = i;\n    }\n    return best;\n}\n\nint main() {\n    Student s[3] = {{101, 88}, {102, 95}, {103, 70}};\n    int k = find_by_id(s, 3, 102);\n    int t = top_index(s, 3);\n    printf(\"found=%d top=%d\\n\", k, t);\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "found=1 top=1"
+      },
+      {
+        "type": "diagram",
+        "text": "Student s[4]\n┌──────────┬──────────┬──────────┬──────────┐\n│ id=1 90  │ id=2 58  │ id=3 76  │ id=4 60  │\n└──────────┴──────────┴──────────┴──────────┘\ntotal_score → 284\npass_count  → 3（60 分算及格）"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "函数",
+          "输入",
+          "输出",
+          "边界"
+        ],
+        "rows": [
+          [
+            "total_score",
+            "数组 + n",
+            "总分",
+            "n=0 返回 0"
+          ],
+          [
+            "pass_count",
+            "数组 + n",
+            "及格人数",
+            "60 分算及格"
+          ],
+          [
+            "find_by_id",
+            "数组 + n + 学号",
+            "下标或 -1",
+            "找不到返回 -1"
+          ],
+          [
+            "top_index",
+            "数组 + n",
+            "最高分下标",
+            "n=0 需调用者保证"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "先写接口和测试，再填实现。每个函数单独验证通过后，再拼主流程，调试范围会小很多。"
+      },
+      {
+        "type": "warn",
+        "text": "结构体数组传参必须同时传 n，函数内不能用 sizeof 求元素个数。所有循环都用 i < n，不要用 <=。"
+      },
+      {
+        "type": "quiz",
+        "question": "find_by_id 找不到学生时应该返回什么？",
+        "options": [
+          "0",
+          "-1",
+          "NULL",
+          "最后一个下标"
+        ],
+        "answer": 1,
+        "explain": "下标从 0 开始，-1 是不合法的下标，适合表示「未找到」，调用者判断返回值 >= 0 即可。"
+      },
+      {
+        "type": "task",
+        "text": "给项目增加按分数段统计：90 以上、60 到 89、60 以下各多少人，并打印一份报表。"
+      }
+    ],
+    "exercise": {
+      "title": "班级成绩报表",
+      "brief": "实现 report(Student s[], int n, int *total, int *pass)：把总分写入 total、及格人数写入 pass，返回平均分（整数除法，n 为 0 时返回 0）。",
+      "starterCode": "typedef struct {\n    int id;\n    int score;\n} Student;\n\nint report(Student s[], int n, int *total, int *pass) {\n    // 统计总分和及格人数，返回平均分\n    return 0;\n}",
+      "hint": "先处理 n == 0；循环累加 total 并统计 >= 60 的人数，最后 return *total / n;。",
+      "tests": [
+        "int main() { Student s[4] = {{1, 90}, {2, 58}, {3, 76}, {4, 60}}; int total = 0; int pass = 0; int avg = report(s, 4, &total, &pass); assert(total == 284, \"总分应为 284\"); assert(pass == 3, \"及格应为 3\"); assert(avg == 71, \"平均分应为 71\"); return 0; }",
+        "int main() { Student s[2] = {{1, 100}, {2, 100}}; int total = 0; int pass = 0; assert(report(s, 2, &total, &pass) == 100, \"平均分应为 100\"); return 0; }",
+        "int main() { Student s[3] = {{1, 0}, {2, 59}, {3, 0}}; int total = 0; int pass = 0; int avg = report(s, 3, &total, &pass); assert(total == 59 && pass == 0 && avg == 19, \"全不及格\"); return 0; }",
+        "int main() { int total = 0; int pass = 0; assert(report(NULL, 0, &total, &pass) == 0, \"n 为 0 应返回 0\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 220,
+      "solution": "typedef struct {\n    int id;\n    int score;\n} Student;\n\nint report(Student s[], int n, int *total, int *pass) {\n    *total = 0;\n    *pass = 0;\n    if (n <= 0) return 0;\n    for (int i = 0; i < n; i++) {\n        *total += s[i].score;\n        if (s[i].score >= 60) (*pass)++;\n    }\n    return *total / n;\n}\n"
+    }
+  }
+]

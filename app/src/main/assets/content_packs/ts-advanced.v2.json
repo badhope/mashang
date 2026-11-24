@@ -1,0 +1,1007 @@
+[
+  {
+    "id": "ts21",
+    "order": 620,
+    "chapter": 63,
+    "chapterName": "TypeScript · 进阶篇",
+    "lang": "typescript",
+    "title": "泛型约束",
+    "subtitle": "限制 T 至少长成什么样",
+    "xp": 100,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "给类型参数划一条底线"
+      },
+      {
+        "type": "text",
+        "text": "泛型给了完全的自由，但有时函数需要用到 T 的某些成员。`function longest<T>(a: T, b: T): T { return a.length > b.length ? a : b; }` 在标准 TypeScript 里会报错，因为 T 可能是数字，没有 length。解决办法是加约束：`<T extends { length: number }>` 表示 T 必须拥有 number 类型的 length 字段。这叫泛型约束，它把「任意类型」缩小为「至少具备某些能力的类型」。\n\n约束的语法是 `T extends 某个类型`。这里的 extends 不是类继承，而是「可赋值给」的意思：任何能赋值给约束类型的类型都可以作为 T。`string` 有 length，数组有 length，带 length 字段的对象也有，所以它们都满足约束；数字不满足，传进去会被 tsc 拒绝。约束越窄，函数体内能做的事越多，但能接收的类型也越少，这是一个需要权衡的取舍。\n\n多个类型参数可以互相约束：`function pick<T, K extends keyof T>(obj: T, key: K): T[K]` 表示 K 必须是 T 的某个键，返回值类型是那个键对应的值类型。这个签名是标准库 Pick 和很多工具函数的基础。`keyof T` 是「T 的所有键名组成的联合类型」，`T[K]` 是「用键 K 索引 T 得到的类型」，两者配合能在编译期精确追踪字段。"
+      },
+      {
+        "type": "text",
+        "text": "本应用的转译器明确不支持泛型约束：`extends` 会原样保留，导致语法错误，条件类型和映射类型也没有真实运行语义。所以这一讲只讲概念，运行代码里一律用简单泛型，用普通参数和运行时判断替代约束。理解约束的意义仍然重要——你迟早会在真正的 TypeScript 项目里用到它，而现在知道它解决什么问题，将来只需要补语法细节。\n\n没有约束时，常见的替代方案有三种：第一，把需要的字段作为独立参数传入，例如 `function longest<T>(a: T, b: T, lengthOf: (v: T) => number): T`，用回调提取长度；第二，用运行时判断守卫，先检查值是否有 length；第三，直接为具体类型写重载或分支。第一种最通用，也最符合「把行为参数化」的思路，本讲的练习就用它。\n\n在标准 TypeScript 里，约束还支持默认类型参数：`<T = string>` 表示调用时推断不出来就用 string。这个能力在工具类型里很常见，但本应用不支持默认类型参数，课程里不写。理解默认值的意义即可：它让泛型在「没有实参可推断」时仍有确定的类型，避免退化成 unknown。"
+      },
+      {
+        "type": "text",
+        "text": "泛型约束的反面是「过度约束」：把 T 限制得太死，函数就失去了通用性，调用方不得不做类型转换。判断约束是否合理，看它是否只包含「函数体真正用到的成员」。如果函数体只用了 length，就只约束 length；不要顺手把整个数组接口都约束上。约束越精确，可接受的类型越多，函数越通用。这和「依赖最小接口」的设计原则是同一件事。\n\n再补充一个判断标准：如果去掉约束后函数体仍然能编译，说明这个约束可能不是必需的。约束应该来自函数体的真实需求，而不是来自「看起来更严谨」。反过来，如果函数体大量使用 as 才能通过编译，说明约束不足或者类型设计有问题。约束和断言是一对反义词：约束越准确，需要的断言越少。\n\n再补充一个和本应用相关的现实：因为转译器不支持约束，课程里所有「按能力约束」的需求都改成了「传入能力函数」。这种改写不只为了绕开限制，它本身也是一种更好的设计：把「取长度」这件事显式化，函数就不再假设输入一定有 length，而是依赖调用方提供的能力。依赖越显式，函数越容易测试，也越容易复用到形状不同但语义相同的数据上。"
+      },
+      {
+        "type": "code",
+        "code": "type LengthOf = (value: string) => number;\n\nfunction longest(a: string, b: string): string {\n  if (a.length >= b.length) {\n    return a;\n  }\n  return b;\n}\n\nfunction longestBy(a: string, b: string, size: LengthOf): string {\n  if (size(a) >= size(b)) {\n    return a;\n  }\n  return b;\n}\n\nconsole.log(longest('neon', 'cyberpunk'));\nconsole.log(longestBy('neon', 'cyberpunk', function (s: string): number { return s.length; }));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "cyberpunk\ncyberpunk"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "含义",
+          "本应用可用吗"
+        ],
+        "rows": [
+          [
+            "<T extends { length: number }>",
+            "约束 T 必须有 length",
+            "不可用，转译器不支持"
+          ],
+          [
+            "<T, K extends keyof T>",
+            "K 必须是 T 的键",
+            "不可用，仅概念"
+          ],
+          [
+            "传入提取函数",
+            "把取长度这件事参数化",
+            "可用，课程采用"
+          ],
+          [
+            "运行时判空/判类型",
+            "用 typeof 等收窄",
+            "可用，最稳妥"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "约束的收益是「函数体内可以直接用成员」，代价是「能传进来的类型变少」。设计时先问：这个成员是否所有合理输入都具备？如果答案是「不一定」，就别用约束，改成传入提取函数。"
+      },
+      {
+        "type": "warn",
+        "text": "本应用不支持 `T extends ...`。写进代码会直接语法错误，判题必然失败。泛型约束这一讲的所有示例代码都不带约束，只讲思想。"
+      },
+      {
+        "type": "quiz",
+        "question": "`<T extends { length: number }>` 表示什么？",
+        "options": [
+          "T 必须是 number",
+          "T 必须拥有 number 类型的 length 成员",
+          "T 是 length 的子类",
+          "T 只能是数组"
+        ],
+        "answer": 1,
+        "explain": "extends 在这里是「可赋值给」的约束，要求 T 具备 number 类型的 length 成员；字符串、数组、带 length 的对象都满足。"
+      },
+      {
+        "type": "practice",
+        "title": "用回调替代约束",
+        "code": "type Size = (s: string) => number;\n\nfunction sameSize(a: string, b: string, size: Size): boolean {\n  return size(a) === size(b);\n}\n\nconsole.log(sameSize('ab', 'cd', function (s: string): number { return s.length; }));",
+        "output": "true",
+        "hint": "两个字符串长度都是 2。"
+      }
+    ],
+    "exercise": {
+      "title": "按长度取较长的字符串",
+      "brief": "实现 pickLonger(a, b) 返回较长的字符串，长度相同时返回 a；实现 pickBy(a, b, size) 用回调计算「长度」，返回较大的那个。",
+      "starterCode": "type Size = (value: string) => number;\n\nfunction pickLonger(a: string, b: string): string {\n  // 长度相同时返回 a\n  return '';\n}\n\nfunction pickBy(a: string, b: string, size: Size): string {\n  // 用 size 计算后再比较\n  return '';\n}",
+      "hint": "pickLonger 用 a.length >= b.length 判断；pickBy 用 size(a) >= size(b) 判断。",
+      "tests": [
+        "assert(pickLonger('neon', 'cyberpunk') === 'cyberpunk', '应返回较长的字符串')",
+        "assert(pickLonger('ab', 'cd') === 'ab', '长度相同时应返回 a')",
+        "assert(pickBy('aa', 'b', function (s: string): number { return s.length * 10; }) === 'aa', 'pickBy 应使用回调结果')",
+        "assert(pickBy('x', 'yy', function (s: string): number { return s.length; }) === 'yy', 'pickBy 普通场景错误')"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "type Size = (value: string) => number;\n\nfunction pickLonger(a: string, b: string): string {\n  if (a.length >= b.length) {\n    return a;\n  }\n  return b;\n}\n\nfunction pickBy(a: string, b: string, size: Size): string {\n  if (size(a) >= size(b)) {\n    return a;\n  }\n  return b;\n}"
+    }
+  },
+  {
+    "id": "ts22",
+    "order": 621,
+    "chapter": 63,
+    "chapterName": "TypeScript · 进阶篇",
+    "lang": "typescript",
+    "title": "条件类型概念",
+    "subtitle": "类型层面的 if-else",
+    "xp": 100,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "当类型需要判断"
+      },
+      {
+        "type": "text",
+        "text": "条件类型的写法是 `T extends U ? X : Y`：如果 T 能赋值给 U，结果类型是 X，否则是 Y。它看起来像三元表达式，但作用在类型层面，只在编译期计算。例如 `type IsString<T> = T extends string ? true : false`，`IsString<string>` 得到 true，`IsString<number>` 得到 false。这让类型系统具备了分支能力，可以根据输入类型自动推导输出类型。\n\n条件类型最典型的应用是描述函数的返回类型随参数变化。例如一个函数接收字符串返回字符串数组，接收数字返回数字数组，标准库里的很多工具类型就是这么写出来的。条件类型还常与 infer 搭配：`T extends Array<infer U> ? U : never` 能从数组类型里提取元素类型，infer 相当于在类型层面做模式匹配并捕获变量。\n\n条件类型有两种特殊行为。第一是分布式：当 T 是联合类型时，条件会对每个成员分别判断，再把结果合并，所以 `IsString<string | number>` 会得到 boolean（true | false 合并的结果）。第二是延迟求值：如果 T 还是未确定的类型参数，条件类型会保持未求值状态，直到调用时才计算。这两条规则让条件类型强大，也让错误信息变得难读。"
+      },
+      {
+        "type": "text",
+        "text": "本应用的转译器不支持条件类型的真实运行语义：`A extends B ? X : Y` 这样的类型表达式如果写在标注里，擦除会失败或留下残渣。所以这一讲只讲概念，所有运行代码都不含条件类型。判断逻辑一律用运行时的三元表达式、if 语句或 typeof 收窄来实现——运行时判断和类型层面的条件类型解决的是不同问题，前者影响程序行为，后者只影响类型推导。\n\n学习条件类型时不要急着背工具类型的实现，先理解它的三个用途：根据输入类型选择输出类型、从复杂类型中提取一部分、把联合类型拆开逐个处理。看到 `T extends ... ? ... : ...` 时，先在心里读成「如果 T 是……那么……否则……」，再去理解 infer 捕获了什么。等你能读懂标准库的 ReturnType、Parameters、Exclude 的实现，条件类型就算入门了。\n\n条件类型和联合类型配合时有一个反直觉的点：分布式条件类型会把联合拆开。`type Boxed<T> = T extends any ? T[] : never`，传入 string | number，得到 string[] | number[]，而不是 (string | number)[]。这个差异在写工具类型时非常重要，想要不拆分可以给 T 套一层元组：`[T] extends [any]`。课程不展开，但你应该知道它存在。"
+      },
+      {
+        "type": "text",
+        "text": "条件类型的学习曲线很陡，但用途很集中：几乎都出现在库的类型定义里，业务代码直接写的时候不多。作为应用开发者，你更需要的是「读懂」而不是「写出」：看到 `T extends U ? X : Y`，能说出它在判断什么；看到 infer，能指出它捕获了哪部分。能读懂标准库的 ReturnType、Parameters，就足够应付绝大多数排查场景。真正要写的时候，再回头补语法细节。\n\n条件类型还有一个常见用途是「提取函数返回类型」：`type R = ReturnType<typeof fn>`。它让调用方不必重复书写返回类型，函数改签名时下游自动跟随。这类工具类型在库开发里非常常见，业务代码里偶尔用到。理解它们的存在，能帮你在阅读第三方类型定义时不至于卡住，也能在需要时快速找到合适的工具。\n\n再补充一个调试经验：条件类型出错时，错误信息往往非常长，因为编译器会把整个类型展开。有效的排查方法是从最内层开始，把复杂的类型拆成几个中间别名，逐个确认求值结果。别试图一次读懂整条错误信息，先定位是哪个别名算错了。这个方法和调试运行时代码一样：缩小范围，逐段验证，而不是盯着整体猜。"
+      },
+      {
+        "type": "code",
+        "code": "function describeValue(v: string | number): string {\n  if (typeof v === 'string') {\n    return 'text:' + v.length;\n  }\n  return 'num:' + v;\n}\n\nconsole.log(describeValue('abc'));\nconsole.log(describeValue(42));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "text:3\nnum:42"
+      },
+      {
+        "type": "diagram",
+        "text": "类型层面（仅概念，本应用不执行）\n─────────────────────────────────\ntype IsString<T> = T extends string ? true : false\nIsString<string>  →  true\nIsString<number>  →  false\n\n运行层面（本应用执行的部分）\n─────────────────────────────────\ntypeof v === 'string' ? A : B\n\n两者形状相似，作用域完全不同。"
+      },
+      {
+        "type": "tip",
+        "text": "把条件类型理解成「类型层面的模式匹配」，比理解成「类型层面的 if」更准确。extends 左边是要匹配的值，右边是模式，infer 声明要捕获的部分。"
+      },
+      {
+        "type": "warn",
+        "text": "条件类型只在类型标注里出现，不会生成运行时代码。本应用会尝试擦除它但结果不可靠，因此课程代码一律不写条件类型，只保留运行时判断。"
+      },
+      {
+        "type": "quiz",
+        "question": "`type R<T> = T extends string ? 'text' : 'other'`，那么 `R<number>` 是什么？",
+        "options": [
+          "'text'",
+          "'other'",
+          "number",
+          "报错"
+        ],
+        "answer": 1,
+        "explain": "number 不能赋值给 string，条件为假，取冒号后面的分支 'other'。"
+      },
+      {
+        "type": "practice",
+        "title": "运行时模拟条件分支",
+        "code": "function kindOf(v: string | number): string {\n  return typeof v === 'string' ? 'text' : 'other';\n}\n\nconsole.log(kindOf('a'), kindOf(1));",
+        "output": "text other",
+        "hint": "用运行时三元表达式完成同样的分支。"
+      }
+    ],
+    "exercise": {
+      "title": "按类型分派处理",
+      "brief": "实现 route(v)：字符串返回 'S:' 加长度，数字返回 'N:' 加数值，布尔返回 'B:' 加值。这是条件类型在运行时的等价实现。",
+      "starterCode": "function route(v: string | number | boolean): string {\n  // 用 typeof 分三种情况\n  return '';\n}",
+      "hint": "依次判断 typeof v === 'string'、'number'、'boolean'，每个分支返回对应前缀。",
+      "tests": [
+        "assert(route('abc') === 'S:3', '字符串应返回长度')",
+        "assert(route(42) === 'N:42', '数字应原样输出')",
+        "assert(route(false) === 'B:false', '布尔值应输出 false')",
+        "assert(route('') === 'S:0', '空字符串长度是 0')"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "function route(v: string | number | boolean): string {\n  if (typeof v === 'string') {\n    return 'S:' + v.length;\n  }\n  if (typeof v === 'number') {\n    return 'N:' + v;\n  }\n  return 'B:' + v;\n}"
+    }
+  },
+  {
+    "id": "ts23",
+    "order": 622,
+    "chapter": 63,
+    "chapterName": "TypeScript · 进阶篇",
+    "lang": "typescript",
+    "title": "映射类型概念",
+    "subtitle": "批量改造已有类型的字段",
+    "xp": 100,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把一个类型映射成另一个"
+      },
+      {
+        "type": "text",
+        "text": "映射类型的写法是 `{ [K in keyof T]: 新类型 }`：遍历 T 的每个键 K，为每个键生成一个新字段。最常见的例子是 `type Flags<T> = { [K in keyof T]: boolean }`，它把任意对象类型的每个字段都变成布尔值。标准库的 Partial、Required、Readonly、Pick、Omit 全部建立在映射类型之上，是 TypeScript 类型系统里复用度最高的一层。\n\n映射时可以在键上加重映射修饰符：`+?` 和 `-?` 控制可选性，`+readonly` 和 `-readonly` 控制只读性。Partial 等价于给每个键加 `?`，Required 等价于去掉 `?`，Readonly 等价于加 readonly。这些修饰符让「同一结构的不同变体」可以自动生成，不必手工维护几份重复的 interface，改一处就能同步到所有变体。\n\n映射类型还可以配合 `as` 做键名重映射，例如把每个键名加上 get 前缀。这是比较高级的用法，标准库里有，但日常业务代码用得不多。更常见的是「值类型转换」：把所有字段变成可选、变成只读、变成另一种类型。理解映射类型的关键是记住它遍历的是「键」，而条件类型遍历的是「联合成员」，两者经常组合使用。"
+      },
+      {
+        "type": "text",
+        "text": "本应用不执行映射类型的真实语义：`{ [K in keyof T]: ... }` 写在标注里会被擦除器误判，可能留下语法错误。所以这一讲同样只讲概念，运行代码统一用具体 interface 和普通对象。需要「部分更新」「全部必填」这类结构时，用 Partial、Required 这类工具类型做标注（它们能被擦掉），但运行时对象仍然手工构造。\n\n映射类型的实际价值在于减少重复。假设你有 Order、OrderPatch、OrderReadonly 三个几乎一样的接口，字段一改就要改三处。用映射类型可以只定义 Order，另外两个由它推导出来，改一处全部同步。这也是「类型即代码」的体现：类型可以像函数一样被计算和组合，而不是只能一行行手写。\n\n映射类型还能和条件类型组合，实现「只保留函数类型的字段」这类筛选。写法是先用键遍历，再用条件判断值类型，不满足的映射成 never，最后用键筛选去掉 never。这套组合是标准库 Omit、Exclude 的实现基础，可读性较差，实际项目中通常直接用现成工具类型，不必自己写。"
+      },
+      {
+        "type": "text",
+        "text": "映射类型的实际使用频率比想象中低，因为标准库已经把常用变换封装成了工具类型。你真正需要自己写映射类型的场景通常是：批量改值类型（全部变成 boolean、全部变成可选）、批量改键名（加前缀）、按键筛选字段。这三种之外，优先找现成工具。理解原理的价值在于：当工具类型的行为不符合预期时，你能看懂它的定义，知道该换哪个，而不是盲目试错。\n\n映射类型有一个容易忽略的限制：它只能作用于对象类型，不能作用于联合类型或基础类型。想对联合类型做批量变换，要用条件类型；想对基础类型做变换，基本没有通用手段。理解这个边界，你就不会写出「对 string 做映射」这种无效代码，也能在选型时快速判断该用映射、条件还是工具类型。\n\n再补充一个工程判断：如果一个映射类型需要写超过三行，而且只在某一个文件里用一次，直接手写 interface 往往更快。映射类型的优势是「随源类型自动同步」，只有当源类型会变、派生类型需要跟随变化时才值得。一次性使用的派生，手写虽然啰嗦，但可读性更好，也不会在下一个人读代码时制造额外的跳转。工具要用在刀刃上。"
+      },
+      {
+        "type": "code",
+        "code": "interface Order {\n  id: string;\n  total: number;\n  note: string;\n}\n\ninterface OrderSummary {\n  id: string;\n  total: number;\n}\n\nfunction summarize(o: Order): OrderSummary {\n  return { id: (o.id), total: (o.total) };\n}\n\nvar full: Order = { id: 'A1', total: 30, note: 'rush' };\nvar slim: OrderSummary = summarize(full);\n\nconsole.log(slim.id, slim.total);\nconsole.log(full.note);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "A1 30\nrush"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "工具类型",
+          "等价的映射写法",
+          "效果"
+        ],
+        "rows": [
+          [
+            "Partial<T>",
+            "{ [K in keyof T]?: T[K] }",
+            "所有字段变可选"
+          ],
+          [
+            "Required<T>",
+            "{ [K in keyof T]-?: T[K] }",
+            "所有字段变必填"
+          ],
+          [
+            "Readonly<T>",
+            "{ readonly [K in keyof T]: T[K] }",
+            "所有字段变只读"
+          ],
+          [
+            "Pick<T, K>",
+            "只保留 K 中的键",
+            "挑选字段"
+          ],
+          [
+            "Omit<T, K>",
+            "排除 K 中的键",
+            "去掉字段"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "映射类型的收益是「定义一次、派生多个变体」。当你有三个以上高度相似的结构时，先想想能不能用映射类型或工具类型派生，而不是复制粘贴 interface。"
+      },
+      {
+        "type": "warn",
+        "text": "映射类型只存在于类型层。本应用会尝试擦除 `{ [K in keyof T]: ... }`，但结果不可靠。课程代码里只用 Partial、Required、Pick、Omit 这类具名工具类型做标注，不写内联映射语法。"
+      },
+      {
+        "type": "quiz",
+        "question": "`Partial<T>` 的作用是什么？",
+        "options": [
+          "把 T 的所有字段变成必填",
+          "把 T 的所有字段变成可选",
+          "把 T 变成数组",
+          "删除 T 的所有字段"
+        ],
+        "answer": 1,
+        "explain": "Partial 通过映射类型给每个键加上可选修饰符，得到所有字段都可选的新类型。"
+      },
+      {
+        "type": "practice",
+        "title": "用具体接口模拟映射",
+        "code": "interface Order {\n  id: string;\n  total: number;\n}\n\ninterface OrderFlags {\n  id: boolean;\n  total: boolean;\n}\n\nvar flags: OrderFlags = { id: true, total: false };\nconsole.log(flags.id, flags.total);",
+        "output": "true false",
+        "hint": "手写结构相同、值类型全为布尔的接口，就是映射类型的手工版本。"
+      }
+    ],
+    "exercise": {
+      "title": "用工具类型做部分更新",
+      "brief": "实现 makeDraft(o) 返回一个 Partial<Order>，只包含 id；实现 makeFull(p) 接收 Partial<Order> 并返回 Order，缺失字段用空串和 0 补齐；实现 pickPreview(o) 返回 Pick<Order, 'id' | 'total'>。",
+      "starterCode": "interface Order {\n  id: string;\n  total: number;\n  note: string;\n}\n\nfunction makeDraft(o: Order): Partial<Order> {\n  return { id: (o.id) };\n}\n\nfunction makeFull(p: Partial<Order>): Order {\n  // 缺失字段用 '' 和 0 补齐\n  return { id: '', total: 0, note: '' };\n}\n\ntype OrderPreview = Pick<Order, 'id' | 'total'>;\n\nfunction pickPreview(o: Order): OrderPreview {\n  // 只返回 id 与 total\n  return { id: '', total: 0 };\n}",
+      "hint": "makeFull 用 p.id === undefined ? '' : p.id 这种三元判断；pickPreview 直接构造只含两个字段的对象。",
+      "tests": [
+        "assert(makeDraft({id:'A', total:1, note:'x'}).id === 'A', 'makeDraft 应保留 id')",
+        "assert(makeDraft({id:'A', total:1, note:'x'}).total === undefined, 'makeDraft 不应包含 total')",
+        "assert(makeFull({id:'B'}).total === 0, 'makeFull 应补齐 total')",
+        "assert(makeFull({id:'B'}).note === '', 'makeFull 应补齐 note')",
+        "assert(pickPreview({id:'C', total:5, note:'x'}).total === 5, 'pickPreview 应保留 total')"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "interface Order {\n  id: string;\n  total: number;\n  note: string;\n}\n\nfunction makeDraft(o: Order): Partial<Order> {\n  return { id: (o.id) };\n}\n\nfunction makeFull(p: Partial<Order>): Order {\n  var id: string = p.id === undefined ? '' : p.id;\n  var total: number = p.total === undefined ? 0 : p.total;\n  var note: string = p.note === undefined ? '' : p.note;\n  return { id: (id), total: (total), note: (note) };\n}\n\ntype OrderPreview = Pick<Order, 'id' | 'total'>;\n\nfunction pickPreview(o: Order): OrderPreview {\n  return { id: (o.id), total: (o.total) };\n}"
+    }
+  },
+  {
+    "id": "ts24",
+    "order": 623,
+    "chapter": 63,
+    "chapterName": "TypeScript · 进阶篇",
+    "lang": "typescript",
+    "title": "工具类型 Partial / Required / Pick / Omit",
+    "subtitle": "四个最常用的类型工具",
+    "xp": 110,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "标准库送你的四个工具"
+      },
+      {
+        "type": "text",
+        "text": "Partial<T> 把所有字段变成可选，适合「部分更新」的参数：`function patch(o: Order, changes: Partial<Order>)`。Required<T> 相反，把所有字段变成必填，适合「完整数据」的校验结果。Pick<T, K> 保留指定键，适合做列表页的精简结构；Omit<T, K> 去掉指定键，适合隐藏敏感字段或去掉大字段。这四个工具覆盖了日常开发的大部分结构变换。\n\n它们的共同点是只影响类型，不产生运行时代码。`var p: Partial<Order> = { id: 'A1' }` 在 tsc 下合法，运行时就是一个只有 id 的对象，没有任何「可选」标记。所以使用工具类型时，运行时逻辑必须自己处理缺失字段：读取前判 undefined，构造完整对象时补齐默认值。类型负责表达意图，运行时负责实现行为，两者不能互相替代。\n\nPick 和 Omit 的第二个参数是键名的联合：`Pick<Order, 'id' | 'total'>`。键名写错会被 tsc 拒绝，这是它们比手写 interface 更安全的地方——手写时改字段名容易漏改，Pick/Omit 会自动跟着源类型走。本应用的转译器能正确擦除这些标注，因为它们的形状是「标识符 + 尖括号 + 字面量」，课程里可以放心使用。"
+      },
+      {
+        "type": "text",
+        "text": "什么时候不该用工具类型？当两个结构的字段差异很大、语义也完全不同时，用 Pick 强行派生会让读者频繁跳转，不如直接写下新 interface。工具类型的价值在于表达「这两个结构本质相同，只是视角不同」；如果它们本质不同，就应该分开定义。另一个注意点是嵌套：Partial 只影响第一层，嵌套对象仍然是必填的，深层可选需要单独定义或使用递归工具类型。\n\n这四个工具经常组合使用。例如「创建请求」用 Omit<Order, 'id' | 'createdAt'>，「更新请求」用 Partial<Omit<Order, 'id'>>，「列表项」用 Pick<Order, 'id' | 'total'>。把这几个派生类型集中定义在类型文件里，业务代码只引用名字，读起来就像在读需求文档。工具类型不是炫技，而是把「同一实体的不同视图」表达清楚的手段。\n\n工具类型还有一个常见误区：以为它们会生成新对象。`var p: Partial<Order> = { ... }` 里的 Partial 只是标注，对象本身仍然是普通对象，字段数量不会自动减少。要真正删掉字段，必须手工构造新对象或用解构（本应用不支持解构赋值，所以一律手工构造）。类型和值始终是两条线。"
+      },
+      {
+        "type": "text",
+        "text": "四个工具类型里，Partial 和 Pick 用得最多，Omit 次之，Required 最少。原因是现实中的数据大多是「不完整」的：创建时没有 ID，更新时只改几个字段，列表页只需要几个字段。Required 通常出现在「校验通过之后」——外部输入校验完，你才敢断言所有字段都在。把这四个类型和你的数据流阶段对应起来：输入用 Partial、展示用 Pick、创建用 Omit、校验后用 Required。\n\n四个工具类型都只影响第一层，这一点要反复提醒自己。嵌套对象的部分字段可选，需要为嵌套类型单独定义 Partial，再组合。深层可选、深层只读这类需求，标准库没有现成工具，需要自己写递归类型，或者干脆手工定义。业务代码里，宁可多写一个明确的 interface，也不要用复杂的递归类型——后者调试成本很高。\n\n再补充一个命名实践：给派生类型起名时带上「视角」而不是「操作」。`OrderPreview` 比 `OrderPick` 好，`OrderPatch` 比 `OrderPartial` 好，因为前者描述用途，后者描述实现。读者关心的是这个类型在业务里代表什么，而不是它用了哪个工具类型生成的。将来生成方式变了（比如从 Pick 改成手写），名字不需要改，调用方也无感。"
+      },
+      {
+        "type": "code",
+        "code": "interface Order {\n  id: string;\n  total: number;\n  note: string;\n}\n\ntype OrderPatch = Partial<Order>;\ntype OrderFull = Required<Order>;\ntype OrderPreview = Pick<Order, 'id' | 'total'>;\ntype OrderDraft = Omit<Order, 'id'>;\n\nvar patch: OrderPatch = { total: 9 };\nvar full: OrderFull = { id: 'A1', total: 1, note: 'x' };\nvar preview: OrderPreview = { id: 'A2', total: 2 };\nvar draft: OrderDraft = { total: 3, note: 'new' };\n\nconsole.log(patch.total);\nconsole.log(full.id);\nconsole.log(preview.total);\nconsole.log(draft.note);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "9\nA1\n2\nnew"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "工具类型",
+          "作用",
+          "典型场景"
+        ],
+        "rows": [
+          [
+            "Partial<T>",
+            "所有字段可选",
+            "部分更新、补丁"
+          ],
+          [
+            "Required<T>",
+            "所有字段必填",
+            "完整校验后的数据"
+          ],
+          [
+            "Pick<T, K>",
+            "只保留指定字段",
+            "列表项、预览"
+          ],
+          [
+            "Omit<T, K>",
+            "去掉指定字段",
+            "创建请求、隐藏敏感字段"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "派生类型命名建议带上用途：OrderPatch、OrderPreview、OrderDraft。名字比 `Partial<Order>` 更容易在读代码时快速理解，也方便将来调整派生规则时只改一处。"
+      },
+      {
+        "type": "warn",
+        "text": "Partial 只作用于第一层字段。`Partial<Order>` 里的嵌套对象仍然保持原样，深层字段依然必填。需要深层可选时，必须单独定义嵌套类型或使用递归工具类型，本课程不展开。"
+      },
+      {
+        "type": "quiz",
+        "question": "要从 Order 中去掉 id 字段得到创建请求类型，应该用哪个工具？",
+        "options": [
+          "Pick<Order, 'id'>",
+          "Omit<Order, 'id'>",
+          "Partial<Order>",
+          "Required<Order>"
+        ],
+        "answer": 1,
+        "explain": "Omit 排除指定键，保留其余字段，正好用于「创建时还没有 id」的场景。"
+      },
+      {
+        "type": "practice",
+        "title": "四个派生类型",
+        "code": "interface User {\n  id: number;\n  name: string;\n  email: string;\n}\n\ntype UserPreview = Pick<User, 'id' | 'name'>;\ntype UserPatch = Partial<User>;\n\nvar p: UserPreview = { id: 1, name: 'V' };\nvar patch: UserPatch = { name: 'W' };\nconsole.log(p.id, p.name, patch.name);",
+        "output": "1 V W",
+        "hint": "派生类型只影响标注，对象本身仍是普通对象。"
+      }
+    ],
+    "exercise": {
+      "title": "订单的四种视图",
+      "brief": "基于 Order 定义四个派生类型：OrderPatch = Partial<Order>，OrderPreview = Pick<Order, 'id' | 'total'>，OrderDraft = Omit<Order, 'id'>，OrderFull = Required<Order>。实现 previewOf(o) 返回 OrderPreview，实现 totalOfPatch(p) 返回 p.total 或 0。",
+      "starterCode": "interface Order {\n  id: string;\n  total: number;\n  note: string;\n}\n\ntype OrderPatch = Partial<Order>;\n\ntype OrderPreview = Pick<Order, 'id' | 'total'>;\n\nfunction previewOf(o: Order): OrderPreview {\n  return { id: '', total: 0 };\n}\n\nfunction totalOfPatch(p: OrderPatch): number {\n  // total 缺失时返回 0\n  return 0;\n}",
+      "hint": "previewOf 直接取 id 和 total 构造新对象；totalOfPatch 用 `p.total === undefined ? 0 : p.total`。",
+      "tests": [
+        "assert(previewOf({id:'A', total:5, note:'x'}).id === 'A', 'previewOf 应保留 id')",
+        "assert(previewOf({id:'A', total:5, note:'x'}).total === 5, 'previewOf 应保留 total')",
+        "assert(totalOfPatch({}) === 0, '空补丁应返回 0')",
+        "assert(totalOfPatch({total: 7}) === 7, '有 total 时应返回其值')",
+        "assert(totalOfPatch({total: 0}) === 0, '0 应保持为 0')"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "interface Order {\n  id: string;\n  total: number;\n  note: string;\n}\n\ntype OrderPatch = Partial<Order>;\n\ntype OrderPreview = Pick<Order, 'id' | 'total'>;\n\nfunction previewOf(o: Order): OrderPreview {\n  return { id: (o.id), total: (o.total) };\n}\n\nfunction totalOfPatch(p: OrderPatch): number {\n  if (p.total === undefined) {\n    return 0;\n  }\n  return p.total;\n}"
+    }
+  },
+  {
+    "id": "ts25",
+    "order": 624,
+    "chapter": 63,
+    "chapterName": "TypeScript · 进阶篇",
+    "lang": "typescript",
+    "title": "可辨识联合",
+    "subtitle": "用 kind 字段区分分支",
+    "xp": 110,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "让每个分支都带上身份证"
+      },
+      {
+        "type": "text",
+        "text": "可辨识联合是把多个对象类型用联合连起来，并让每个成员都有一个字面量类型的「标签字段」。例如 `interface Circle { kind: 'circle'; radius: number }` 和 `interface Square { kind: 'square'; side: number }`，联合起来就是 `type Shape = Circle | Square`。标签字段通常是 kind、type 或 status，值必须是字面量类型，不能是宽泛的 string。\n\n可辨识联合的核心能力是自动收窄。写 `if (shape.kind === 'circle')`，编译器立刻知道分支内 shape 是 Circle，可以直接访问 radius；else 分支则自动变成 Square。这比手写类型断言安全得多，也比运行时判断更精确。switch 语句同样有效，每个 case 里都能拿到对应成员的字段，写错字段名会被 tsc 当场发现。\n\n可辨识联合适合描述「互斥的几种情况」：支付方式的信用卡、银行转账、余额支付；消息的文本、图片、系统通知；状态的加载中、成功、失败。关键在于每个成员的业务字段完全不同，用标签区分后，代码里就不会出现「访问了不属于当前分支的字段」这类错误。相比把所有字段堆在一个接口里、全部标成可选，可辨识联合让非法状态在类型层面就无法构造。"
+      },
+      {
+        "type": "text",
+        "text": "设计时有三个要点。第一，标签字段必须是字面量类型，写成 string 就失去辨识能力；第二，标签值必须唯一，两个成员用同一个 kind 会让收窄失效；第三，每个成员只放自己需要的字段，不要为了「统一」把所有字段都加上并在不适用的分支里留空。第三点尤其重要，它决定了类型能否真正表达业务约束，而不是变成另一种形式的大杂烩。\n\n本应用支持可辨识联合的运行时写法：标签字段就是普通字符串字段，判断分支就是普通 if 或 switch，对象字面量正常构造。唯一要避开的是联合类型在复杂位置的标注，例如嵌套过深的交叉和条件类型。课程里的例子都用两个到三个成员，标签直接比较字符串，既清晰又能被转译器正确处理。\n\n可辨识联合在状态管理里特别有用。加载状态可以定义成 `Loading | Success | Failure` 三个成员，每个成员带自己的数据：Loading 没有数据，Success 带 data，Failure 带 error。这样代码里就不会出现「既在加载又有错误」这种非法组合，也不需要用一堆布尔字段互相约束。用类型表达状态，比用注释约束状态可靠得多。"
+      },
+      {
+        "type": "text",
+        "text": "可辨识联合的关键在于「标签值唯一且稳定」。如果两个成员的标签值可能相同，收窄就会失效；如果标签值会被外部修改，收窄的前提就被破坏。所以标签字段应该在建对象时一次确定，之后不再改。业务状态变化时，应该创建新对象而不是原地改标签，这样每一份数据在任一时刻都属于确定的成员，判断逻辑才不会出现「既像 A 又像 B」的中间态。\n\n可辨识联合还有一个配套技巧：把「共同字段」抽到一个基础接口里，让每个成员继承它。例如所有支付方式都有 amount 和 createdAt，就定义 PaymentBase，再让 Cash、Card、Wallet 各自 extends。这样公共字段只写一次，判断逻辑里也能安全访问公共字段，不必先收窄。联合的成员越多，这个技巧越有价值。\n\n再补充一个常见错误：把标签字段命名成 type。`type` 是 TypeScript 关键字，虽然作为属性名合法，但在某些工具和文档生成器里会引起歧义，读代码时也容易和类型声明混淆。用 kind、tag、status 更安全。命名上的小细节，长期看能减少很多解释成本；团队的命名约定越统一，新成员理解联合结构的门槛越低。"
+      },
+      {
+        "type": "code",
+        "code": "interface Circle {\n  kind: 'circle';\n  radius: number;\n}\n\ninterface Square {\n  kind: 'square';\n  side: number;\n}\n\ntype Shape = Circle | Square;\n\nfunction area(shape: Shape): number {\n  if (shape.kind === 'circle') {\n    return 3.14 * shape.radius * shape.radius;\n  }\n  return shape.side * shape.side;\n}\n\nconsole.log(area({ kind: 'circle', radius: 2 }));\nconsole.log(area({ kind: 'square', side: 3 }));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "12.56\n9"
+      },
+      {
+        "type": "diagram",
+        "text": "Shape = Circle | Square\n          │         │\n          │         └─ kind: 'square'，字段 side\n          └─ kind: 'circle'，字段 radius\n\nif (shape.kind === 'circle')\n    └─ 分支内自动收窄为 Circle，可访问 radius\n\nelse 分支自动变成 Square，可访问 side。"
+      },
+      {
+        "type": "tip",
+        "text": "标签字段建议统一叫 kind，值用小写单词。项目里保持一致比追求命名花样重要得多，统一的标签让所有联合类型的判断代码看起来一致，也方便搜索。"
+      },
+      {
+        "type": "warn",
+        "text": "本应用不做类型检查，所以「构造一个 kind 与字段不匹配的对象」在运行时仍然能跑。可辨识联合的保护全部发生在编写阶段，运行时正确性靠你自己遵守约定。"
+      },
+      {
+        "type": "quiz",
+        "question": "可辨识联合中，标签字段为什么必须是字面量类型？",
+        "options": [
+          "为了节省内存",
+          "只有字面量类型才能让编译器在判断时收窄到具体成员",
+          "因为 JavaScript 不支持字符串",
+          "为了让运行时能检查"
+        ],
+        "answer": 1,
+        "explain": "标签值如果是宽泛的 string，编译器无法确定每个值的唯一成员；字面量类型让 kind === 'circle' 精确指向 Circle。"
+      },
+      {
+        "type": "practice",
+        "title": "消息分支",
+        "code": "interface TextMsg {\n  kind: 'text';\n  body: string;\n}\n\ninterface ImageMsg {\n  kind: 'image';\n  url: string;\n}\n\ntype Msg = TextMsg | ImageMsg;\n\nfunction preview(m: Msg): string {\n  if (m.kind === 'text') {\n    return m.body.slice(0, 3);\n  }\n  return m.url;\n}\n\nconsole.log(preview({ kind: 'text', body: 'hello' }), preview({ kind: 'image', url: 'a.png' }));",
+        "output": "hel a.png",
+        "hint": "两个分支各自访问自己的字段。"
+      }
+    ],
+    "exercise": {
+      "title": "三种支付方式",
+      "brief": "定义 Cash（kind: 'cash'，amount）、Card（kind: 'card'，amount、last4）、Wallet（kind: 'wallet'，amount、account）三个接口并联合成 Payment。实现 payLabel(p) 返回 'cash:金额'、'card:尾号'、'wallet:账号'；实现 totalOf(list) 累加所有金额。",
+      "starterCode": "interface Cash {\n  kind: 'cash';\n  amount: number;\n}\n\ninterface Card {\n  kind: 'card';\n  amount: number;\n  last4: string;\n}\n\ninterface Wallet {\n  kind: 'wallet';\n  amount: number;\n  account: string;\n}\n\ntype Payment = Cash | Card | Wallet;\n\nfunction payLabel(p: Payment): string {\n  if (p.kind === 'cash') {\n    return 'cash:' + p.amount;\n  }\n  if (p.kind === 'card') {\n    return 'card:' + p.last4;\n  }\n  return 'wallet:' + p.account;\n}\n\nfunction totalOf(list: Payment[]): number {\n  // 累加 amount\n  return 0;\n}",
+      "hint": "totalOf 用 for 循环遍历，直接累加 list[i].amount——三个成员都有 amount，联合类型下也能访问。",
+      "tests": [
+        "assert(payLabel({kind:'cash', amount:10}) === 'cash:10', '现金标签错误')",
+        "assert(payLabel({kind:'card', amount:10, last4:'1234'}) === 'card:1234', '银行卡标签错误')",
+        "assert(payLabel({kind:'wallet', amount:10, account:'u1'}) === 'wallet:u1', '钱包标签错误')",
+        "assert(totalOf([{kind:'cash', amount:10}, {kind:'card', amount:5, last4:'1'}]) === 15, '金额累加错误')",
+        "assert(totalOf([]) === 0, '空列表应为 0')"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "interface Cash {\n  kind: 'cash';\n  amount: number;\n}\n\ninterface Card {\n  kind: 'card';\n  amount: number;\n  last4: string;\n}\n\ninterface Wallet {\n  kind: 'wallet';\n  amount: number;\n  account: string;\n}\n\ntype Payment = Cash | Card | Wallet;\n\nfunction payLabel(p: Payment): string {\n  if (p.kind === 'cash') {\n    return 'cash:' + p.amount;\n  }\n  if (p.kind === 'card') {\n    return 'card:' + p.last4;\n  }\n  return 'wallet:' + p.account;\n}\n\nfunction totalOf(list: Payment[]): number {\n  var total: number = 0;\n  for (var i = 0; i < list.length; i++) {\n    total += list[i].amount;\n  }\n  return total;\n}"
+    }
+  },
+  {
+    "id": "ts26",
+    "order": 625,
+    "chapter": 63,
+    "chapterName": "TypeScript · 进阶篇",
+    "lang": "typescript",
+    "title": "类型守卫函数",
+    "subtitle": "让编译器读懂你的判断",
+    "xp": 110,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把判断封装成可复用的守卫"
+      },
+      {
+        "type": "text",
+        "text": "类型守卫函数的返回类型写成 `value is 类型`，例如 `function isString(v: unknown): v is string { return typeof v === 'string'; }`。它的返回值仍然是布尔值，但对编译器多了一层含义：当这个函数返回 true 时，调用处的 v 会被收窄成 string。这把运行时判断和类型收窄绑定在一起，既复用了代码，又让后续访问安全。\n\n守卫函数的价值在复杂判断时最明显。检查一个对象是否符合 interface 需要好几行：不是 null、是 object、关键字段类型正确。把这些逻辑写进 `function isOrder(v: unknown): v is Order`，调用处只需要一行 if，后续代码就能直接访问 order.id。判断逻辑集中在一处，修改规则时只改一个函数，所有调用点自动受益。\n\n写守卫函数时有两个纪律。第一，函数体必须真的检查了所有关键字段，不能只写 return true 然后靠断言，否则收窄是假的，运行时照样崩。第二，尽量避免副作用，守卫只做判断，不修改传入的值。本应用不做类型检查，所以第二点尤其重要——类型层面不会验证你的实现，只能靠代码评审和测试保证守卫名副其实。"
+      },
+      {
+        "type": "text",
+        "text": "守卫函数的返回类型 `v is string` 在本应用的转译器里会被擦除，运行时只留下普通函数。这没有问题，因为守卫的运行时行为就是返回布尔值；类型收窄只在编写阶段生效。但要注意函数名要能表达「判断什么」，isString、isOrder、hasId 这类命名让调用处读起来像自然语言，也让守卫和普通布尔函数的区别一目了然。\n\n守卫可以组合：先写基础守卫 isObject、isString、isNumber，再在 isOrder 里调用它们。组合时保持「每个守卫只判断一件事」的原则，复杂对象由多个小守卫拼成。这样每个守卫都容易测试，出错时也容易定位是哪一层判断漏了。测试守卫时既要测通过的情况，也要测字段缺失、类型不对、null 等失败情况，否则很容易写出永远返回 true 的假守卫。\n\n守卫函数还可以处理数组：`function isOrderList(v: unknown): v is Order[]` 先判断 Array.isArray，再循环调用 isOrder。这样嵌套结构也能逐层校验。代价是复杂度上升，性能也有开销，所以只对外部输入做一次完整校验，内部传递的数据信任类型即可，不必每一层都重复检查。"
+      },
+      {
+        "type": "text",
+        "text": "守卫函数是「运行时校验」和「编译期收窄」的交汇点，也是类型系统里少数需要你同时保证两边正确的地方。写完后一定要测试失败分支：字段缺失、类型错误、null、空对象、数组混入。只测通过分支的守卫，等于没有守卫。另一个实践是让守卫保持纯函数：不修改输入、不抛异常、不依赖外部状态。纯守卫可以被任意组合，也可以放心地在循环里反复调用。\n\n守卫函数和断言的分工可以这样理解：守卫负责「确认」，断言负责「声明」。守卫在运行时真的检查了，断言只是口头保证。对外部数据用守卫，对内部已确认的数据用断言（甚至不用）。混用会让代码失去可信度：读者无法判断一个值到底是真检查过，还是只是被断言过。把两者分开，代码的可靠性才可评估。\n\n再补充一个测试建议：给守卫函数写「表格测试」。准备一组输入和期望结果，逐行验证：合法对象、缺字段、字段类型错、null、undefined、数组、字符串、数字。表格测试能快速覆盖所有分支，也方便后续加新规则时回归。守卫是数据入口的把关人，它的正确性直接决定后续代码能否信任类型，值得多花时间测试。"
+      },
+      {
+        "type": "code",
+        "code": "interface Order {\n  id: string;\n  total: number;\n}\n\nfunction isOrder(v: unknown): boolean {\n  if (v === null || typeof v !== 'object') {\n    return false;\n  }\n  var o: any = v;\n  return typeof o.id === 'string' && typeof o.total === 'number';\n}\n\nvar good: unknown = { id: 'A1', total: 30 };\nvar bad: unknown = { id: 'A1' };\n\nconsole.log(isOrder(good), isOrder(bad));\nconsole.log(isOrder(null), isOrder('x'));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "true false\nfalse false"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "守卫",
+          "判断内容",
+          "典型实现"
+        ],
+        "rows": [
+          [
+            "isString(v)",
+            "是否为字符串",
+            "typeof v === 'string'"
+          ],
+          [
+            "isNumber(v)",
+            "是否为数字",
+            "typeof v === 'number' && !isNaN(v)"
+          ],
+          [
+            "isOrder(v)",
+            "是否符合 Order",
+            "非空 + 逐字段检查"
+          ],
+          [
+            "hasId(v)",
+            "是否带 id 字段",
+            "'id' in v 或 v.id !== undefined"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "守卫函数只负责判断，不负责转换。需要「判断并返回规范化结果」时，写两个函数：isOrder 判断、parseOrder 转换。职责分开后，两者都能单独测试，调用处也能按需选择。"
+      },
+      {
+        "type": "warn",
+        "text": "本应用的转译器不支持 `v is Order` 这种返回类型标注，写了会擦除失败。课程里守卫函数统一返回 boolean，靠运行时判断保证正确性；概念上它仍然是类型守卫，只是类型层的收窄在真正的 tsc 下才生效。"
+      },
+      {
+        "type": "quiz",
+        "question": "类型守卫函数 `function isString(v: unknown): v is string` 的返回值在运行时是什么？",
+        "options": [
+          "string",
+          "boolean",
+          "unknown",
+          "没有返回值"
+        ],
+        "answer": 1,
+        "explain": "`v is string` 只是类型层标注，函数体返回的仍是普通布尔值。"
+      },
+      {
+        "type": "practice",
+        "title": "基础守卫组合",
+        "code": "function isObject(v: unknown): boolean {\n  return v !== null && typeof v === 'object';\n}\n\nfunction hasId(v: unknown): boolean {\n  if (!isObject(v)) { return false; }\n  var o: any = v;\n  return typeof o.id === 'string';\n}\n\nconsole.log(hasId({ id: 'a' }), hasId({}), hasId(null));",
+        "output": "true false false",
+        "hint": "先判断是对象，再判断字段。"
+      }
+    ],
+    "exercise": {
+      "title": "订单守卫与安全解析",
+      "brief": "实现 isOrder(v) 判断对象是否有 string 类型的 id 和 number 类型的 total；实现 firstValid(list) 返回第一个通过守卫的元素，没有则返回 null。",
+      "starterCode": "interface Order {\n  id: string;\n  total: number;\n}\n\nfunction isOrder(v: unknown): boolean {\n  // 非空、是对象、id 为 string、total 为 number\n  return false;\n}\n\nfunction firstValid(list: any[]): Order | null {\n  // 返回第一个通过 isOrder 的元素\n  return null;\n}",
+      "hint": "isOrder 先判 v === null 与 typeof v !== 'object'，再用 any 中转访问字段；firstValid 循环调用 isOrder，命中就 return list[i]，否则返回 null。",
+      "tests": [
+        "assert(isOrder({id:'A', total:1}) === true, '合法订单应通过')",
+        "assert(isOrder({id:'A'}) === false, '缺少 total 应失败')",
+        "assert(isOrder({id:1, total:1}) === false, 'id 非字符串应失败')",
+        "assert(isOrder(null) === false, 'null 应失败')",
+        "assert(firstValid([{id:'A'}, {id:'B', total:2}])!.total === 2, '应返回第一个合法元素')"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "interface Order {\n  id: string;\n  total: number;\n}\n\nfunction isOrder(v: unknown): boolean {\n  if (v === null || typeof v !== 'object') {\n    return false;\n  }\n  var o: any = v;\n  return typeof o.id === 'string' && typeof o.total === 'number';\n}\n\nfunction firstValid(list: any[]): Order | null {\n  for (var i = 0; i < list.length; i++) {\n    if (isOrder(list[i])) {\n      return list[i];\n    }\n  }\n  return null;\n}"
+    }
+  },
+  {
+    "id": "ts27",
+    "order": 626,
+    "chapter": 63,
+    "chapterName": "TypeScript · 进阶篇",
+    "lang": "typescript",
+    "title": "声明文件 .d.ts",
+    "subtitle": "为没有类型的代码补一份说明",
+    "xp": 100,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "给外部世界写一份说明书"
+      },
+      {
+        "type": "text",
+        "text": "声明文件以 .d.ts 结尾，里面只有类型声明，没有实现。它的作用是告诉 TypeScript「这个模块长什么样」：导出了哪些函数、参数和返回值是什么、有哪些 interface。库作者会随包发布 .d.ts，编辑器安装后立刻有补全和检查；没有声明文件的库，要么由社区维护 @types 包，要么自己写一份最小的。\n\n声明文件里用 declare 关键字描述外部存在的东西：`declare function now(): string;` 表示运行时存在一个 now 函数；`declare var VERSION: string;` 表示存在一个全局变量；`declare module 'legacy-lib' { ... }` 描述整个模块。declare 的意思是「我保证运行时存在，编译器不用管实现」，所以声明文件里不能写函数体，只能写签名。\n\n写声明文件的关键是「只声明你用到的那部分」。一个庞大的库可能有上百个 API，你的项目只用了三个，那就只写这三个的签名。这样工作量小、维护成本低，将来用到更多再补。签名要尽量准确：参数类型写宽了会失去检查，写窄了会误报；返回值类型不确定时先用 unknown，用的时候再收窄，比写 any 安全。"
+      },
+      {
+        "type": "text",
+        "text": "本应用会删除以 declare 开头的整行，所以 `declare function now(): string;` 不会留下任何运行时代码。这意味着声明文件在本应用里只能作为「讲解用的静态片段」，不能真正提供类型检查，也不能调用未定义的函数。课程里的示例会标注为不可运行，帮助你区分「描述类型」和「运行代码」这两件事。\n\n声明文件还有一个实用场景：给 JS 文件补类型而不改 JS。项目里有一段老代码，你不想动它，可以写一个同名 .d.ts 描述它的导出，然后在 ts 文件里正常 import。这种「类型与实现分离」的能力，是渐进迁移的关键工具。等老代码将来重写时，声明文件可以直接删掉，不会留下运行时包袱。\n\n最后提醒一个常见坑：把 .d.ts 和 .ts 放在同名同目录下，TypeScript 会优先使用声明文件，导致你新建的实现文件被忽略。规范做法是声明文件和实现文件放在不同目录，用 outDir 或 types 字段区分。本应用不涉及目录解析，但迁移到真实项目时，这个坑非常常见。"
+      },
+      {
+        "type": "text",
+        "text": "声明文件的质量直接影响使用体验。一份好的声明文件应该做到：类型精确到能防止常见误用，注释说明每个函数的副作用和边界，导出结构和你实际 import 的方式一致。最容易被忽略的是「可选参数」和「重载」：库函数常常有多种调用形式，声明文件要如实描述，否则使用者会遇到莫名其妙的类型错误。写不准的地方宁可标 unknown，也不要标 any，前者会提醒使用者校验。\n\n声明文件还要注意版本匹配。库升级后，声明文件可能没有同步更新，导致类型和实现不一致。症状是「运行时正常但类型报错」或「类型通过但运行时缺方法」。排查方法是核对包的版本和 @types 包的版本，必要时锁定版本或换用库自带的声明。类型定义也是依赖，需要和代码一起升级、一起测试。\n\n声明文件本身不运行，但它描述的接口可以在真正的实现代码里使用。下面这段是可以运行的：interface 被擦除，函数按普通对象访问字段，输出和声明完全一致。对比上一段静态片段，你能直观看到「描述类型」和「运行代码」的边界。"
+      },
+      {
+        "type": "code",
+        "code": "// 声明文件示例（静态片段，不可运行）\n// 文件：legacy.d.ts\n\ndeclare function now(): string;\n\ndeclare var VERSION: string;\n\ninterface LegacyOrder {\n  id: string;\n  total: number;\n}\n\ndeclare function loadOrder(id: string): LegacyOrder | null;",
+        "runnable": false
+      },
+      {
+        "type": "output",
+        "text": "（声明文件只描述类型，不产生运行代码，因此没有输出）"
+      },
+      {
+        "type": "code",
+        "code": "interface LegacyOrder {\n  id: string;\n  total: number;\n}\n\nfunction describeOrder(o: LegacyOrder): string {\n  return o.id + '=' + o.total;\n}\n\nconsole.log(describeOrder({ id: 'A1', total: 30 }));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "A1=30"
+      },
+      {
+        "type": "diagram",
+        "text": "legacy.js（真实实现，运行时存在）\n        │\n        ├─ loadOrder(id) { ... }\n        └─ now() { ... }\n\nlegacy.d.ts（类型说明，编译时存在）\n        │\n        ├─ declare function now(): string;\n        └─ declare function loadOrder(id: string): LegacyOrder | null;\n\n两份文件配对使用，运行时只加载前者。"
+      },
+      {
+        "type": "tip",
+        "text": "自己写声明文件时，先写 declare module，再在模块里列函数和 interface。不要试图一次写全，用到什么补什么，声明文件是渐进增长的。"
+      },
+      {
+        "type": "warn",
+        "text": "本应用的转译器会整行删除 declare 语句，但不会真正读取 .d.ts 提供类型。所以声明文件在本应用里是纯讲解内容，运行代码不能依赖声明文件里的函数。"
+      },
+      {
+        "type": "quiz",
+        "question": "声明文件里为什么不能写函数体？",
+        "options": [
+          "因为语法不允许，.d.ts 只描述类型",
+          "因为函数体会被压缩",
+          "因为运行时不需要函数",
+          "因为 declare 关键字会执行函数"
+        ],
+        "answer": 0,
+        "explain": "声明文件只承载类型信息，不能包含实现；写函数体是语法错误，实现应该放在对应的 .js 或 .ts 文件里。"
+      },
+      {
+        "type": "practice",
+        "title": "识别声明语句",
+        "code": "declare function ping(): string;\n\nconsole.log('declaration only');",
+        "output": "declaration only",
+        "hint": "declare 行被删除，只剩日志。"
+      }
+    ],
+    "exercise": {
+      "title": "为一个老模块写类型说明",
+      "brief": "不用写声明文件本身，而是模拟它的效果：定义 LegacyUser 接口，实现 readUser(raw)：接收 JSON 字符串，解析后断言成 LegacyUser；实现 userName(raw)：调用 readUser 并返回 name，解析失败时返回 'unknown'。",
+      "starterCode": "interface LegacyUser {\n  id: number;\n  name: string;\n}\n\nfunction readUser(raw: string): LegacyUser {\n  // JSON.parse 后 as LegacyUser\n  return { id: 0, name: '' };\n}\n\nfunction userName(raw: string): string {\n  // 解析失败返回 unknown\n  return '';\n}",
+      "hint": "readUser 直接返回 `JSON.parse(raw) as LegacyUser`；userName 用 try/catch 包住 readUser，catch 里返回 'unknown'。",
+      "tests": [
+        "assert(readUser('{\"id\":1,\"name\":\"V\"}').name === 'V', 'readUser 应解析出 name')",
+        "assert(readUser('{\"id\":2,\"name\":\"J\"}').id === 2, 'readUser 应解析出 id')",
+        "assert(userName('{\"id\":1,\"name\":\"V\"}') === 'V', 'userName 应返回 name')",
+        "assert(userName('not json') === 'unknown', '解析失败应返回 unknown')"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "interface LegacyUser {\n  id: number;\n  name: string;\n}\n\nfunction readUser(raw: string): LegacyUser {\n  return JSON.parse(raw) as LegacyUser;\n}\n\nfunction userName(raw: string): string {\n  try {\n    return readUser(raw).name;\n  } catch (e) {\n    return 'unknown';\n  }\n}"
+    }
+  },
+  {
+    "id": "ts28",
+    "order": 627,
+    "chapter": 63,
+    "chapterName": "TypeScript · 进阶篇",
+    "lang": "typescript",
+    "title": "tsconfig 与编译流程",
+    "subtitle": "从源码到可执行 JS",
+    "xp": 100,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "编译流程的四个阶段"
+      },
+      {
+        "type": "text",
+        "text": "TypeScript 的编译分四步：解析源码生成语法树、做类型检查、转换（含类型擦除与语法降级）、输出 JavaScript。tsc 读取 tsconfig.json 决定输入哪些文件、输出到哪个目录、目标 JavaScript 版本是什么、开启哪些检查。理解这条流水线，你就能解释「为什么类型错误不一定阻止输出」——tsc 默认即使报类型错误也会生成 JS，除非显式开启 noEmitOnError。\n\ntsconfig 里最重要的几项：target 决定输出的 JS 版本，ES5 会降级箭头函数和 let；module 决定模块格式，commonjs 或 es2015；strict 打开一整套严格检查，包括 noImplicitAny、strictNullChecks；outDir 指定输出目录；include 和 exclude 控制参与编译的文件。新手最容易犯的错是把 target 设得太高，结果老环境跑不起来。\n\n本应用的运行时相当于 target 为 ES5 的一个极简编译器：只做类型擦除和 enum 转换，不做语法降级，也不做类型检查。所以课程代码必须自己写成 ES5 风格：用 var、用 function、不用 class、不用展开运算符、不用 async/await、不用可选链和空值合并。这不是 TypeScript 的限制，而是这个教学运行时的限制；理解差异，你才能把代码迁移到真正的 tsc 项目里。"
+      },
+      {
+        "type": "text",
+        "text": "编译流程里还有一个常被忽略的环节：模块解析。import 的路径怎么找、node_modules 里的包如何定位、types 字段指向哪个声明文件，都由模块解析策略决定。写业务代码时感知不强，但排查「找不到模块」或「类型不匹配」时，理解解析顺序能节省大量时间。monorepo 里的路径别名也在这里配置。\n\n最后是构建工具的分工。tsc 负责类型检查和类型擦除，打包工具（Vite、webpack、esbuild）负责模块打包和体积优化。现代项目常用 esbuild 或 swc 做快速转译，再单独跑一次 tsc --noEmit 做类型检查，兼顾速度和正确性。知道这条流水线，你就不会困惑「为什么打包成功了但类型还是错的」——因为打包工具通常只擦类型，不检查类型。\n\n声明文件里还可以用 `export =` 和 `export default` 描述不同的模块导出形式，用 `declare global` 扩展全局类型。这些语法本应用都不支持，课程只讲最常见的 declare function、declare var 和 declare module。真正写库时，建议先用 tsc 的 --declaration 自动生成，再手工补注释，比从零手写快得多。"
+      },
+      {
+        "type": "text",
+        "text": "编译目标还会影响代码体积和运行速度。target 越低，降级代码越多，体积越大；target 越高，越依赖运行环境支持新语法。选择标准不是「越新越好」，而是「你的用户环境支持到哪一版」。TypeScript 官方建议至少 ES2015，但如果要兼容老浏览器或嵌入式引擎，ES5 仍是安全选择——本应用就是 ES5 的一个例子。\n\n编译配置没有「最佳实践」，只有「匹配你的运行环境」。target 取决于用户浏览器或引擎的版本，module 取决于打包工具，strict 取决于团队对类型质量的投入意愿。新手常做的是复制别人的配置，结果要么版本太新跑不起来，要么检查太松形同虚设。正确做法是先确定运行环境，再倒推 target；先确定打包工具，再决定 module；strict 则建议新项目一开始就全开，老项目逐步收紧。\n\n最后补充一个常见配置陷阱：include 和 exclude 的匹配规则基于 glob，写错一个星号就可能把 node_modules 或测试文件卷进编译。排查方法是运行 tsc --showConfig，看最终生效的配置和文件列表，比盯着 json 猜要快得多。配置问题几乎都能用「打印最终配置」解决，这个习惯值得养成。"
+      },
+      {
+        "type": "code",
+        "code": "interface BuildStep {\n  name: string;\n  ok: boolean;\n}\n\nfunction runPipeline(steps: BuildStep[]): string {\n  var out: string[] = [];\n  for (var i = 0; i < steps.length; i++) {\n    if (steps[i].ok) {\n      out.push(steps[i].name);\n    }\n  }\n  return out.join('>');\n}\n\nconsole.log(runPipeline([\n  { name: 'parse', ok: true },\n  { name: 'check', ok: true },\n  { name: 'emit', ok: true }\n]));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "parse>check>emit"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "配置项",
+          "作用",
+          "本应用对应"
+        ],
+        "rows": [
+          [
+            "target",
+            "输出 JS 版本",
+            "相当于 ES5"
+          ],
+          [
+            "strict",
+            "打开严格类型检查",
+            "不做类型检查"
+          ],
+          [
+            "outDir",
+            "输出目录",
+            "无输出文件，内存中执行"
+          ],
+          [
+            "module",
+            "模块格式",
+            "不支持 import/export"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "排查编译问题时按流水线顺序走：先确认文件被 include、再确认语法能解析、再看类型错误、最后看输出目标版本。跳过前面直接怀疑类型，往往白费时间。"
+      },
+      {
+        "type": "warn",
+        "text": "本应用不支持 import 和 export 语句，课程里所有代码都是单文件、全局作用域。真正的 TypeScript 项目里模块是常态，迁移时要把每段代码包进模块并显式导出。"
+      },
+      {
+        "type": "quiz",
+        "question": "tsc 默认在类型检查报错时会怎样？",
+        "options": [
+          "立即停止，不生成任何文件",
+          "仍然生成 JS，只是报出错误",
+          "自动修复类型错误",
+          "删除源文件"
+        ],
+        "answer": 1,
+        "explain": "默认情况下 tsc 会继续输出 JS，类型错误只是报告；需要阻止输出要开启 noEmitOnError。这也是为什么有些项目「编译有警告但照样发布」。"
+      },
+      {
+        "type": "practice",
+        "title": "模拟流水线",
+        "code": "interface Step {\n  name: string;\n  ok: boolean;\n}\n\nfunction failed(steps: Step[]): string {\n  var out: string[] = [];\n  for (var i = 0; i < steps.length; i++) {\n    if (!steps[i].ok) { out.push(steps[i].name); }\n  }\n  return out.join(',');\n}\n\nconsole.log(failed([{name:'parse', ok:true}, {name:'check', ok:false}]));",
+        "output": "check",
+        "hint": "只收集失败的阶段。"
+      }
+    ],
+    "exercise": {
+      "title": "编译流水线报告",
+      "brief": "实现 pipelineReport(steps)：接收阶段数组（每项有 name 和 ok），返回 'ok=成功数,failed=失败数,first=第一个失败阶段名'，全部成功时 first 为 'none'。",
+      "starterCode": "interface Step {\n  name: string;\n  ok: boolean;\n}\n\nfunction pipelineReport(steps: Step[]): string {\n  // 统计成功与失败，记录第一个失败阶段\n  return '';\n}",
+      "hint": "用两个计数器加一个 first 变量；循环里根据 ok 累加，first 只在第一次失败时赋值。",
+      "tests": [
+        "assert(pipelineReport([{name:'parse',ok:true},{name:'check',ok:true}]) === 'ok=2,failed=0,first=none', '全部成功时 first 应为 none')",
+        "assert(pipelineReport([{name:'parse',ok:true},{name:'check',ok:false}]) === 'ok=1,failed=1,first=check', '应记录第一个失败阶段')",
+        "assert(pipelineReport([{name:'a',ok:false},{name:'b',ok:false}]) === 'ok=0,failed=2,first=a', '多个失败时 first 取第一个')",
+        "assert(pipelineReport([]) === 'ok=0,failed=0,first=none', '空数组应返回全零')"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "interface Step {\n  name: string;\n  ok: boolean;\n}\n\nfunction pipelineReport(steps: Step[]): string {\n  var okCount: number = 0;\n  var failCount: number = 0;\n  var first: string = 'none';\n  for (var i = 0; i < steps.length; i++) {\n    if (steps[i].ok) {\n      okCount += 1;\n    } else {\n      failCount += 1;\n      if (first === 'none') {\n        first = steps[i].name;\n      }\n    }\n  }\n  return 'ok=' + okCount + ',failed=' + failCount + ',first=' + first;\n}"
+    }
+  },
+  {
+    "id": "ts29",
+    "order": 628,
+    "chapter": 63,
+    "chapterName": "TypeScript · 进阶篇",
+    "lang": "typescript",
+    "title": "类型安全的数据管道",
+    "subtitle": "从原始输入到可信数据",
+    "xp": 110,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "让每一段都有明确类型"
+      },
+      {
+        "type": "text",
+        "text": "数据管道指一串处理步骤：读取原始输入、解析、校验、转换、汇总、输出。没有类型时，每一步的输入输出都靠约定，出错很难定位。加类型后，每一步都有明确的参数和返回值，管道就像流水线，上一道的输出必须符合下一道的输入，不符合时 tsc 会在连接处报错。本讲用一个小型订单统计管道串起前面学过的所有知识。\n\n第一步是「边界收窄」。原始数据来自外部，类型必须是 unknown 或 any，先用守卫函数判断结构，通过后才进入类型系统。第二步是「规范化」：把可选字段补上默认值、把字符串数字转成数字、把缺失的 ID 生成出来。规范化的输出是一个字段完整的 interface，后续步骤不再需要判空，代码会短很多。\n\n第三步是「业务转换」。订单列表转换成按用户分组的统计、按金额排序的排行榜、按状态分类的计数，每一步都用具体的 interface 描述输入输出。第四步是「汇总输出」：把结果拼成字符串或对象返回。整个过程中，类型扮演的是连接件的角色，它不执行任何逻辑，但保证每一步的输出都能被下一步正确接收。"
+      },
+      {
+        "type": "text",
+        "text": "写管道时有两个实践要点。第一，每一步都写成纯函数，输入决定输出、不修改参数，这样每一步都能单独测试，出问题时可以逐段验证。第二，中间结果的类型要显式命名，不要一路用内联对象。命名让管道图变得清晰，也让每一步的职责边界明确。本应用的练习会把管道拆成三到四个函数，分别验证。\n\n最后要接受一个现实：类型不能保证业务正确。它只能保证「形状对」，无法保证「金额算得对」「排序规则符合预期」「边界条件处理正确」。所以管道必须配测试，尤其是空数组、缺失字段、零值这些边界。类型让错误更早暴露，测试让错误更少发生，两者缺一不可。\n\n管道里的错误处理容易被忽略。解析可能失败、字段可能缺失、除以零可能得到 Infinity，这些都不是类型能拦住的。稳妥的做法是在边界处 try/catch，把异常转换成明确的失败结果，再让上层决定是跳过、重试还是报错。类型安全解决「形状对」，错误处理解决「流程稳」，两件事都要做。"
+      },
+      {
+        "type": "text",
+        "text": "数据管道的每一步都应该是「可单独运行」的。这意味着函数不依赖外部变量、不读写全局状态、不产生随机结果。做到这一点，你就能给每一步写独立的测试，出问题时也能把中间结果打印出来逐段比对。管道调试最怕的是「一大坨逻辑」：输入进去，输出不对，却不知道是哪一步错了。拆成小函数后，错误位置会自己浮现。这也是类型之外，管道设计最重要的工程价值。\n\n管道的输出格式也应该被类型化。返回值是一串拼接字符串时，调用方无法可靠解析；返回结构化对象时，展示层可以自由决定怎么渲染。把「数据」和「展示」分开，是管道设计的最后一步。本讲的 report 函数返回字符串是为了演示方便，真实项目里更常见的是返回 Summary 对象，再由 UI 层格式化。"
+      },
+      {
+        "type": "code",
+        "code": "interface RawOrder {\n  id: string;\n  total: number;\n  user: string;\n}\n\ninterface Totals {\n  total: number;\n  count: number;\n}\n\nfunction parseOrders(raw: string): RawOrder[] {\n  var list: RawOrder[] = JSON.parse(raw) as RawOrder[];\n  return list;\n}\n\nfunction totalOf(orders: RawOrder[]): Totals {\n  var sum: number = 0;\n  for (var i = 0; i < orders.length; i++) {\n    sum += orders[i].total;\n  }\n  return { total: (sum), count: (orders.length) };\n}\n\nfunction report(raw: string): string {\n  var t: Totals = totalOf(parseOrders(raw));\n  return 'count=' + t.count + ',total=' + t.total;\n}\n\nconsole.log(report('[{\"id\":\"A\",\"total\":10,\"user\":\"u1\"},{\"id\":\"B\",\"total\":5,\"user\":\"u1\"}]'));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "count=2,total=15"
+      },
+      {
+        "type": "diagram",
+        "text": "raw: string\n   │ parseOrders\n   ▼\nRawOrder[]\n   │ totalOf\n   ▼\nTotals { total, count }\n   │ report\n   ▼\nstring\n\n每一段的输出类型 = 下一段的输入类型。"
+      },
+      {
+        "type": "tip",
+        "text": "管道里的函数命名用「动词 + 名词」：parseOrders、totalOf、groupByUser、topByTotal。名字直接说明了输入和输出，串起来读就是数据流。"
+      },
+      {
+        "type": "warn",
+        "text": "JSON.parse 的结果必须断言或用守卫校验。直接把它当 RawOrder[] 用，字段缺失时会得到 undefined，并在很远的地方引发错误。生产代码应先校验再断言。"
+      },
+      {
+        "type": "quiz",
+        "question": "数据管道中「边界收窄」的目的是什么？",
+        "options": [
+          "提升运行速度",
+          "把未知类型的外部数据变成可信的具体类型",
+          "减少代码行数",
+          "自动修复数据错误"
+        ],
+        "answer": 1,
+        "explain": "边界收窄在数据进入类型系统前做校验，确保后续步骤面对的是结构可信的数据。"
+      },
+      {
+        "type": "practice",
+        "title": "两步管道",
+        "code": "interface Row {\n  n: number;\n}\n\nfunction sumRows(rows: Row[]): number {\n  var s: number = 0;\n  for (var i = 0; i < rows.length; i++) { s += rows[i].n; }\n  return s;\n}\n\nfunction pipeline(raw: string): number {\n  var rows: Row[] = JSON.parse(raw) as Row[];\n  return sumRows(rows);\n}\n\nconsole.log(pipeline('[{\"n\":1},{\"n\":2}]'));",
+        "output": "3",
+        "hint": "解析后交给求和函数。"
+      }
+    ],
+    "exercise": {
+      "title": "从原始 JSON 到排行榜",
+      "brief": "实现三件事：parseOrders(raw) 把 JSON 断言成 Order[]；totalOf(orders) 返回金额总和；topUser(orders) 返回金额最高的用户名，空数组返回 'none'。",
+      "starterCode": "interface Order {\n  id: string;\n  total: number;\n  user: string;\n}\n\nfunction parseOrders(raw: string): Order[] {\n  // JSON.parse 后 as Order[]\n  return [];\n}\n\nfunction totalOf(orders: Order[]): number {\n  // 累加 total\n  return 0;\n}\n\nfunction topUser(orders: Order[]): string {\n  // 金额最高的用户名，空数组返回 none\n  return 'none';\n}",
+      "hint": "topUser 先判空，再用第一个元素初始化 best，从下标 1 开始比较 total。",
+      "tests": [
+        "assert(parseOrders('[{\"id\":\"A\",\"total\":1,\"user\":\"u1\"}]').length === 1, 'parseOrders 应返回数组')",
+        "assert(totalOf([{id:'A',total:1,user:'u1'},{id:'B',total:2,user:'u2'}]) === 3, 'totalOf 求和错误')",
+        "assert(totalOf([]) === 0, '空数组求和应为 0')",
+        "assert(topUser([{id:'A',total:1,user:'u1'},{id:'B',total:9,user:'u2'}]) === 'u2', 'topUser 应返回最高金额用户')",
+        "assert(topUser([]) === 'none', '空数组应返回 none')"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "interface Order {\n  id: string;\n  total: number;\n  user: string;\n}\n\nfunction parseOrders(raw: string): Order[] {\n  return JSON.parse(raw) as Order[];\n}\n\nfunction totalOf(orders: Order[]): number {\n  var sum: number = 0;\n  for (var i = 0; i < orders.length; i++) {\n    sum += orders[i].total;\n  }\n  return sum;\n}\n\nfunction topUser(orders: Order[]): string {\n  if (orders.length === 0) {\n    return 'none';\n  }\n  var best: Order = orders[0];\n  for (var i = 1; i < orders.length; i++) {\n    if (orders[i].total > best.total) {\n      best = orders[i];\n    }\n  }\n  return best.user;\n}"
+    }
+  },
+  {
+    "id": "ts30",
+    "order": 629,
+    "chapter": 63,
+    "chapterName": "TypeScript · 进阶篇",
+    "lang": "typescript",
+    "title": "综合项目：类型化订单与排行榜",
+    "subtitle": "把 29 讲连成一条线",
+    "xp": 130,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "一个完整的小系统"
+      },
+      {
+        "type": "text",
+        "text": "这一讲不再引入新语法，而是把前面的知识组装成一个可运行的小系统：订单从原始 JSON 进入，经过校验、规范化、汇总，最终生成排行榜和统计报告。它覆盖了 interface、type 别名、泛型、工具类型、可辨识联合、类型守卫、数据管道和 ES5 对象建模。做完这一讲，你应该能独立设计一个中等规模的数据处理模块。\n\n数据结构分三层。第一层是 RawOrder，字段全部按外部输入声明，可能缺失；第二层是 Order，字段完整、类型确定，由 normalize 从 RawOrder 转换而来；第三层是输出结构 RankRow 和 Summary，只包含展示需要的字段。三层之间用函数连接，每一层都有明确的职责，任何一层出问题都能单独定位。\n\n核心逻辑有三块。normalize 负责把原始数据变成可信数据：缺失字段用默认值补齐，数字字符串转成数字，非法记录返回 null 由调用方过滤。rank 负责排序：先复制数组再排序，避免修改原数据，排序规则是金额降序、金额相同按 ID 升序，保证结果稳定。summarize 负责汇总：总单数、总金额、平均金额、最高单。"
+      },
+      {
+        "type": "text",
+        "text": "实现时注意几个 TypeScript 细节。第一，排序比较函数要显式标注参数类型，否则擦除后可能留下残渣。第二，数组复制用 slice()，不要用展开运算符。第三，金额计算用整数分，避免浮点误差。第四，所有对外函数都写完整签名，内部临时变量交给推断。第五，用接口而不是内联对象类型描述返回值。这些细节决定了代码能否在本应用里稳定运行。\n\n最后是验证思路。除了判题用例，自己可以构造几组数据：正常订单、缺字段订单、金额为 0 的订单、空数组。逐一确认输出符合预期。类型能保证你不会访问不存在的字段，但不能保证业务规则正确，所以边界测试必须自己补。完成这一讲后，建议把整个项目重写一遍，不看答案，只凭记忆——能独立写出来，才算真正掌握。\n\n综合项目的验收标准不是「能跑」，而是「能改」。试着给自己提三个需求：新增一种支付方式、按用户分组统计、把金额单位从分改成元。如果每个需求都只需要改一两个函数、加一两个字段，说明结构是健康的；如果每加一个需求都要动遍所有文件，说明抽象层次没找对。类型设计的好坏，最终就体现在「改动成本」上。写完之后做一次这样的演练，比再做十道练习题更有价值。"
+      },
+      {
+        "type": "text",
+        "text": "最后给自己留一个扩展练习：给排行榜加分页，每页十条，实现 pageOf(rows, page, size)；再加一个按用户聚合的 groupByUser(orders)，返回每个用户的订单数和总额。这两个需求会逼你把「排序、切片、分组」拆成独立函数，也会让你体会到类型在重构时的价值：改一个签名，所有调用点立刻告诉你哪里需要跟着改。\n\n再补充一个结构建议：把「数据」和「视图」分成两个文件。数据文件定义 Order、RawOrder、RankRow 和 normalize、rank、totalOf 这些纯函数；视图文件只负责把结构拼成字符串。这样数据逻辑可以脱离界面单独测试，视图改动也不会影响计算。单文件项目里用注释分区也能达到类似效果，但真正的项目应该用文件边界强制分离。"
+      },
+      {
+        "type": "code",
+        "code": "interface RawOrder {\n  id: string;\n  total: number;\n  user: string;\n}\n\ninterface Order {\n  id: string;\n  total: number;\n  user: string;\n}\n\ninterface RankRow {\n  user: string;\n  total: number;\n}\n\nfunction normalize(raw: RawOrder[]): Order[] {\n  var out: Order[] = [];\n  for (var i = 0; i < raw.length; i++) {\n    var r: RawOrder = raw[i];\n    if (typeof r.id === 'string' && typeof r.total === 'number') {\n      out.push({ id: (r.id), total: (r.total), user: (r.user) });\n    }\n  }\n  return out;\n}\n\nfunction rank(orders: Order[]): RankRow[] {\n  var sorted: Order[] = orders.slice();\n  sorted.sort(function (a: Order, b: Order): number {\n    if (b.total !== a.total) { return b.total - a.total; }\n    return a.id < b.id ? -1 : 1;\n  });\n  var rows: RankRow[] = [];\n  for (var i = 0; i < sorted.length; i++) {\n    rows.push({ user: (sorted[i].user), total: (sorted[i].total) });\n  }\n  return rows;\n}\n\nfunction summarize(orders: Order[]): string {\n  var sum: number = 0;\n  var top: number = 0;\n  for (var i = 0; i < orders.length; i++) {\n    sum += orders[i].total;\n    if (orders[i].total > top) { top = orders[i].total; }\n  }\n  var avg: number = orders.length === 0 ? 0 : Math.round(sum / orders.length);\n  return 'n=' + orders.length + ',sum=' + sum + ',avg=' + avg + ',top=' + top;\n}\n\nvar raw: RawOrder[] = [\n  { id: 'B', total: 20, user: 'u1' },\n  { id: 'A', total: 50, user: 'u2' },\n  { id: 'C', total: 20, user: 'u3' }\n];\n\nvar orders: Order[] = normalize(raw);\nvar rows: RankRow[] = rank(orders);\n\nconsole.log(rows[0].user, rows[1].user);\nconsole.log(summarize(orders));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "u2 u1\nn=3,sum=90,avg=30,top=50"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "模块",
+          "输入",
+          "输出",
+          "职责"
+        ],
+        "rows": [
+          [
+            "normalize",
+            "RawOrder[]",
+            "Order[]",
+            "过滤非法、补齐字段"
+          ],
+          [
+            "rank",
+            "Order[]",
+            "RankRow[]",
+            "稳定排序、生成榜单"
+          ],
+          [
+            "summarize",
+            "Order[]",
+            "string",
+            "统计总数/总额/均值/最高"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "综合项目的价值在于暴露知识盲区。写不出来时不要急着看答案，先定位卡在哪一层：是数据结构没想清楚，还是某个语法不会写。前者回到 interface 那几讲，后者查对应章节，比通读一遍有效得多。"
+      },
+      {
+        "type": "warn",
+        "text": "排序比较函数必须返回数字，且要处理相等情况，否则不同引擎的排序结果可能不一致。本应用跑在 Rhino 上，排序实现与浏览器可能不同，判题用例都避免依赖不稳定的顺序。"
+      },
+      {
+        "type": "quiz",
+        "question": "排行榜排序时为什么要先用 slice() 复制数组？",
+        "options": [
+          "为了提升排序速度",
+          "避免 sort 修改传入的原数组",
+          "因为 slice 会自动排序",
+          "为了去重"
+        ],
+        "answer": 1,
+        "explain": "sort 会原地修改数组，复制一份再排序能保持输入不变，这是纯函数的基本要求。"
+      },
+      {
+        "type": "practice",
+        "title": "综合项目的小切片",
+        "code": "interface Order {\n  id: string;\n  total: number;\n}\n\nfunction sumOf(orders: Order[]): number {\n  var s: number = 0;\n  for (var i = 0; i < orders.length; i++) { s += orders[i].total; }\n  return s;\n}\n\nconsole.log(sumOf([{ id: 'A', total: 10 }, { id: 'B', total: 20 }]));",
+        "output": "30",
+        "hint": "把每一单的 total 累加。"
+      }
+    ],
+    "exercise": {
+      "title": "完整的订单排行榜",
+      "brief": "实现四个函数：normalize(raw) 过滤掉 id 不是字符串或 total 不是数字的记录；totalOf(orders) 返回总金额；rankOf(orders) 返回按金额降序、金额相同按 id 升序排列的 Order 副本；topUser(orders) 返回排名第一的 user，空数组返回 'none'。",
+      "starterCode": "interface Order {\n  id: string;\n  total: number;\n  user: string;\n}\n\ninterface RawOrder {\n  id: string;\n  total: number;\n  user: string;\n}\n\nfunction normalize(raw: RawOrder[]): Order[] {\n  // 过滤非法记录\n  return [];\n}\n\nfunction totalOf(orders: Order[]): number {\n  return 0;\n}\n\nfunction rankOf(orders: Order[]): Order[] {\n  // 复制后排序：total 降序，相同则 id 升序\n  return orders;\n}\n\nfunction topUser(orders: Order[]): string {\n  // 排名第一的 user，空数组返回 none\n  return 'none';\n}",
+      "hint": "rankOf 用 orders.slice() 复制，比较函数先比 total（b.total - a.total），相等时比 id（a.id < b.id ? -1 : 1）。topUser 判空后取 rankOf(orders)[0].user。",
+      "tests": [
+        "assert(normalize([{id:'A',total:1,user:'u1'},{id:1,total:2,user:'u2'},{id:'C',total:'x',user:'u3'}]).length === 1, 'normalize 应过滤非法记录')",
+        "assert(totalOf([{id:'A',total:1,user:'u1'},{id:'B',total:2,user:'u2'}]) === 3, 'totalOf 求和错误')",
+        "assert(rankOf([{id:'B',total:5,user:'u1'},{id:'A',total:5,user:'u2'}])[0].id === 'A', '金额相同应按 id 升序')",
+        "assert(rankOf([{id:'A',total:1,user:'u1'},{id:'B',total:9,user:'u2'}])[0].id === 'B', '应按金额降序')",
+        "assert(topUser([{id:'A',total:1,user:'u1'},{id:'B',total:9,user:'u2'}]) === 'u2', 'topUser 应返回第一名用户')"
+      ],
+      "stdin": [],
+      "xp": 140,
+      "solution": "interface Order {\n  id: string;\n  total: number;\n  user: string;\n}\n\ninterface RawOrder {\n  id: string;\n  total: number;\n  user: string;\n}\n\nfunction normalize(raw: RawOrder[]): Order[] {\n  var out: Order[] = [];\n  for (var i = 0; i < raw.length; i++) {\n    var r: RawOrder = raw[i];\n    if (typeof r.id === 'string' && typeof r.total === 'number') {\n      out.push({ id: (r.id), total: (r.total), user: (r.user) });\n    }\n  }\n  return out;\n}\n\nfunction totalOf(orders: Order[]): number {\n  var sum: number = 0;\n  for (var i = 0; i < orders.length; i++) {\n    sum += orders[i].total;\n  }\n  return sum;\n}\n\nfunction rankOf(orders: Order[]): Order[] {\n  var sorted: Order[] = orders.slice();\n  sorted.sort(function (a: Order, b: Order): number {\n    if (b.total !== a.total) {\n      return b.total - a.total;\n    }\n    return a.id < b.id ? -1 : 1;\n  });\n  return sorted;\n}\n\nfunction topUser(orders: Order[]): string {\n  if (orders.length === 0) {\n    return 'none';\n  }\n  return rankOf(orders)[0].user;\n}"
+    }
+  }
+]

@@ -1,0 +1,954 @@
+[
+  {
+    "id": "sql31",
+    "order": 530,
+    "chapter": 54,
+    "chapterName": "SQL · 专业篇",
+    "lang": "sql",
+    "title": "执行计划深读",
+    "subtitle": "EXPLAIN QUERY PLAN 与扫描代价",
+    "xp": 130,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "数据库不是「想怎么查就怎么查」"
+      },
+      {
+        "type": "text",
+        "text": "写 SQL 的人只描述结果，怎么取由优化器决定。EXPLAIN QUERY PLAN 就是让优化器把计划说出来：它打算走全表扫描，还是用某个索引定位。看懂这一行输出，你就知道慢查询是被「读了多少行」拖慢的，而不是被 SQL 字数拖慢的。"
+      },
+      {
+        "type": "text",
+        "text": "SQLite 的计划输出里常见三种动作：SCAN 表示全表扫描，逐行读完再筛；SEARCH 表示用索引做定位，只读命中的行；USE TEMP B-TREE 表示排序或分组时建临时结构，这一步会额外占内存和 CPU。计划里没有索引的 SCAN，就是给数据量增长埋的雷。"
+      },
+      {
+        "type": "text",
+        "text": "代价直觉比精确数字更有用：全表扫描的代价与行数成正比，索引查找的代价与命中行数加树高成正比。十万行里查一条，扫描要读十万行，索引只读几十个节点。但索引不是免费的：每次写入都要维护，占用空间，选择性差（比如性别只有两种值）的列建索引几乎没用。判断标准是「这一列能否把结果缩小到很少的行」。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE runs (\n    id INTEGER PRIMARY KEY,\n    hero TEXT,\n    points INTEGER\n);\n\nINSERT INTO runs (hero, points)\nSELECT 'hero' || value, value * 7\nFROM (\n    WITH RECURSIVE seq(value) AS (\n        SELECT 1\n        UNION ALL\n        SELECT value + 1 FROM seq WHERE value < 60\n    )\n    SELECT value FROM seq\n);\n\n-- 未建索引：整表扫描\nEXPLAIN QUERY PLAN SELECT * FROM runs WHERE hero = 'hero42';",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (60 rows affected)\nid\tparent\tnotused\tdetail\n2\t0\t216\tSCAN runs"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE runs (id INTEGER PRIMARY KEY, hero TEXT, points INTEGER);\nINSERT INTO runs (hero, points) VALUES ('hero1',7),('hero42',294),('hero60',420);\n\nCREATE INDEX idx_runs_hero ON runs(hero);\n\nEXPLAIN QUERY PLAN SELECT * FROM runs WHERE hero = 'hero42';",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (3 rows affected)\nOK (-1 rows affected)\nid\tparent\tnotused\tdetail\n3\t0\t63\tSEARCH runs USING INDEX idx_runs_hero (hero=?)"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "计划动作",
+          "含义",
+          "什么时候出现"
+        ],
+        "rows": [
+          [
+            "SCAN",
+            "全表扫描",
+            "没有可用索引，或优化器判断扫描更便宜"
+          ],
+          [
+            "SEARCH",
+            "索引定位",
+            "WHERE 命中索引列，且选择性足够"
+          ],
+          [
+            "USE TEMP B-TREE",
+            "临时排序结构",
+            "ORDER BY / GROUP BY 无索引可用"
+          ],
+          [
+            "COVERING INDEX",
+            "覆盖索引",
+            "查询所需列全在索引里，不回表"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "读计划先看最内层：最内层的动作决定每行代价，外层只是组装。看到 SCAN 加大量行，先想索引；看到 TEMP B-TREE，先想排序键是否能进索引。"
+      },
+      {
+        "type": "warn",
+        "text": "不要凭感觉加索引。先跑 EXPLAIN QUERY PLAN 拿到证据，再看加索引后是否真的从 SCAN 变成 SEARCH；否则只是增加了写入成本。"
+      },
+      {
+        "type": "quiz",
+        "question": "EXPLAIN QUERY PLAN 输出 SCAN t，说明什么？",
+        "options": [
+          "查询结果一定错",
+          "这张表被逐行扫描",
+          "索引损坏",
+          "SQL 语法有误"
+        ],
+        "answer": 1,
+        "explain": "SCAN 表示全表逐行读取。数据量小时可接受，数据量大时通常是慢查询的根因。"
+      },
+      {
+        "type": "practice",
+        "title": "让计划变成 SEARCH",
+        "code": "CREATE TABLE heroes (id INTEGER PRIMARY KEY, name TEXT, level INTEGER);\nINSERT INTO heroes VALUES (1,'V',66),(2,'Judy',42),(3,'Jackie',30);\n\nEXPLAIN QUERY PLAN SELECT * FROM heroes WHERE name = 'V';",
+        "output": "OK (-1 rows affected)\nOK (3 rows affected)\nid\tparent\tnotused\tdetail\n2\t0\t216\tSCAN heroes",
+        "hint": "先在 name 上建索引，再重复一次 EXPLAIN。"
+      },
+      {
+        "type": "text",
+        "text": "还有一个经常被忽略的细节：EXPLAIN 输出的行数估计来自统计信息，而 SQLite 的统计信息需要 ANALYZE 才会更新。表刚大批量导入数据却没跑 ANALYZE 时，优化器可能仍按旧的行数估算，选出一条看起来合理、实际很差的计划。排查慢查询时如果发现「计划与数据分布明显不符」，先跑一次 ANALYZE 再看。另外，EXPLAIN 不带 QUERY PLAN 会输出字节码，那才是真正的执行指令列表，适合排查「为什么这条语句比预期多做了几步」这类细节问题；日常优化看 QUERY PLAN 就够了，不必一上来就读字节码。"
+      },
+      {
+        "type": "text",
+        "text": "最后把「看计划」变成日常习惯：新建查询先 EXPLAIN 看一眼，上线前在接近生产的数据量上再看一眼，慢查询告警时第一件事也是看计划。计划会随数据分布、索引增删、SQLite 版本变化，所以它不是一次性结论，而是需要复查看的运行时事实。团队里可以把「贴出执行计划」写进 SQL 评审清单，比争论「这个写法快不快」有效得多——因为争论的双方通常都在凭经验，而计划是证据。"
+      },
+      {
+        "type": "text",
+        "text": "顺带说清一个常见误解：加了索引不等于查询一定快，因为索引本身也要读。如果表只有几十行，全表扫描读一页就结束，走索引反而要读索引页加回表页，优化器会正确地选择 SCAN。所以小表上看到 SCAN 不必紧张；真正要盯的是「表会变大，而查询条件只命中极少行」这类组合。判断时机比判断好坏重要。"
+      }
+    ],
+    "exercise": {
+      "title": "给慢查询加索引",
+      "brief": "表 events 上有 200 条记录。为 kind 列建索引，使按 kind 过滤的查询从全表扫描变成索引查找；最后返回 EXPLAIN QUERY PLAN 的 detail 文本，要求包含 SEARCH。",
+      "starterCode": "CREATE TABLE events (id INTEGER PRIMARY KEY, kind TEXT, payload TEXT);\nINSERT INTO events (kind, payload)\nSELECT 'k' || (value % 4), 'p' || value\nFROM (\n    WITH RECURSIVE seq(value) AS (\n        SELECT 1 UNION ALL SELECT value + 1 FROM seq WHERE value < 200\n    )\n    SELECT value FROM seq\n);\n\n-- 在这里建索引\n\nEXPLAIN QUERY PLAN SELECT * FROM events WHERE kind = 'k2';",
+      "hint": "CREATE INDEX idx_events_kind ON events(kind); 再跑 EXPLAIN QUERY PLAN。",
+      "tests": [
+        "assert 'SEARCH' in __stdout__, '计划里应出现 SEARCH，实际：' + __stdout__",
+        "assert 'events' in __stdout__, '计划应提到 events 表'",
+        "assert 'idx_events_kind' in __stdout__ or 'SEARCH' in __stdout__, '应体现索引已建立'"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE events (id INTEGER PRIMARY KEY, kind TEXT, payload TEXT);\nINSERT INTO events (kind, payload)\nSELECT 'k' || (value % 4), 'p' || value\nFROM (\n    WITH RECURSIVE seq(value) AS (\n        SELECT 1 UNION ALL SELECT value + 1 FROM seq WHERE value < 200\n    )\n    SELECT value FROM seq\n);\n\nCREATE INDEX idx_events_kind ON events(kind);\n\nEXPLAIN QUERY PLAN SELECT * FROM events WHERE kind = 'k2';"
+    }
+  },
+  {
+    "id": "sql32",
+    "order": 531,
+    "chapter": 54,
+    "chapterName": "SQL · 专业篇",
+    "lang": "sql",
+    "title": "索引设计",
+    "subtitle": "复合索引、最左前缀与覆盖索引",
+    "xp": 140,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "索引不是「加得越多越快」"
+      },
+      {
+        "type": "text",
+        "text": "复合索引 (user_id, status) 像一本先按用户、再按状态排序的目录。查询只给 user_id 能顺着目录找；只给 status 就找不到入口，因为目录的第一层是用户。这就是最左前缀原则：复合索引只对「从第一列开始的连续前缀」有效。"
+      },
+      {
+        "type": "text",
+        "text": "覆盖索引是另一种优化：如果查询要的列全都在索引里，数据库读完索引就能回答，不用回表取整行。把常用的「过滤列 + 返回列」一起建索引，就能吃到这个红利。代价是索引变大，写入更慢，所以只对高频只读查询值得。"
+      },
+      {
+        "type": "text",
+        "text": "选择性是第三个维度：一列取值越分散，索引越能过滤掉更多行。用户 ID 可能有几十万种取值，适合索引；性别只有两三种取值，索引扫完和全表扫差不多。设计索引的顺序是先看查询模式（WHERE / JOIN / ORDER BY 用了哪些列），再看选择性，最后才动手建。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE orders (\n    id INTEGER PRIMARY KEY,\n    user_id INTEGER,\n    status TEXT,\n    amount INTEGER,\n    created_at TEXT\n);\n\nINSERT INTO orders (user_id, status, amount, created_at) VALUES\n    (1, 'paid', 100, '2026-01-05'),\n    (1, 'paid', 250, '2026-01-09'),\n    (1, 'refunded', 80, '2026-01-11'),\n    (2, 'paid', 300, '2026-01-12'),\n    (2, 'pending', 120, '2026-02-01'),\n    (3, 'paid', 60, '2026-02-03');\n\nCREATE INDEX idx_orders_user_status ON orders(user_id, status);\n\n-- 最左前缀：只用到 user_id 也能命中\nEXPLAIN QUERY PLAN SELECT * FROM orders WHERE user_id = 1;\n\n-- 跳过最左列，索引用不上\nEXPLAIN QUERY PLAN SELECT * FROM orders WHERE status = 'paid';",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (6 rows affected)\nOK (-1 rows affected)\nid\tparent\tnotused\tdetail\n3\t0\t62\tSEARCH orders USING INDEX idx_orders_user_status (user_id=?)\nid\tparent\tnotused\tdetail\n2\t0\t216\tSCAN orders"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE orders (\n    id INTEGER PRIMARY KEY, user_id INTEGER, status TEXT, amount INTEGER, created_at TEXT\n);\nINSERT INTO orders (user_id, status, amount, created_at) VALUES\n    (1,'paid',100,'2026-01-05'),(1,'paid',250,'2026-01-09'),(2,'paid',300,'2026-01-12');\n\n-- 覆盖索引：查询列全部在索引里，不需要回表\nCREATE INDEX idx_orders_cover ON orders(user_id, amount);\n\nEXPLAIN QUERY PLAN\nSELECT user_id, amount FROM orders WHERE user_id = 1;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (3 rows affected)\nOK (-1 rows affected)\nid\tparent\tnotused\tdetail\n2\t0\t53\tSEARCH orders USING COVERING INDEX idx_orders_cover (user_id=?)"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "索引形态",
+          "能命中的查询",
+          "不能命中"
+        ],
+        "rows": [
+          [
+            "(a, b)",
+            "a；a+b",
+            "只用 b"
+          ],
+          [
+            "(a, b, c)",
+            "a；a+b；a+b+c",
+            "b；c；b+c"
+          ],
+          [
+            "覆盖索引 (a, b)",
+            "只查 a、b 两列且按 a 过滤",
+            "查 c 需要回表"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "建索引前先写下这句：WHERE 用什么、JOIN 用什么、ORDER BY 用什么。三者合起来就是候选复合索引的列顺序。"
+      },
+      {
+        "type": "warn",
+        "text": "索引会拖慢写入并占空间。一张表上五六个索引通常已经过多；先用执行计划证明缺什么，再补那一个。"
+      },
+      {
+        "type": "quiz",
+        "question": "索引 (user_id, status) 能加速 `WHERE status = 'paid'` 吗？",
+        "options": [
+          "能，索引包含 status",
+          "不能，跳过了最左列 user_id",
+          "能，但只快一倍",
+          "取决于数据量"
+        ],
+        "answer": 1,
+        "explain": "复合索引必须从最左列开始连续使用；只查第二列等于没有入口。"
+      },
+      {
+        "type": "practice",
+        "title": "覆盖索引",
+        "code": "CREATE TABLE logs (id INTEGER PRIMARY KEY, level TEXT, msg TEXT, ts TEXT);\nINSERT INTO logs (level, msg, ts) VALUES\n    ('INFO','boot','2026-01-01 00:00'),\n    ('ERROR','timeout','2026-01-01 00:01'),\n    ('INFO','ready','2026-01-01 00:02');\n\nCREATE INDEX idx_logs_level_ts ON logs(level, ts);\n\nEXPLAIN QUERY PLAN SELECT level, ts FROM logs WHERE level = 'INFO';",
+        "output": "OK (-1 rows affected)\nOK (3 rows affected)\nOK (-1 rows affected)\nid\tparent\tnotused\tdetail\n2\t0\t55\tSEARCH logs USING COVERING INDEX idx_logs_level_ts (level=?)",
+        "hint": "查询列 level、ts 都在索引里，计划应出现 COVERING INDEX。"
+      },
+      {
+        "type": "text",
+        "text": "索引设计还有一个容易被忽视的约束：函数或表达式会让索引失效。WHERE strftime('%Y', created_at) = '2026' 这类写法无法使用 created_at 上的普通索引，因为数据库要先对每一行算出函数值才能比较。解决方式有两种：把条件改写成范围比较（created_at >= '2026-01-01' AND created_at < '2027-01-01'），或者在 SQLite 里建表达式索引。同理，隐式类型转换也会让索引失效：字符串列用数字去比较，会退化成逐行转换再比较。写 WHERE 时保持「列在左边、常量在右边、类型一致」，是最省心的习惯。"
+      },
+      {
+        "type": "text",
+        "text": "还有一个和索引强相关的概念是索引选择性统计：同样的复合索引，列顺序不同效果可能差几倍。判断顺序时先看每个列的基数（不同取值数量），把基数最高、且查询里最常单独出现的列放最左。如果两个列总是一起出现，顺序影响就小，可以按可读性排。改索引前记得先记录当前计划与耗时，改完用同样的数据量对比，否则「感觉快了」很可能是缓存或数据量的错觉。"
+      },
+      {
+        "type": "text",
+        "text": "最后再做一次索引盘点：把库里所有索引列出来，对照真实的慢查询清单逐条问「这个索引服务哪条查询」。服务不到的索引就是纯成本，应当删掉；服务多条但顺序不对的，考虑重排或拆分。索引是给查询用的，不是给表「看起来很专业」用的。定期盘点比一次建全更可靠。"
+      }
+    ],
+    "exercise": {
+      "title": "为排行榜查询设计索引",
+      "brief": "表 scores(player, season, points)。建一个复合索引，使按 season 过滤并按 points 排序的查询能用索引完成；返回该赛季的 player 与 points，按 points 降序。",
+      "starterCode": "CREATE TABLE scores (player TEXT, season INTEGER, points INTEGER);\nINSERT INTO scores VALUES\n    ('V', 1, 90), ('Judy', 1, 75), ('Jackie', 1, 60),\n    ('V', 2, 88), ('Judy', 2, 95), ('Jackie', 2, 70);\n\n-- 建索引后写查询",
+      "hint": "CREATE INDEX idx_scores_season_points ON scores(season, points DESC); 然后 SELECT player, points FROM scores WHERE season = 1 ORDER BY points DESC;",
+      "tests": [
+        "assert columns == ['player','points'], columns",
+        "assert rows == [['V',90],['Judy',75],['Jackie',60]], rows",
+        "assert rows[0][1] == 90, '第一名应为 90 分'"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE scores (player TEXT, season INTEGER, points INTEGER);\nINSERT INTO scores VALUES\n    ('V', 1, 90), ('Judy', 1, 75), ('Jackie', 1, 60),\n    ('V', 2, 88), ('Judy', 2, 95), ('Jackie', 2, 70);\n\nCREATE INDEX idx_scores_season_points ON scores(season, points DESC);\n\nSELECT player, points FROM scores WHERE season = 1 ORDER BY points DESC;"
+    }
+  },
+  {
+    "id": "sql33",
+    "order": 532,
+    "chapter": 54,
+    "chapterName": "SQL · 专业篇",
+    "lang": "sql",
+    "title": "事务与隔离",
+    "subtitle": "BEGIN / COMMIT / ROLLBACK 与 ACID",
+    "xp": 140,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "要么全做，要么全不做"
+      },
+      {
+        "type": "text",
+        "text": "转账是最经典的事务场景：扣钱和加钱必须一起成功，只成功一半就是账目错乱。事务把多条语句打包成一个原子单元，BEGIN 开始，COMMIT 提交，ROLLBACK 撤销。中途任何一步失败，整个单元回到开始前的状态，不存在「扣了没加」的中间态。"
+      },
+      {
+        "type": "text",
+        "text": "ACID 四个字母是事务的四条承诺：原子性（全做或全不做）、一致性（约束始终成立）、隔离性（并发事务互不看到中间状态）、持久性（提交后即使断电也在）。SQLite 默认是串行化隔离，写事务之间不会并发交叉，读事务能看到一个稳定快照。"
+      },
+      {
+        "type": "text",
+        "text": "SAVEPOINT 是事务里的书签：可以在一个大事务中设多个保存点，出错时只回滚到某个点，前面的工作仍然保留。适合「批量导入时允许部分失败」的场景。注意 ROLLBACK TO 只是撤销到书签，事务本身还没结束，要继续 COMMIT 或 ROLLBACK。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE accounts (name TEXT PRIMARY KEY, balance INTEGER);\nINSERT INTO accounts VALUES ('V', 100), ('Judy', 50);\n\nBEGIN;\nUPDATE accounts SET balance = balance - 30 WHERE name = 'V';\nUPDATE accounts SET balance = balance + 30 WHERE name = 'Judy';\nCOMMIT;\n\nSELECT name, balance FROM accounts ORDER BY name;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (2 rows affected)\nOK (-1 rows affected)\nOK (1 rows affected)\nOK (1 rows affected)\nOK (-1 rows affected)\nname\tbalance\nJudy\t80\nV\t70"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE accounts (name TEXT PRIMARY KEY, balance INTEGER);\nINSERT INTO accounts VALUES ('V', 100), ('Judy', 50);\n\nBEGIN;\nUPDATE accounts SET balance = balance - 1000 WHERE name = 'V';\n-- 余额不允许为负：发现异常，整体撤销\nROLLBACK;\n\nSELECT name, balance FROM accounts ORDER BY name;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (2 rows affected)\nOK (-1 rows affected)\nOK (1 rows affected)\nOK (-1 rows affected)\nname\tbalance\nJudy\t50\nV\t100"
+      },
+      {
+        "type": "diagram",
+        "text": "BEGIN\n  ├─ 语句 1  ← 成功\n  ├─ 语句 2  ← 失败\n  │     └─ ROLLBACK → 回到 BEGIN 前\n  └─ COMMIT   → 全部生效\n\nSAVEPOINT sp1\n  ├─ 语句 3  ← 成功\n  ├─ SAVEPOINT sp2\n  ├─ 语句 4  ← 失败\n  │     └─ ROLLBACK TO sp2 → 只撤销语句 4\n  └─ COMMIT   → 语句 1–3 保留"
+      },
+      {
+        "type": "tip",
+        "text": "事务要尽量短：长事务占锁时间长，会阻塞其他写入。把网络请求、用户输入放到事务外面。"
+      },
+      {
+        "type": "warn",
+        "text": "每条语句单独执行时 SQLite 会自动提交（autocommit）。一旦显式 BEGIN，就必须显式COMMIT 或 ROLLBACK，否则连接关闭时整段被回滚。"
+      },
+      {
+        "type": "quiz",
+        "question": "BEGIN 后执行了三条 UPDATE，未 COMMIT 就断开连接，结果是？",
+        "options": [
+          "三条都生效",
+          "三条全部回滚",
+          "只有第一条生效",
+          "报语法错误"
+        ],
+        "answer": 1,
+        "explain": "事务未提交即视为失败，连接关闭时全部回滚；这正是「全做或全不做」的体现。"
+      },
+      {
+        "type": "practice",
+        "title": "带保存点的批量更新",
+        "code": "CREATE TABLE items (id INTEGER PRIMARY KEY, qty INTEGER);\nINSERT INTO items VALUES (1, 10), (2, 20), (3, 30);\n\nBEGIN;\nUPDATE items SET qty = qty + 1 WHERE id = 1;\nSAVEPOINT sp;\nUPDATE items SET qty = 0 WHERE id = 2;\nROLLBACK TO sp;\nCOMMIT;\n\nSELECT id, qty FROM items ORDER BY id;",
+        "output": "OK (-1 rows affected)\nOK (3 rows affected)\nOK (-1 rows affected)\nOK (1 rows affected)\nOK (-1 rows affected)\nOK (1 rows affected)\nOK (-1 rows affected)\nOK (-1 rows affected)\nid\tqty\n1\t11\n2\t20\n3\t30",
+        "hint": "回滚到保存点只撤销 id=2 的更新，id=1 的加一保留。"
+      },
+      {
+        "type": "text",
+        "text": "事务还有一个常被低估的成本：它持有锁的时间等于从事务开始到提交的整段时长。如果事务里夹了一次网络请求或一段用户等待，锁就会被占住几百毫秒甚至几秒，并发一上来直接排队。所以工程上的原则是「事务只包数据库操作，且尽量短」。另一个细节是 SQLite 的写事务默认是排他的：同一时刻只能有一个写事务，读可以并发。这意味着写多读少的场景要考虑批量提交、合并小事务，而不是每条语句一个事务。最后，事务不等于备份：COMMIT 只保证写入成功，误删数据仍然需要靠备份或软删除加审计表来兜底。"
+      },
+      {
+        "type": "text",
+        "text": "把事务和业务语义对齐，比记住语法更重要：一次下单、一次转账、一次库存扣减，天然就是一个事务边界；而「用户填表 → 提交 → 发邮件」这种跨外部系统的流程，不能靠数据库事务包住。正确做法是把数据库操作收在一个短事务里，外部动作放到事务之后，用补偿或重试处理失败。理解这条边界，你就不会写出「事务里调接口」这种既慢又不可靠的代码。"
+      },
+      {
+        "type": "text",
+        "text": "最后补充一个实用判断：如果你发现自己在事务里写了大量纯读取的语句，那多半不该放在同一个事务里。读多写少的流程可以把读前置，事务只包最后的写入。这样锁窗口最短，失败重试的代价也最小。事务不是「越全越好」，而是「刚好覆盖需要原子的那几步」。"
+      },
+      {
+        "type": "text",
+        "text": "把这三段连起来看：原子性保证改动的边界，隔离性保证别人看不到中间态，持久性保证提交之后不再丢。业务代码只需要回答一个问题——这几步改动是不是必须同生共死？是，就用事务；不是，就拆开。判断错了，要么出现半成品数据，要么把无关操作锁在一起。"
+      }
+    ],
+    "exercise": {
+      "title": "安全转账",
+      "brief": "accounts 表初始 V=100、Judy=50。用事务完成：V 扣 40、Judy 加 40；然后额外插入一条非法记录（balance 为负）并回滚该插入，最后提交。返回 name、balance，按 name 升序。",
+      "starterCode": "CREATE TABLE accounts (name TEXT PRIMARY KEY, balance INTEGER);\nINSERT INTO accounts VALUES ('V', 100), ('Judy', 50);\n\n-- 用事务完成转账，并保证非法插入被撤销",
+      "hint": "BEGIN; 两条 UPDATE；SAVEPOINT sp; INSERT 负数；ROLLBACK TO sp; COMMIT; 最后 SELECT。",
+      "tests": [
+        "assert columns == ['name','balance'], columns",
+        "assert rows == [['Judy',90],['V',60]], rows",
+        "assert len(rows) == 2, '事务后应只剩两个账户'"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE accounts (name TEXT PRIMARY KEY, balance INTEGER);\nINSERT INTO accounts VALUES ('V', 100), ('Judy', 50);\n\nBEGIN;\nUPDATE accounts SET balance = balance - 40 WHERE name = 'V';\nUPDATE accounts SET balance = balance + 40 WHERE name = 'Judy';\nSAVEPOINT sp;\nINSERT INTO accounts VALUES ('Ghost', -10);\nROLLBACK TO sp;\nCOMMIT;\n\nSELECT name, balance FROM accounts ORDER BY name;"
+    }
+  },
+  {
+    "id": "sql34",
+    "order": 533,
+    "chapter": 54,
+    "chapterName": "SQL · 专业篇",
+    "lang": "sql",
+    "title": "并发与锁",
+    "subtitle": "BEGIN IMMEDIATE、乐观更新与重试",
+    "xp": 150,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "两个人同时取同一个任务"
+      },
+      {
+        "type": "text",
+        "text": "后台任务队列的经典问题是重复消费：两个 worker 同时读到 id=1 处于 pending，然后都把它改成 running，结果同一个任务跑了两遍。根因不是 SQL 写错，而是「读—判断—写」之间没有保护，属于典型的竞态条件。"
+      },
+      {
+        "type": "text",
+        "text": "SQLite 用数据库级锁解决：读事务拿共享锁，写事务拿独占锁。BEGIN IMMEDIATE 在事务开始时就直接拿写锁，避免「先读后写」时升级锁失败。BEGIN EXCLUSIVE 更严格，连读都不允许。并发写多的场景还要设置 busy timeout，让后到的事务等待而不是立刻报 database is locked。"
+      },
+      {
+        "type": "text",
+        "text": "另一种思路是乐观并发：不提前加锁，而是在 UPDATE 的 WHERE 里带上旧状态，用 changes() 判断是否真的改到了行。改到 1 行说明抢到了，改到 0 行说明别人先动手，业务层重试或放弃。这种写法在分布式系统里也很常见，本质是「用条件更新做 CAS」。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE queue (id INTEGER PRIMARY KEY, job TEXT, state TEXT);\nINSERT INTO queue VALUES (1, 'build', 'pending'), (2, 'test', 'pending');\n\n-- 取一个待办并标记为处理中，两步必须在同一事务内\nBEGIN IMMEDIATE;\nUPDATE queue SET state = 'running' WHERE id = (\n    SELECT id FROM queue WHERE state = 'pending' ORDER BY id LIMIT 1\n);\nCOMMIT;\n\nSELECT id, job, state FROM queue ORDER BY id;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (2 rows affected)\nOK (-1 rows affected)\nOK (1 rows affected)\nOK (-1 rows affected)\nid\tjob\tstate\n1\tbuild\trunning\n2\ttest\tpending"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE queue (id INTEGER PRIMARY KEY, job TEXT, state TEXT);\nINSERT INTO queue VALUES (1, 'build', 'pending'), (2, 'test', 'pending');\nUPDATE queue SET state = 'running' WHERE id = 2 AND state = 'pending';\n\n-- 乐观方案：用状态条件更新，只有一个事务能改成功\nUPDATE queue SET state = 'running' WHERE id = 1 AND state = 'pending';\nSELECT changes() AS affected;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (2 rows affected)\nOK (1 rows affected)\nOK (1 rows affected)\naffected\n1"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "事务模式",
+          "开始时的锁",
+          "适用场景"
+        ],
+        "rows": [
+          [
+            "BEGIN",
+            "延迟（第一次读写才加）",
+            "只读或单条写"
+          ],
+          [
+            "BEGIN IMMEDIATE",
+            "立即写锁",
+            "读后写、任务领取"
+          ],
+          [
+            "BEGIN EXCLUSIVE",
+            "独占锁",
+            "维护、迁移"
+          ],
+          [
+            "乐观更新",
+            "不加锁，条件判断",
+            "高并发、可重试"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "领取任务优先用「UPDATE ... WHERE state='pending' + 检查 changes()」，一条语句完成判断和写入，天然原子。"
+      },
+      {
+        "type": "warn",
+        "text": "长事务会让其他写入一直等待；任务队列里不要把耗时操作放在事务内。"
+      },
+      {
+        "type": "quiz",
+        "question": "两个事务同时执行 `UPDATE ... WHERE id=1 AND state='pending'`，最多几个能改到行？",
+        "options": [
+          "两个都改到",
+          "只有一个",
+          "取决于网络",
+          "都不改"
+        ],
+        "answer": 1,
+        "explain": "条件更新是原子操作，第二个事务执行时 state 已不是 pending，匹配 0 行。"
+      },
+      {
+        "type": "practice",
+        "title": "抢占式领取",
+        "code": "CREATE TABLE jobs (id INTEGER PRIMARY KEY, state TEXT);\nINSERT INTO jobs VALUES (1, 'pending'), (2, 'pending');\n\nUPDATE jobs SET state = 'running' WHERE id = 2 AND state = 'pending';\nSELECT changes() AS affected;\nSELECT id, state FROM jobs ORDER BY id;",
+        "output": "OK (-1 rows affected)\nOK (2 rows affected)\nOK (1 rows affected)\naffected\n1\nid\tstate\n1\tpending\n2\trunning",
+        "hint": "changes() 返回上一条语句影响的行数，1 表示抢占成功。"
+      },
+      {
+        "type": "text",
+        "text": "并发问题还有一类更隐蔽的形态：丢失更新。两个事务都读到余额 100，各自加 10 再写回，最终结果是 110 而不是 120，因为后写的人覆盖了前一个人的结果。条件更新能解决「状态机式」的抢占，但金额累加这类场景要用原地运算（balance = balance + 10）而不是「读出来加完再写回」。原地运算把加法和写入合成一条语句，数据库保证它原子执行。识别这类 bug 的方法很直接：凡是代码里出现「先 SELECT 出来、在应用层算、再 UPDATE 回去」的模式，就要怀疑丢失更新。"
+      },
+      {
+        "type": "text",
+        "text": "除了数据库锁，应用层还要处理重试：拿到 0 行受影响时，是立刻放弃还是重试几次？答案取决于业务。任务领取通常「抢不到就下一轮」，不需要重试；库存扣减则可能需要在有限次数内重试并给出用户提示。重试必须配合退避（比如 10ms、50ms、200ms），否则高并发下所有请求会同时再撞一次。把「冲突是常态」写进设计，比假设「不会冲突」稳得多。"
+      },
+      {
+        "type": "text",
+        "text": "最后把并发问题归成一句话：能交给数据库一条语句解决的，就不要拆成两条。条件更新、原地加减、INSERT ... ON CONFLICT，都是把「判断 + 写入」压缩成原子的手段。每压缩一步，就少一个竞态窗口；剩下的窗口，才需要靠锁或重试来兜。这个顺序比一上来就加锁更有效。"
+      }
+    ],
+    "exercise": {
+      "title": "只领取一次",
+      "brief": "jobs 表有 1、2、3 三个 pending 任务。用一条条件 UPDATE 把 id=2 领取为 running，返回受影响行数 affected 以及剩余 pending 的数量 remaining。",
+      "starterCode": "CREATE TABLE jobs (id INTEGER PRIMARY KEY, state TEXT);\nINSERT INTO jobs VALUES (1,'pending'),(2,'pending'),(3,'pending');\n\n-- 领取 id=2，并统计剩余",
+      "hint": "先 UPDATE ... WHERE id=2 AND state='pending'；再用 SELECT COUNT(*) 统计 pending。",
+      "tests": [
+        "assert columns == ['affected','remaining'], columns",
+        "assert rows == [[1,2]], rows",
+        "assert rows[0][1] == 2, '应剩两个 pending 任务'"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE jobs (id INTEGER PRIMARY KEY, state TEXT);\nINSERT INTO jobs VALUES (1,'pending'),(2,'pending'),(3,'pending');\n\nUPDATE jobs SET state = 'running' WHERE id = 2 AND state = 'pending';\n\nSELECT changes() AS affected,\n       (SELECT COUNT(*) FROM jobs WHERE state = 'pending') AS remaining;"
+    }
+  },
+  {
+    "id": "sql35",
+    "order": 534,
+    "chapter": 54,
+    "chapterName": "SQL · 专业篇",
+    "lang": "sql",
+    "title": "JSON 处理",
+    "subtitle": "json_extract / json_each / 聚合",
+    "xp": 150,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "半结构化数据也能查"
+      },
+      {
+        "type": "text",
+        "text": "很多业务把可变字段塞进一个 JSON 列：埋点事件、配置、第三方回调。SQLite 的 JSON1 扩展让你不用把整段字符串搬到应用层解析。json_extract(列, 路径) 取单个值，路径用 $ 表示根，$.user.name 表示嵌套字段，$.tags[0] 表示数组第一项。"
+      },
+      {
+        "type": "text",
+        "text": "json_each 是「展开」：把 JSON 数组变成多行，每行一个元素，可以像普通表一样 JOIN、GROUP BY。这是标签统计、权限校验的关键工具。反过来 json_group_array / json_group_object 可以把多行重新聚合成一个 JSON 值。"
+      },
+      {
+        "type": "text",
+        "text": "JSON 查询的代价在于没有 schema：数据库不知道字段类型，也无法为内层路径建普通索引。高频查询的字段应抽成独立列，或建立表达式索引。JSON 适合「字段稀疏、结构多变」的场景，不适合当万能表结构。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE events (id INTEGER PRIMARY KEY, payload TEXT);\nINSERT INTO events VALUES\n    (1, '{\"type\":\"login\",\"user\":{\"id\":7,\"name\":\"V\"},\"tags\":[\"a\",\"b\"]}'),\n    (2, '{\"type\":\"logout\",\"user\":{\"id\":7,\"name\":\"V\"},\"tags\":[]}'),\n    (3, '{\"type\":\"login\",\"user\":{\"id\":8,\"name\":\"Judy\"},\"tags\":[\"c\"]}');\n\nSELECT\n    id,\n    json_extract(payload, '$.type')            AS kind,\n    json_extract(payload, '$.user.name')       AS user_name,\n    json_extract(payload, '$.tags[0]')         AS first_tag,\n    json_array_length(json_extract(payload, '$.tags')) AS tag_count\nFROM events\nORDER BY id;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (3 rows affected)\nid\tkind\tuser_name\tfirst_tag\ttag_count\n1\tlogin\tV\ta\t2\n2\tlogout\tV\tNULL\t0\n3\tlogin\tJudy\tc\t1"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE events (id INTEGER PRIMARY KEY, payload TEXT);\nINSERT INTO events VALUES\n    (1, '{\"tags\":[\"a\",\"b\"]}'),\n    (2, '{\"tags\":[\"c\"]}');\n\n-- 把数组展开成行：一行一个标签\nSELECT e.id, t.value AS tag\nFROM events e, json_each(e.payload, '$.tags') t\nORDER BY e.id, tag;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (2 rows affected)\nid\ttag\n1\ta\n1\tb\n2\tc"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "函数",
+          "作用",
+          "示例"
+        ],
+        "rows": [
+          [
+            "json_extract",
+            "按路径取值",
+            "$.user.name → 'V'"
+          ],
+          [
+            "json_array_length",
+            "数组长度",
+            "$.tags → 2"
+          ],
+          [
+            "json_each",
+            "数组展开成行",
+            "SELECT value FROM json_each(...)"
+          ],
+          [
+            "json_group_array",
+            "多行聚合成数组",
+            "GROUP BY 后生成 JSON"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "路径写错不会报错，只会返回 NULL。用 json_valid(列) 先校验整段是否合法 JSON。"
+      },
+      {
+        "type": "warn",
+        "text": "JSON 列里存数字和存字符串是不同的：'1' 与 1 在 json_extract 后类型不同，比较时要统一。"
+      },
+      {
+        "type": "quiz",
+        "question": "json_extract('{\"a\":{\"b\":2}}', '$.a.b') 返回什么？",
+        "options": [
+          "'{\"b\":2}'",
+          "2",
+          "NULL",
+          "报错"
+        ],
+        "answer": 1,
+        "explain": "路径逐层下钻到 $.a.b，返回数字 2。"
+      },
+      {
+        "type": "practice",
+        "title": "标签展开统计",
+        "code": "CREATE TABLE posts (id INTEGER PRIMARY KEY, tags TEXT);\nINSERT INTO posts VALUES (1, '[\"sql\",\"db\"]'), (2, '[\"sql\"]'), (3, '[\"ui\"]');\n\nSELECT t.value AS tag, COUNT(*) AS n\nFROM posts p, json_each(p.tags) t\nGROUP BY t.value\nORDER BY n DESC, tag;",
+        "output": "OK (-1 rows affected)\nOK (3 rows affected)\ntag\tn\nsql\t2\ndb\t1\nui\t1",
+        "hint": "json_each 展开后按标签分组计数。"
+      },
+      {
+        "type": "text",
+        "text": "JSON 还有一类高频需求是「按数组包含过滤」：找出 tags 里含有 'sql' 的行。SQLite 没有专门的数组包含运算符，标准写法是用 EXISTS 加 json_each 子查询，或者用 json_extract 配合 LIKE（不严谨，会误伤子串）。前者更准确：WHERE EXISTS (SELECT 1 FROM json_each(posts.tags) WHERE value = 'sql')。这类相关子查询在数据量大时开销不小，如果字段是高频过滤条件，还是应该抽成关联表。经验判断是：JSON 适合「读出来展示」，一旦需要「按内层字段过滤、排序、聚合」，就该考虑正规化。"
+      },
+      {
+        "type": "text",
+        "text": "JSON 列还有一个容易踩的坑是编码与大小：整段 JSON 存在 TEXT 列里，体积可能比正规化后的列大好几倍，读的时候还要解析。高频读且字段固定时，正规化几乎总是更优；字段稀疏、结构多变时，JSON 才划算。折中方案是「热字段抽列、冷字段留 JSON」，把最常查的几个键提升为真实列并建索引，其余留在 payload 里。这样既保留了灵活性，又不会让每次查询都解析整段文本。"
+      },
+      {
+        "type": "text",
+        "text": "最后一点经验：JSON 里的字段名尽量稳定，不要用业务中文当键，也不要随版本改键名。字段名一改，所有历史数据都要迁移，而 JSON 数据往往没有 schema 约束，出错时很难发现。把键名当 API 契约管理，写进文档，改名前先统计影响行数，能避免大多数「突然查不到数据」的事故。"
+      }
+    ],
+    "exercise": {
+      "title": "统计登录用户",
+      "brief": "events 表每行是 JSON，含 type 与 user.id。统计 type='login' 的事件里每个 user.id 出现次数，返回 user_id、n，按 n 降序、user_id 升序。",
+      "starterCode": "CREATE TABLE events (id INTEGER PRIMARY KEY, payload TEXT);\nINSERT INTO events VALUES\n    (1, '{\"type\":\"login\",\"user\":{\"id\":7}}'),\n    (2, '{\"type\":\"login\",\"user\":{\"id\":8}}'),\n    (3, '{\"type\":\"logout\",\"user\":{\"id\":7}}'),\n    (4, '{\"type\":\"login\",\"user\":{\"id\":7}}');",
+      "hint": "WHERE json_extract(payload,'$.type')='login'，GROUP BY json_extract(payload,'$.user.id')。",
+      "tests": [
+        "assert columns == ['user_id','n'], columns",
+        "assert rows == [[7,2],[8,1]], rows",
+        "assert rows[0][0] == 7, '出现次数最多的应是用户 7'"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE events (id INTEGER PRIMARY KEY, payload TEXT);\nINSERT INTO events VALUES\n    (1, '{\"type\":\"login\",\"user\":{\"id\":7}}'),\n    (2, '{\"type\":\"login\",\"user\":{\"id\":8}}'),\n    (3, '{\"type\":\"logout\",\"user\":{\"id\":7}}'),\n    (4, '{\"type\":\"login\",\"user\":{\"id\":7}}');\n\nSELECT json_extract(payload, '$.user.id') AS user_id, COUNT(*) AS n\nFROM events\nWHERE json_extract(payload, '$.type') = 'login'\nGROUP BY user_id\nORDER BY n DESC, user_id;"
+    }
+  },
+  {
+    "id": "sql36",
+    "order": 535,
+    "chapter": 54,
+    "chapterName": "SQL · 专业篇",
+    "lang": "sql",
+    "title": "数据仓库入门",
+    "subtitle": "星型模型、维度表与事实表",
+    "xp": 150,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "分析型数据该怎么摆"
+      },
+      {
+        "type": "text",
+        "text": "业务库追求「改得快」，分析库追求「算得快」，两者表结构往往不同。数据仓库常用的星型模型把数据分成两类：事实表存可度量的事件（一次跑单的距离、奖励），维度表存描述性属性（日期、英雄、阵营）。事实表只放外键和数值，维度表放文本，这样聚合时不会被冗余字符串拖慢。"
+      },
+      {
+        "type": "text",
+        "text": "星型的价值在于可切片：按年、按月、按阵营任意组合聚合，只要 JOIN 对应维度。维度表通常有代理键（整数），比直接用业务字符串连接更快、更稳定。日期维度尤其值得单独建，因为它能预置节假日、季度、周等属性，避免每次查询重算。"
+      },
+      {
+        "type": "text",
+        "text": "宽表是另一条路线：把常用维度提前 JOIN 好，写成一张大表。查询简单、速度快，但冗余高，维度变化时要重刷。选择取决于使用方式：探索式分析用星型灵活，固定报表用宽表省事。真实仓库常常两者并存，宽表由星型加工而来。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE dim_date (date_key TEXT PRIMARY KEY, year INTEGER, month INTEGER);\nCREATE TABLE dim_hero (hero_key INTEGER PRIMARY KEY, name TEXT, faction TEXT);\nCREATE TABLE fact_runs (\n    run_id INTEGER PRIMARY KEY,\n    date_key TEXT,\n    hero_key INTEGER,\n    distance INTEGER,\n    reward INTEGER\n);\n\nINSERT INTO dim_date VALUES ('2026-01-05', 2026, 1), ('2026-02-03', 2026, 2);\nINSERT INTO dim_hero VALUES (1, 'V', 'nomad'), (2, 'Judy', 'nomad'), (3, 'Jackie', 'corpo');\nINSERT INTO fact_runs VALUES\n    (1, '2026-01-05', 1, 120, 300),\n    (2, '2026-01-05', 2, 80, 200),\n    (3, '2026-02-03', 1, 150, 400),\n    (4, '2026-02-03', 3, 60, 100);\n\n-- 星型模型：事实表连维度表\nSELECT d.year, d.month, h.faction,\n       SUM(f.distance) AS distance,\n       SUM(f.reward)   AS reward\nFROM fact_runs f\nJOIN dim_date d ON d.date_key = f.date_key\nJOIN dim_hero h ON h.hero_key = f.hero_key\nGROUP BY d.year, d.month, h.faction\nORDER BY d.year, d.month, h.faction;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (-1 rows affected)\nOK (-1 rows affected)\nOK (2 rows affected)\nOK (3 rows affected)\nOK (4 rows affected)\nyear\tmonth\tfaction\tdistance\treward\n2026\t1\tnomad\t200\t500\n2026\t2\tcorpo\t60\t100\n2026\t2\tnomad\t150\t400"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE dim_date (date_key TEXT PRIMARY KEY, year INTEGER, month INTEGER);\nCREATE TABLE dim_hero (hero_key INTEGER PRIMARY KEY, name TEXT, faction TEXT);\nCREATE TABLE fact_runs (run_id INTEGER PRIMARY KEY, date_key TEXT, hero_key INTEGER,\n                        distance INTEGER, reward INTEGER);\nINSERT INTO dim_date VALUES ('2026-01-05',2026,1),('2026-02-03',2026,2);\nINSERT INTO dim_hero VALUES (1,'V','nomad'),(2,'Judy','nomad'),(3,'Jackie','corpo');\nINSERT INTO fact_runs VALUES (1,'2026-01-05',1,120,300),(2,'2026-02-03',2,80,200);\n\n-- 宽表：把维度压平，供报表直接读取\nSELECT f.run_id,\n       d.year || '-' || printf('%02d', d.month) AS month,\n       h.name,\n       h.faction,\n       f.distance,\n       f.reward\nFROM fact_runs f\nJOIN dim_date d ON d.date_key = f.date_key\nJOIN dim_hero h ON h.hero_key = f.hero_key\nORDER BY f.run_id;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (-1 rows affected)\nOK (-1 rows affected)\nOK (2 rows affected)\nOK (3 rows affected)\nOK (2 rows affected)\nrun_id\tmonth\tname\tfaction\tdistance\treward\n1\t2026-01\tV\tnomad\t120\t300\n2\t2026-02\tJudy\tnomad\t80\t200"
+      },
+      {
+        "type": "diagram",
+        "text": "        dim_date          dim_hero\n            \\                /\n             \\              /\n              fact_runs（事实表）\n              date_key / hero_key / distance / reward\n\n星型：事实表在中心，维度围绕四周；JOIN 后可任意切片聚合。"
+      },
+      {
+        "type": "tip",
+        "text": "事实表只存「可加的数」和「外键」。把名称、阵营这类文本放进维度表，能显著缩小事实表。"
+      },
+      {
+        "type": "warn",
+        "text": "不要在事实表里存会变化的描述字段；维度一变就要全表更新，这正是星型要避免的。"
+      },
+      {
+        "type": "quiz",
+        "question": "星型模型里，一次跑单的距离和奖励应该放在哪张表？",
+        "options": [
+          "dim_hero",
+          "dim_date",
+          "fact_runs",
+          "三张表都放"
+        ],
+        "answer": 2,
+        "explain": "可度量的数值放在事实表，维度表只存描述属性。"
+      },
+      {
+        "type": "practice",
+        "title": "按阵营汇总",
+        "code": "CREATE TABLE dim_hero (hero_key INTEGER PRIMARY KEY, name TEXT, faction TEXT);\nCREATE TABLE fact_runs (run_id INTEGER PRIMARY KEY, hero_key INTEGER, reward INTEGER);\n\nINSERT INTO dim_hero VALUES (1,'V','nomad'),(2,'Judy','nomad'),(3,'Jackie','corpo');\nINSERT INTO fact_runs VALUES (1,1,300),(2,2,200),(3,1,400),(4,3,100);\n\nSELECT h.faction, SUM(f.reward) AS total\nFROM fact_runs f JOIN dim_hero h ON h.hero_key = f.hero_key\nGROUP BY h.faction\nORDER BY total DESC;",
+        "output": "OK (-1 rows affected)\nOK (-1 rows affected)\nOK (3 rows affected)\nOK (4 rows affected)\nfaction\ttotal\nnomad\t900\ncorpo\t100",
+        "hint": "事实表连维度表后按 faction 分组求和。"
+      },
+      {
+        "type": "text",
+        "text": "数据仓库还有一个绕不开的话题是缓慢变化维度：英雄的阵营改名了、用户的等级变了，历史事实应该按当时的值算还是按现在的值算？常见解法是给维度表加生效时间和失效时间，每次变化插一行新记录，事实表通过时间区间关联到「当时那版」维度。这种做法叫拉链表，查询时要多一个时间条件，但能保证历史报表可复现。与之相对的是直接覆盖维度值，简单但会让历史数据「跟着变」。选哪种取决于业务是否需要回看历史口径；财务、审计类通常必须拉链，运营看板常常可以接受覆盖。"
+      },
+      {
+        "type": "text",
+        "text": "建仓库表时还要先想清楚粒度：一行事实代表什么？一次跑单、一天、还是一个用户一个月的汇总？粒度越细，能回答的问题越多，但数据量越大；粒度越粗，查询快但会丢失细节。原则是「按最细的业务事件存事实，聚合在查询时做」，除非数据量大到必须预聚合。预聚合表要标注口径与刷新时间，否则很容易出现「报表数字和明细对不上」的经典问题。"
+      },
+      {
+        "type": "text",
+        "text": "最后提醒 SQL 层面的口径一致：同一个指标不要在两处各写一套 SQL，否则时间一长必然对不上。把核心指标固化成视图或 CTE 片段，所有报表引用同一份定义，改动只在一处发生。视图在 SQLite 里就是保存下来的查询，代价可忽略，收益是可维护性。"
+      },
+      {
+        "type": "text",
+        "text": "补充一个落地顺序：先定事实表粒度，再定维度，最后才想宽表。顺序反了会反复改表结构，成本最高。粒度定错尤其致命——事后想从日汇总拆回单次事件几乎不可能，只能重跑历史数据。所以宁可先细后粗。"
+      }
+    ],
+    "exercise": {
+      "title": "按月汇总跑单",
+      "brief": "用 fact_runs 与 dim_date 连接，按月统计总距离 distance 与总奖励 reward，列名为 month、distance、reward，按 month 升序。month 格式为 YYYY-MM。",
+      "starterCode": "CREATE TABLE dim_date (date_key TEXT PRIMARY KEY, year INTEGER, month INTEGER);\nCREATE TABLE fact_runs (run_id INTEGER PRIMARY KEY, date_key TEXT, distance INTEGER, reward INTEGER);\n\nINSERT INTO dim_date VALUES ('2026-01-05',2026,1),('2026-02-03',2026,2);\nINSERT INTO fact_runs VALUES (1,'2026-01-05',120,300),(2,'2026-01-05',80,200),(3,'2026-02-03',150,400);",
+      "hint": "用 year || '-' || printf('%02d', month) 生成 month，再 GROUP BY。",
+      "tests": [
+        "assert columns == ['month','distance','reward'], columns",
+        "assert rows == [['2026-01',200,500],['2026-02',150,400]], rows",
+        "assert len(rows) == 2, '两个月应各一行'"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE dim_date (date_key TEXT PRIMARY KEY, year INTEGER, month INTEGER);\nCREATE TABLE fact_runs (run_id INTEGER PRIMARY KEY, date_key TEXT, distance INTEGER, reward INTEGER);\n\nINSERT INTO dim_date VALUES ('2026-01-05',2026,1),('2026-02-03',2026,2);\nINSERT INTO fact_runs VALUES (1,'2026-01-05',120,300),(2,'2026-01-05',80,200),(3,'2026-02-03',150,400);\n\nSELECT d.year || '-' || printf('%02d', d.month) AS month,\n       SUM(f.distance) AS distance,\n       SUM(f.reward) AS reward\nFROM fact_runs f\nJOIN dim_date d ON d.date_key = f.date_key\nGROUP BY d.year, d.month\nORDER BY month;"
+    }
+  },
+  {
+    "id": "sql37",
+    "order": 536,
+    "chapter": 54,
+    "chapterName": "SQL · 专业篇",
+    "lang": "sql",
+    "title": "分析函数实战",
+    "subtitle": "累计、占比与排名",
+    "xp": 160,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "不折叠行的聚合"
+      },
+      {
+        "type": "text",
+        "text": "GROUP BY 会把多行压成一行；窗口函数则保留每一行，同时在旁边多算一列。写法是「函数名(...) OVER (PARTITION BY ... ORDER BY ...)」：PARTITION BY 分组、ORDER BY 定顺序、OVER 声明这是一个窗口计算。"
+      },
+      {
+        "type": "text",
+        "text": "累计求和是最常用的窗口：SUM(amount) OVER (PARTITION BY region ORDER BY day) 表示在同一个 region 内按日期逐行累加。注意没有 ORDER BY 的窗口是整组聚合，结果会复制到每一行；有 ORDER BY 才是「到当前行为止」。占比就是把当前行除以整组总量。"
+      },
+      {
+        "type": "text",
+        "text": "三个排名函数必须分清：ROW_NUMBER 永远连续编号（1,2,3），RANK 并列后跳号（1,1,3），DENSE_RANK 并列后不跳号（1,1,2）。排行榜要「同分同名次、下一名递减」用 RANK，「同分同名次、下一名接着数」用 DENSE_RANK，分页取前 N 用 ROW_NUMBER。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE sales (day TEXT, region TEXT, amount INTEGER);\nINSERT INTO sales VALUES\n    ('2026-01-01','north',100),\n    ('2026-01-02','north',150),\n    ('2026-01-03','north',120),\n    ('2026-01-01','south',80),\n    ('2026-01-02','south',90);\n\nSELECT day, region, amount,\n       SUM(amount) OVER (PARTITION BY region ORDER BY day) AS running_total,\n       ROUND(100.0 * amount / SUM(amount) OVER (PARTITION BY region), 1) AS pct_of_region\nFROM sales\nORDER BY region, day;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (5 rows affected)\nday\tregion\tamount\trunning_total\tpct_of_region\n2026-01-01\tnorth\t100\t100\t27.0\n2026-01-02\tnorth\t150\t250\t40.5\n2026-01-03\tnorth\t120\t370\t32.4\n2026-01-01\tsouth\t80\t80\t47.1\n2026-01-02\tsouth\t90\t170\t52.9"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE sales (day TEXT, region TEXT, amount INTEGER);\nINSERT INTO sales VALUES\n    ('2026-01-01','north',100),('2026-01-02','north',150),('2026-01-03','north',120),\n    ('2026-01-01','south',80),('2026-01-02','south',90);\n\nSELECT day, region, amount,\n       ROW_NUMBER() OVER (PARTITION BY region ORDER BY amount DESC) AS rn,\n       RANK()       OVER (PARTITION BY region ORDER BY amount DESC) AS rnk,\n       DENSE_RANK() OVER (PARTITION BY region ORDER BY amount DESC) AS dense\nFROM sales\nORDER BY region, rn;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (5 rows affected)\nday\tregion\tamount\trn\trnk\tdense\n2026-01-02\tnorth\t150\t1\t1\t1\n2026-01-03\tnorth\t120\t2\t2\t2\n2026-01-01\tnorth\t100\t3\t3\t3\n2026-01-02\tsouth\t90\t1\t1\t1\n2026-01-01\tsouth\t80\t2\t2\t2"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "函数",
+          "并列时的表现",
+          "典型用途"
+        ],
+        "rows": [
+          [
+            "ROW_NUMBER",
+            "不并列，强制唯一",
+            "分页、去重取一条"
+          ],
+          [
+            "RANK",
+            "并列同名次，后续跳号",
+            "比赛排名"
+          ],
+          [
+            "DENSE_RANK",
+            "并列同名次，后续不跳",
+            "等级评定"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "窗口函数不能写在 WHERE 里；要过滤窗口结果，得包一层子查询或用 CTE。"
+      },
+      {
+        "type": "warn",
+        "text": "OVER 里漏写 ORDER BY 会得到整组聚合值复制到每行，常被误认为「累计」算错。"
+      },
+      {
+        "type": "quiz",
+        "question": "数值 90、90、80 用 RANK 排名，三个名次是？",
+        "options": [
+          "1,1,2",
+          "1,2,3",
+          "1,1,3",
+          "2,2,3"
+        ],
+        "answer": 2,
+        "explain": "RANK 并列同名次，后一个跳号：1、1、3。"
+      },
+      {
+        "type": "practice",
+        "title": "分区累计",
+        "code": "CREATE TABLE t (region TEXT, day TEXT, amount INTEGER);\nINSERT INTO t VALUES ('n', 'd1', 10), ('n', 'd2', 20), ('s', 'd1', 5);\n\nSELECT region, day, amount,\n       SUM(amount) OVER (PARTITION BY region ORDER BY day) AS running\nFROM t\nORDER BY region, day;",
+        "output": "OK (-1 rows affected)\nOK (3 rows affected)\nregion\tday\tamount\trunning\nn\td1\t10\t10\nn\td2\t20\t30\ns\td1\t5\t5",
+        "hint": "同一区域内按 day 累加，区域之间互不影响。"
+      },
+      {
+        "type": "text",
+        "text": "窗口函数还有一个实用组合是「分组内取最新一条」：先用 ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) 编号，再在外层筛 rn = 1。这比「先 GROUP BY 取最大时间、再 JOIN 回原表」更短也更不容易错，尤其在有重复时间戳时行为更可控。另一个组合是同环比：用 LAG(amount) OVER (ORDER BY month) 取上一期值，再用当前值减它。注意 LAG 的默认偏移是 1，可以传第二个参数指定偏移几期，第三个参数指定越界时的默认值，避免第一行算出 NULL 后整列失效。"
+      },
+      {
+        "type": "text",
+        "text": "最后提醒窗口函数的执行顺序：WHERE → GROUP BY → HAVING → 窗口计算 → ORDER BY → LIMIT。这解释了为什么窗口结果不能用于 WHERE（那时还没算），也解释了为什么窗口函数可以和聚合共存（聚合先算，窗口在结果集上再算）。理解这个顺序，很多「为什么这行 SQL 报错」的问题会自己消失；剩下真正需要拆子查询的场景，也会清楚该在哪一层拆。"
+      }
+    ],
+    "exercise": {
+      "title": "区域排行榜",
+      "brief": "sales 表含 region、amount。返回每个区域内按 amount 降序的 ROW_NUMBER 名次 rn、amount、region，按 region、rn 升序。",
+      "starterCode": "CREATE TABLE sales (region TEXT, amount INTEGER);\nINSERT INTO sales VALUES ('north',100),('north',150),('north',120),('south',80),('south',90);",
+      "hint": "ROW_NUMBER() OVER (PARTITION BY region ORDER BY amount DESC) AS rn。",
+      "tests": [
+        "assert columns == ['rn','amount','region'], columns",
+        "assert rows == [[1,150,'north'],[2,120,'north'],[3,100,'north'],[1,90,'south'],[2,80,'south']], rows",
+        "assert rows[0][0] == 1, '第一个名次应为 1'"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE sales (region TEXT, amount INTEGER);\nINSERT INTO sales VALUES ('north',100),('north',150),('north',120),('south',80),('south',90);\n\nSELECT ROW_NUMBER() OVER (PARTITION BY region ORDER BY amount DESC) AS rn,\n       amount,\n       region\nFROM sales\nORDER BY region, rn;"
+    }
+  },
+  {
+    "id": "sql38",
+    "order": 537,
+    "chapter": 54,
+    "chapterName": "SQL · 专业篇",
+    "lang": "sql",
+    "title": "综合项目：漏斗与留存",
+    "subtitle": "用 CTE + 条件聚合做增长分析",
+    "xp": 180,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把业务问题翻译成一段 SQL"
+      },
+      {
+        "type": "text",
+        "text": "漏斗分析回答「每一步流失了多少人」：访问、注册、购买三个环节，各自有多少独立用户到达。做法是先按用户汇总每个环节的最早时间，得到一张「用户 × 环节」宽表，再用COUNT 统计每一列的非空数量。条件聚合 CASE WHEN 就是这里的核心工具。"
+      },
+      {
+        "type": "text",
+        "text": "留存分析回答「用户回来没有」：先算每个用户的首次活跃日，再算之后每一天与首日的差值，最后按首日分组，统计第 0、1、2 天仍有活跃的人数。julianday 把日期转成浮点天数，相减取整就得到「第几天」。"
+      },
+      {
+        "type": "text",
+        "text": "这两类分析的共同套路是「先算明细，再聚合」：CTE 负责把复杂逻辑拆成可读的步骤，主查询负责最后的指标。不要试图用一条嵌套三层的子查询写完，CTE 让每一步都能单独跑出来验证，这才是分析 SQL 可维护的关键。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE events (user_id INTEGER, day TEXT, step TEXT);\nINSERT INTO events VALUES\n    (1,'2026-01-01','visit'),(1,'2026-01-01','signup'),(1,'2026-01-02','purchase'),\n    (2,'2026-01-01','visit'),(2,'2026-01-02','signup'),\n    (3,'2026-01-01','visit'),\n    (4,'2026-01-02','visit'),(4,'2026-01-02','signup'),(4,'2026-01-02','purchase');\n\nWITH steps AS (\n    SELECT user_id,\n           MIN(CASE WHEN step = 'visit'    THEN day END) AS visit_day,\n           MIN(CASE WHEN step = 'signup'   THEN day END) AS signup_day,\n           MIN(CASE WHEN step = 'purchase' THEN day END) AS purchase_day\n    FROM events\n    GROUP BY user_id\n)\nSELECT COUNT(visit_day)    AS visited,\n       COUNT(signup_day)   AS signed_up,\n       COUNT(purchase_day) AS purchased\nFROM steps;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (9 rows affected)\nvisited\tsigned_up\tpurchased\n4\t3\t2"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE logins (user_id INTEGER, day TEXT);\nINSERT INTO logins VALUES\n    (1,'2026-01-01'),(1,'2026-01-02'),(1,'2026-01-03'),\n    (2,'2026-01-01'),(2,'2026-01-03'),\n    (3,'2026-01-02');\n\nWITH first_seen AS (\n    SELECT user_id, MIN(day) AS first_day FROM logins GROUP BY user_id\n),\nactivity AS (\n    SELECT l.user_id, f.first_day, l.day,\n           CAST(julianday(l.day) - julianday(f.first_day) AS INTEGER) AS day_no\n    FROM logins l JOIN first_seen f ON f.user_id = l.user_id\n)\nSELECT first_day,\n       COUNT(DISTINCT CASE WHEN day_no = 0 THEN user_id END) AS d0,\n       COUNT(DISTINCT CASE WHEN day_no = 1 THEN user_id END) AS d1,\n       COUNT(DISTINCT CASE WHEN day_no = 2 THEN user_id END) AS d2\nFROM activity\nGROUP BY first_day\nORDER BY first_day;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "OK (-1 rows affected)\nOK (6 rows affected)\nfirst_day\td0\td1\td2\n2026-01-01\t2\t1\t2\n2026-01-02\t1\t0\t0"
+      },
+      {
+        "type": "diagram",
+        "text": "漏斗          留存\nvisit 4  ─┐    D0 → 次日 → 第2日\nsignup 3 ─┤    用户1  ✓     ✓      ✓\npurchase 2┘    用户2  ✓     ✗      ✓\n               用户3  ✗\n\n漏斗看「到没到」；留存看「回没回」。"
+      },
+      {
+        "type": "tip",
+        "text": "先把 CTE 单独 SELECT 出来看数据，再套外层聚合；直接写完整条查询最难排错。"
+      },
+      {
+        "type": "warn",
+        "text": "统计「人数」要用 COUNT(DISTINCT user_id)；COUNT(*) 数的是事件条数，会重复计同一个人。"
+      },
+      {
+        "type": "quiz",
+        "question": "漏斗里统计每一步到达人数，为什么要 COUNT(DISTINCT user_id)？",
+        "options": [
+          "语法要求",
+          "同一用户可能有多次同类事件",
+          "为了排序",
+          "防止 NULL"
+        ],
+        "answer": 1,
+        "explain": "同一用户可能重复访问，按事件计数会虚高；漏斗要的是独立人数。"
+      },
+      {
+        "type": "practice",
+        "title": "三步漏斗",
+        "code": "CREATE TABLE ev (user_id INTEGER, step TEXT);\nINSERT INTO ev VALUES (1,'a'),(1,'b'),(1,'c'),(2,'a'),(2,'b'),(3,'a');\n\nWITH s AS (\n    SELECT user_id,\n           MIN(CASE WHEN step='a' THEN 1 END) AS a,\n           MIN(CASE WHEN step='b' THEN 1 END) AS b,\n           MIN(CASE WHEN step='c' THEN 1 END) AS c\n    FROM ev GROUP BY user_id\n)\nSELECT COUNT(a) AS step_a, COUNT(b) AS step_b, COUNT(c) AS step_c FROM s;",
+        "output": "OK (-1 rows affected)\nOK (6 rows affected)\nstep_a\tstep_b\tstep_c\n3\t2\t1",
+        "hint": "条件聚合把每个用户的三步压成一行，再分别计数。"
+      },
+      {
+        "type": "text",
+        "text": "漏斗和留存最终都要落到「口径」两个字上：什么算访问（去重设备还是账号）、什么算注册（提交表单还是完成验证）、跨自然日还是滚动 24 小时。同一份数据换一种口径，留存率可能从 40% 变成 25%。所以分析 SQL 写完后，第一件事不是优化性能，而是把口径写成注释或文档，和业务方确认。第二件事是做交叉验证：用另一种写法（比如明细导出到 Python 再算一遍）核对同一个数字，确认没有 JOIN 放大或去重遗漏。数字对不上时，先怀疑口径和 JOIN，再怀疑引擎。"
+      },
+      {
+        "type": "text",
+        "text": "分析 SQL 的可维护性还体现在命名上：CTE 名用业务词（first_seen、activity）而不是 t1、t2，列名带单位（amount_cents、duration_sec），中间步骤加注释说明口径。半年后回来看的人（往往是未来的你）能不能在五分钟内读懂，是判断这段 SQL 好不好的实际标准。性能可以后面优化，可读性一旦丢了，改错的风险比慢查询高得多。"
+      },
+      {
+        "type": "text",
+        "text": "最后给一条练习建议：拿到任何一份分析需求，先用一句话写出「分子、分母、时间范围、去重口径」，再动手写 SQL。如果这句话写不完整，说明需求本身没想清楚，此时写出的 SQL 大概率要重写。写清楚之后再拆 CTE，往往一次就能对上业务预期。"
+      },
+      {
+        "type": "text",
+        "text": "还有一个细节值得写进习惯：任何计数都问一句「会不会重复」。JOIN 之后一个用户可能变成多行，COUNT 立刻虚高；此时要么先去重（COUNT DISTINCT），要么把聚合放到子查询里再 JOIN。这个检查能挡住大部分分析口径事故。"
+      }
+    ],
+    "exercise": {
+      "title": "次日留存率",
+      "brief": "logins 表记录用户每日登录。计算每个首日的 D0 人数与 D1 人数，返回 first_day、d0、d1，按 first_day 升序。D1 指首次登录后第 1 天仍登录的人数。",
+      "starterCode": "CREATE TABLE logins (user_id INTEGER, day TEXT);\nINSERT INTO logins VALUES\n    (1,'2026-01-01'),(1,'2026-01-02'),\n    (2,'2026-01-01'),\n    (3,'2026-01-02'),(3,'2026-01-03');",
+      "hint": "先 GROUP BY user_id 取 MIN(day)；再算 julianday 差值；最后按首日分组条件计数。",
+      "tests": [
+        "assert columns == ['first_day','d0','d1'], columns",
+        "assert rows == [['2026-01-01',2,1],['2026-01-02',1,1]], rows",
+        "assert rows[0][2] == 1, '首日 2026-01-01 的 D1 应为 1'"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE logins (user_id INTEGER, day TEXT);\nINSERT INTO logins VALUES\n    (1,'2026-01-01'),(1,'2026-01-02'),\n    (2,'2026-01-01'),\n    (3,'2026-01-02'),(3,'2026-01-03');\n\nWITH first_seen AS (\n    SELECT user_id, MIN(day) AS first_day FROM logins GROUP BY user_id\n),\nactivity AS (\n    SELECT l.user_id, f.first_day,\n           CAST(julianday(l.day) - julianday(f.first_day) AS INTEGER) AS day_no\n    FROM logins l JOIN first_seen f ON f.user_id = l.user_id\n)\nSELECT first_day,\n       COUNT(DISTINCT CASE WHEN day_no = 0 THEN user_id END) AS d0,\n       COUNT(DISTINCT CASE WHEN day_no = 1 THEN user_id END) AS d1\nFROM activity\nGROUP BY first_day\nORDER BY first_day;"
+    }
+  }
+]

@@ -1,0 +1,335 @@
+[
+  {
+    "id": "dsa06",
+    "order": 105,
+    "chapter": 11,
+    "title": "手写排序",
+    "subtitle": "选择排序：把最小的逐个‘挑’到前面",
+    "xp": 170,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "不靠 sorted，也能排"
+      },
+      {
+        "type": "text",
+        "text": "工程里当然用 sorted()；但手写一遍选择排序，是为了看清‘选择最小 → 交换到原位’这个迭代骨架——它是理解 O(n²) 与后面 O(n log n) 排序的起点。"
+      },
+      {
+        "type": "code",
+        "runnable": true,
+        "code": "nums = [5, 3, 8, 1]\nfor i in range(len(nums)):\n    # 在 i..末尾 里找最小\n    mi = i\n    for j in range(i + 1, len(nums)):\n        if nums[j] < nums[mi]:\n            mi = j\n    nums[i], nums[mi] = nums[mi], nums[i]\n    print(f'第{i+1}轮: {nums}')\nprint('最终:', nums)"
+      },
+      {
+        "type": "output",
+        "text": "第1轮: [1, 3, 8, 5]\n第2轮: [1, 3, 8, 5]\n第3轮: [1, 3, 5, 8]\n第4轮: [1, 3, 5, 8]\n最终: [1, 3, 5, 8]"
+      },
+      {
+        "type": "text",
+        "text": "两层循环 = O(n²)。‘每轮都能把剩余部分的最小值钉在正确位置’——这个不变式正确，排序就正确。面试常考排序，多半不是要你现场写快排，而是验证你懂迭代骨架与复杂度。"
+      },
+      {
+        "type": "quiz",
+        "question": "选择排序每轮做的事，用一句话概括是？",
+        "options": [
+          "把最小的挑到已排序区尾部",
+          "把相邻两两交换直到有序",
+          "随机打乱期待碰巧有序"
+        ],
+        "answer": 0,
+        "explain": "每轮遍历未排序区选最小，与未排序区首位交换，逐步扩大有序前缀。"
+      }
+    ],
+    "exercise": {
+      "title": "不污染原列表的排序",
+      "brief": "实现 choose_sort(nums)：用手写的选择排序对列表升序排序，返回**新的**列表，不要修改传入的 nums（排序过程中不要去 sort 原数组的引用）。",
+      "starterCode": "def choose_sort(nums):\n    ____\n\nprint(choose_sort([3, 1, 2]))",
+      "hint": "先 data = list(nums) 复制一份；外层 i 从 0..n-1，内层找最小下标后与 i 交换。",
+      "tests": [
+        "assert choose_sort([3, 1, 2]) == [1, 2, 3]",
+        "assert choose_sort([5, 4, 3, 2, 1]) == [1, 2, 3, 4, 5]",
+        "assert choose_sort([7]) == [7]",
+        "assert choose_sort([]) == []",
+        "orig = [2, 1]\nchoose_sort(orig)\nassert orig == [2, 1]"
+      ],
+      "stdin": [],
+      "xp": 190
+    },
+    "chapterName": "增补包 · DSA 算法进阶"
+  },
+  {
+    "id": "dsa07",
+    "order": 106,
+    "chapter": 11,
+    "title": "二分查找",
+    "subtitle": "每次干掉一半：O(log n) 的搜索",
+    "xp": 170,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "猜数字游戏的最优策略"
+      },
+      {
+        "type": "text",
+        "text": "1~100 猜数字，最优每次都猜中间——因为可以问‘大了还是小了’，每次排除一半。二分查找就是这个策略的代码化：想查的必须是**有序**的，然后用下标当‘中间值’。每一步检查中间，决定去左半边还是右半边。"
+      },
+      {
+        "type": "code",
+        "runnable": true,
+        "code": "def find(nums, target):\n    lo, hi = 0, len(nums) - 1\n    while lo <= hi:\n        mid = (lo + hi) // 2\n        print(f'检查区间 [{lo}, {hi}] 中间下标 {mid} → {nums[mid]}')\n        if nums[mid] == target:\n            return mid\n        elif nums[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid - 1\n    return -1\n\nprint('结果:', find([1, 3, 5, 7, 9, 11], 7))"
+      },
+      {
+        "type": "output",
+        "text": "检查区间 [0, 5] 中间下标 2 → 5\n检查区间 [3, 5] 中间下标 4 → 9\n检查区间 [3, 3] 中间下标 3 → 7\n结果: 3"
+      },
+      {
+        "type": "text",
+        "text": "每轮把搜索区间砍半，n=100 万也只要约 20 次即可命中——这就是 O(log n)。写二分最容易错的地方是循环条件 `lo <= hi`（闭区间）与更新 `lo = mid + 1 / hi = mid - 1`（防止死循环）。"
+      },
+      {
+        "type": "visualize",
+        "title": "二分查找：每次砍掉一半",
+        "caption": "在 [1,3,5,7,9,11,13] 里找 11，看搜索区间怎么收缩",
+        "frames": [
+          {
+            "label": "lo=0, mid=3(值7), 7 < 11 → 往右找",
+            "items": [
+              {
+                "name": "lo",
+                "value": "0 → 4"
+              },
+              {
+                "name": "hi",
+                "value": "6"
+              },
+              {
+                "name": "mid",
+                "value": "3 (值 7)"
+              }
+            ],
+            "highlight": [
+              "lo"
+            ]
+          },
+          {
+            "label": "lo=4, mid=5(值11), 11 == 11 ✓ 命中",
+            "items": [
+              {
+                "name": "lo",
+                "value": "4"
+              },
+              {
+                "name": "hi",
+                "value": "6"
+              },
+              {
+                "name": "mid",
+                "value": "5 (值 11)"
+              }
+            ],
+            "highlight": [
+              "mid"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "quiz",
+        "question": "对一个长度为 1_000_000 的有序列表二分查找，大约需要比较多少次？",
+        "options": [
+          "约 20 次",
+          "约 1000 次",
+          "约 50 万次"
+        ],
+        "answer": 0,
+        "explain": "每步减半：2^20 ≈ 100 万，所以约 20 次。这就是 O(log n)。"
+      }
+    ],
+    "exercise": {
+      "title": "手写二分",
+      "brief": "实现 binary_search(nums, target)：nums 是升序整数列表，用二分返回 target 的下标；不存在返回 -1。空列表返回 -1。",
+      "starterCode": "def binary_search(nums, target):\n    ____\n\nprint(binary_search([1, 2, 3, 4, 5], 3))\nprint(binary_search([1, 2, 3, 4, 5], 9))",
+      "hint": "lo, hi = 0, len(nums)-1；while lo <= hi；mid = (lo+hi)//2；相等返回 mid，小则 lo=mid+1，大则 hi=mid-1。",
+      "tests": [
+        "assert binary_search([1, 2, 3, 4, 5], 3) == 2",
+        "assert binary_search([1, 2, 3, 4, 5], 1) == 0",
+        "assert binary_search([1, 2, 3, 4, 5], 9) == -1",
+        "assert binary_search([4], 4) == 0",
+        "assert binary_search([], 1) == -1"
+      ],
+      "stdin": [],
+      "xp": 190
+    },
+    "chapterName": "增补包 · DSA 算法进阶"
+  },
+  {
+    "id": "dsa08",
+    "order": 107,
+    "chapter": 11,
+    "title": "贪心算法",
+    "subtitle": "每步都拿当下最优：柜台找零的哲学",
+    "xp": 170,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "局部最优，全局满意"
+      },
+      {
+        "type": "text",
+        "text": "贪心 = 每一步都做‘眼前最优’的选择，不回头、不试探。前提是局部最优能累积成全局最优——找零问题（面值 25/10/5/1，凑任意金额）就满足：永远先拿最大面值。"
+      },
+      {
+        "type": "code",
+        "runnable": true,
+        "code": "def make_change(amount):\n    coins = [25, 10, 5, 1]\n    used = []\n    for c in coins:\n        while amount >= c:\n            amount -= c\n            used.append(c)\n    return used\n\nprint('61 分:', make_change(61))\nprint('件数:', len(make_change(61)))"
+      },
+      {
+        "type": "output",
+        "text": "61 分: [25, 25, 10, 1]\n件数: 4"
+      },
+      {
+        "type": "text",
+        "text": "为什么‘先大后小’就够？因为后面每种面值都能整除前一种（1 整除 5、5 整除 10……），小面值永远不会亏。若面值不能整除（如 30/20/5），贪心可能失效，要改动态规划——这是贪心与 DP 的分水岭，记住这条线就好。"
+      },
+      {
+        "type": "quiz",
+        "question": "贪心算法失效的常见原因是？",
+        "options": [
+          "数据量太大",
+          "局部最优选法无法在后期补救（不可回退）",
+          "列表没有排序"
+        ],
+        "answer": 1,
+        "explain": "贪心不回头；若某一步‘看似最优’的选择会堵死后面，贪心就不保证全局最优，此时要想 DP。"
+      }
+    ],
+    "exercise": {
+      "title": "找零最少硬币数",
+      "brief": "实现 min_coins(amount)：用币值 25/10/5/1（美分制）贪心求出凑出 amount 所需**最少硬币数**。amount >= 0。",
+      "starterCode": "def min_coins(amount):\n    ____\n\nprint(min_coins(41))\nprint(min_coins(30))",
+      "hint": "count = 0；for c in [25,10,5,1]: count += amount // c; amount %= c；最后返回 count。",
+      "tests": [
+        "assert min_coins(41) == 4",
+        "assert min_coins(30) == 2",
+        "assert min_coins(0) == 0",
+        "assert min_coins(99) == 9"
+      ],
+      "stdin": [],
+      "xp": 190
+    },
+    "chapterName": "增补包 · DSA 算法进阶"
+  },
+  {
+    "id": "dsa09",
+    "order": 108,
+    "chapter": 11,
+    "title": "链表思维",
+    "subtitle": "指针串起的节点链：Python 用类模拟",
+    "xp": 170,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "节点 + 指针 = 链表"
+      },
+      {
+        "type": "text",
+        "text": "链表由节点组成，每个节点存一个值和一个‘指向下一个节点’的引用（next）。它没有下标，不能 nums[k] 直达；要访问第 k 个只能从头一个个走。代价换来的是插入、删除不用搬动整段内存。Python 里用类 + 属性模拟它，正是面试手撕题的玩法。"
+      },
+      {
+        "type": "code",
+        "runnable": true,
+        "code": "class LLNode:\n    def __init__(self, value):\n        self.value = value\n        self.next = None\n\na = LLNode(1)\nb = LLNode(2)\nc = LLNode(3)\na.next = b\nb.next = c\n\nlen_ = 0\ncur = a\nwhile cur is not None:\n    print('走到节点:', cur.value)\n    len_ += 1\n    cur = cur.next\nprint('链表长度:', len_)"
+      },
+      {
+        "type": "output",
+        "text": "走到节点: 1\n走到节点: 2\n走到节点: 3\n链表长度: 3"
+      },
+      {
+        "type": "text",
+        "text": "遍历链表永远是这个骨架：`cur = head`，while 循环里 cur = cur.next，直到 None。链表题 90% 靠这个骨架 + 边界检查（空链表、单节点、尾部）。"
+      },
+      {
+        "type": "quiz",
+        "question": "链表相比列表，最大的差异是？",
+        "options": [
+          "能直接按下标访问第 k 个元素",
+          "删除/插入无需整体搬移，但按下标访问要逐个走",
+          "链表一定比列表快"
+        ],
+        "answer": 1,
+        "explain": "链表没有随机访问能力（O(n) 找下标），换来的是中间插入删除理论 O(1)（需先走到位置）。"
+      }
+    ],
+    "exercise": {
+      "title": "数一数链表的长度",
+      "brief": "先定义一个节点类 Node（value 与 next），再实现 ll_length(head)：返回从 head 开始的节点个数；head 为 None（空链表）返回 0。",
+      "starterCode": "class Node:\n    def __init__(self, value):\n        self.value = value\n        self.next = None\n\ndef ll_length(head):\n    ____\n\n# 构造测试链\nn1 = Node(1)\nn2 = Node(2)\nn3 = Node(3)\nn1.next = n2\nn2.next = n3\nprint(ll_length(n1))\nprint(ll_length(None))",
+      "hint": "cur = head；cnt = 0；while cur is not None: cnt += 1; cur = cur.next。",
+      "tests": [
+        "n1 = Node(1); n2 = Node(2); n3 = Node(3)\nn1.next = n2; n2.next = n3\nassert ll_length(n1) == 3",
+        "a = Node(9)\nassert ll_length(a) == 1",
+        "assert ll_length(None) == 0"
+      ],
+      "stdin": [],
+      "xp": 190
+    },
+    "chapterName": "增补包 · DSA 算法进阶"
+  },
+  {
+    "id": "dsa10",
+    "order": 109,
+    "chapter": 11,
+    "title": "最大子段和",
+    "subtitle": "Kadane：一眼 O(n) 的经典‘动脑不用动笔’题",
+    "xp": 190,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "连续一段，和最大"
+      },
+      {
+        "type": "text",
+        "text": "给一串可正可负的整数，找一段连续子段（至少一个元素），让和最大。暴力是 O(n²)（枚举所有起止点），Kadane 算法只用 O(n)：从左到右累加，‘当前和’一旦变负就放弃重新开始，因为负数只会拖累后继。"
+      },
+      {
+        "type": "code",
+        "runnable": true,
+        "code": "def kadane(nums):\n    best = float('-inf')\n    cur = 0\n    for x in nums:\n        cur = max(x, cur + x)   # 要么续上，要么重开\n        best = max(best, cur)\n    return best\n\nprint(kadane([-2, 1, -3, 4, -1, 2, 1, -5, 4]))\nprint(kadane([-3, -1, -2]))"
+      },
+      {
+        "type": "output",
+        "text": "6\n-1"
+      },
+      {
+        "type": "text",
+        "text": "全负数时答案取最大的那个负数（-1），所以 best 初始用负无穷而不是 0。这段 5 行代码是竞赛蓝桥/PAT 入门题里出现率最高的‘套路’之一，值得背进肌肉记忆。"
+      },
+      {
+        "type": "quiz",
+        "question": "Kadane 中 `cur = max(x, cur + x)` 的含义是？",
+        "options": [
+          "要么把 x 续到当前段上，要么以 x 重新起一段",
+          "用随机数决定去留",
+          "比较 x 和 0 的大小"
+        ],
+        "answer": 0,
+        "explain": "当前段带上 x 变大了就续，否则从 x 另起炉灶，每个元素只扫一遍。全负时两处 max 会自然取最大负数。也处理好空数组的边界 return 0 即可。"
+      }
+    ],
+    "exercise": {
+      "title": "最大子段和",
+      "brief": "实现 max_subarray(nums)：用 Kadane（O(n)）返回最大连续子段和。nums 至少含一个元素。",
+      "starterCode": "def max_subarray(nums):\n    ____\n\nprint(max_subarray([-2, 1, -3, 4, -1, 2, 1, -5, 4]))\nprint(max_subarray([-1, -2]))",
+      "hint": "best = float('-inf'); cur = 0；for x: cur = max(x, cur+x); best = max(best, cur)。",
+      "tests": [
+        "assert max_subarray([-2, 1, -3, 4, -1, 2, 1, -5, 4]) == 6",
+        "assert max_subarray([1]) == 1",
+        "assert max_subarray([-1, -2]) == -1",
+        "assert max_subarray([3, -1, 2]) == 4"
+      ],
+      "stdin": [],
+      "xp": 220
+    },
+    "chapterName": "增补包 · DSA 算法进阶"
+  }
+]

@@ -1,0 +1,1169 @@
+[
+  {
+    "id": "js21",
+    "order": 320,
+    "chapter": 23,
+    "chapterName": "JavaScript · 进阶篇",
+    "lang": "javascript",
+    "title": "构造函数与原型",
+    "subtitle": "new 到底做了什么",
+    "xp": 110,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "对象模板的第一种写法"
+      },
+      {
+        "type": "text",
+        "text": "在没有 class 语法的年代（本运行时也不支持 class），JS 用构造函数创建对象模板：函数名首字母大写，内部用 this 挂属性，调用时加 new。new 做四件事：创建空对象、把它的原型指向构造函数的 prototype、以这个对象为 this 执行函数、返回这个对象（除非构造函数显式返回了一个对象）。理解这四步，this 和原型就不再神秘。new 的四步可以手动模拟：var obj = Object.create(Robot.prototype); Robot.call(obj, 'V'); 得到的 obj 与 new Robot('V') 结构一致。理解这一点，就能解释为什么构造函数里的 this 指向实例，以及为什么方法要挂 prototype。\n\n把方法挂在 prototype 上而不是构造函数内部，可以避免每个实例都复制一份函数。实例读取属性时先找自身，找不到就沿原型链向上查。因此 Robot.prototype.speak 是所有实例共享的，修改它会影响所有实例。判断属性是自身的还是继承的，用 hasOwnProperty；判断实例关系用 instanceof，它会沿原型链检查。原型链的终点是 Object.prototype，再往上就是 null。访问属性时引擎沿链查找，找到就返回，找不到返回 undefined。原型链越长，查找越慢，但通常可以忽略；真正的问题是链太深导致理解成本上升。继承层次控制在两三层以内。\n\n两个常见错误：第一，构造函数忘记写 new，this 会指向全局对象（非严格模式），属性被挂到全局；第二，把方法写在构造函数内部，每个实例都得到一份独立函数，浪费内存且无法统一修改。约定俗成的防护是构造函数开头检查 this instanceof Robot，或者用工厂函数替代。本课程统一使用 new 并保持首字母大写。工厂函数是构造函数的替代：function makeRobot(name) { return { name: name, speak: function () {...} }; }。它不需要 new，也不会出现忘记 new 的问题，但每个实例各有一份方法。构造函数加 prototype 更适合需要共享方法、需要 instanceof 判断的场景。"
+      },
+      {
+        "type": "text",
+        "text": "构造函数、原型、实例三者构成一条链：实例的 __proto__ 指向构造函数的 prototype，prototype 的 constructor 指回构造函数。这条链让实例能共享方法，也让 instanceof 能判断类型。不要把方法写在构造函数内部，那样每个实例都会创建一份函数，浪费内存且无法统一修改。原型上的属性是共享的，修改会影响所有实例，所以可变状态应放在实例上，方法放在原型上，这是 ES5 OOP 的基本分工。\n\n原型链上的方法查找是动态的：即使实例已经创建，之后往 prototype 上加方法，实例也能访问到。这让「给所有实例统一打补丁」成为可能，但也意味着运行期修改原型会影响所有代码。判断属性来源用 hasOwnProperty，遍历自身属性用 Object.keys。构造函数的名字首字母大写只是约定，真正让它成为构造函数的是 new 调用。忘记 new 时，非严格模式下 this 指向全局，属性会挂错地方。\n\n构造函数返回对象时，new 的结果会被这个对象替换；返回基本类型则被忽略。这个特性很少需要，但读旧代码时可能遇到。原型上的 constructor 属性默认指向构造函数本身，手动替换 prototype 后要修正它，否则类型判断会出错。instanceof 对基本类型返回 false，对 null 和 undefined 也返回 false。"
+      },
+      {
+        "type": "text",
+        "text": "原型方法里的 this 指向调用它的实例，所以实例之间共享方法但状态独立。如果方法内部需要访问构造函数的私有变量，只能用闭包，不能用 prototype。构造函数适合需要 instanceof 判断、需要共享方法的场景；工厂函数适合不需要类型判断、每个实例行为略有差异的场景。两者没有绝对优劣，看需求。"
+      },
+      {
+        "type": "code",
+        "code": "function Robot(name, level) {\n  this.name = name;\n  this.level = level;\n}\n\nRobot.prototype.speak = function () {\n  return 'I am ' + this.name;\n};\n\nRobot.prototype.upgrade = function () {\n  this.level = this.level + 1;\n  return this.level;\n};\n\nvar r = new Robot('V', 66);\nconsole.log(r.speak());\nconsole.log(r.upgrade());\nconsole.log(r instanceof Robot);\nconsole.log(r.hasOwnProperty('name'), r.hasOwnProperty('speak'));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "I am V\n67\ntrue\ntrue false"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "概念",
+          "位置",
+          "判断方式"
+        ],
+        "rows": [
+          [
+            "实例属性",
+            "构造函数内 this.x = ...",
+            "obj.hasOwnProperty('x')"
+          ],
+          [
+            "共享方法",
+            "Constructor.prototype.fn",
+            "不是实例自身属性"
+          ],
+          [
+            "原型对象",
+            "Constructor.prototype",
+            "Object.getPrototypeOf(obj)"
+          ],
+          [
+            "实例关系",
+            "new Constructor()",
+            "obj instanceof Constructor"
+          ]
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "构造函数里 return 一个对象会覆盖 new 的结果；return 基本类型则被忽略。不要依赖这个特性写业务逻辑，它只会让调用方困惑。"
+      },
+      {
+        "type": "quiz",
+        "question": "new Robot('V') 之后，r.speak 这个函数来自哪里？",
+        "options": [
+          "每个实例各有一份",
+          "Robot.prototype",
+          "全局对象",
+          "Robot 函数自身"
+        ],
+        "answer": 1,
+        "explain": "方法挂在 Robot.prototype 上，所有实例共享同一份函数，通过原型链查找到。"
+      },
+      {
+        "type": "code",
+        "code": "function Counter(start) {\n  this.value = start;\n}\n\nCounter.prototype.add = function (n) {\n  this.value = this.value + n;\n  return this.value;\n};\n\nvar a = new Counter(0);\nvar b = new Counter(100);\n\nconsole.log(a.add(5));\nconsole.log(b.add(1));\nconsole.log(a.value, b.value);\n\nCounter.prototype.add = function (n) {\n  this.value = this.value + n * 10;\n  return this.value;\n};\nconsole.log(a.add(1));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "5\n101\n5 101\n15"
+      },
+      {
+        "type": "practice",
+        "title": "共享方法",
+        "code": "function Point(x, y) {\n  this.x = x;\n  this.y = y;\n}\n\nPoint.prototype.describe = function () {\n  return '(' + this.x + ',' + this.y + ')';\n};\n\nconsole.log(new Point(3, 4).describe());",
+        "output": "(3,4)",
+        "hint": "describe 挂在 prototype 上，实例通过原型链调用。"
+      }
+    ],
+    "exercise": {
+      "title": "坦克工厂",
+      "brief": "用构造函数实现 Tank(name, hp)：实例有 name、hp 属性；prototype 上有 hit(damage) 扣血（最低 0）并返回剩余血量；isAlive() 返回 hp > 0。",
+      "starterCode": "function Tank(name, hp) {\n  // 挂实例属性\n\n}\n\nTank.prototype.hit = function (damage) {\n  // 扣血，最低 0\n\n};\n\nTank.prototype.isAlive = function () {\n  // 返回布尔值\n\n};\n\nvar t = new Tank('V', 50);\nconsole.log(t.hit(20));",
+      "hint": "构造函数里 this.name = name; this.hp = hp; hit 里 this.hp = Math.max(0, this.hp - damage); return this.hp;",
+      "tests": [
+        "var t = new Tank('V', 50);\nassert(t.name === 'V' && t.hp === 50, '实例属性正确')",
+        "assert(t.hit(20) === 30, '扣血后剩 30')",
+        "assert(t.hit(999) === 0 && t.isAlive() === false, '血量最低为 0')",
+        "var t2 = new Tank('J', 10);\nassert(t2.hp === 10 && t.hp === 0, '实例互不影响')",
+        "assert(Tank.prototype.hasOwnProperty('hit'), '方法应挂在 prototype 上')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function Tank(name, hp) {\n  this.name = name;\n  this.hp = hp;\n}\n\nTank.prototype.hit = function (damage) {\n  this.hp = Math.max(0, this.hp - damage);\n  return this.hp;\n};\n\nTank.prototype.isAlive = function () {\n  return this.hp > 0;\n};\n\nvar t = new Tank('V', 50);\nconsole.log(t.hit(20));"
+    }
+  },
+  {
+    "id": "js22",
+    "order": 321,
+    "chapter": 23,
+    "chapterName": "JavaScript · 进阶篇",
+    "lang": "javascript",
+    "title": "this / call / apply / bind",
+    "subtitle": "调用方式决定 this",
+    "xp": 110,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "this 不是声明出来的，是调用出来的"
+      },
+      {
+        "type": "text",
+        "text": "this 的值由调用方式决定，而不是函数定义的位置。四种常见绑定：作为方法调用 obj.fn()，this 是 obj；普通函数调用 fn()，非严格模式下 this 是全局对象，严格模式下是 undefined；用 new 调用，this 是新创建的实例；用 call/apply/bind 显式指定，this 就是你传入的对象。箭头函数例外，它没有自己的 this，捕获定义时外层的 this。this 的绑定优先级：new 调用最高，其次 call/apply/bind，再次方法调用，最后普通调用。箭头函数不参与这套规则，它直接捕获外层 this。判断 this 时按优先级从高到低套，基本不会错。\n\ncall 和 apply 立即执行函数，区别只在传参方式：call(thisArg, a, b)，apply(thisArg, [a, b])。bind 不执行，返回一个绑定了 this 的新函数，还可以预设部分参数（偏函数）。把方法从对象上摘下来单独调用时，this 会丢失，这是回调场景最常见的 bug，用 bind 或箭头函数包一层即可。把方法作为回调传递时，this 丢失是最常见的 bug。三种修复方式：bind 绑定、箭头函数包一层、调用处用 obj.method() 形式。bind 返回新函数，适合需要反复调用的场景；箭头函数每次创建新函数，适合一次性回调。\n\n严格模式用 'use strict' 开启，它让普通调用的 this 变成 undefined，而不是偷偷指向全局。这能尽早暴露 this 丢失的问题。另一个细节：call 传 null 或 undefined 时，非严格模式会把 this 替换成全局对象，严格模式保持原值。调试 this 问题时，先问「这个函数是怎么被调用的」，答案通常就在调用点。call 和 apply 的区别只在参数形式，性能差异可以忽略。apply 的经典用法是把数组展开给 Math.max/min，或者借用数组方法处理类数组对象。bind 除了绑定 this，还能预设参数，形成偏函数，这是函数式编程的常用技巧。"
+      },
+      {
+        "type": "text",
+        "text": "this 的规则可以用一句话概括：看调用点，不看定义点。obj.fn() 的 this 是 obj，fn() 的 this 是全局或 undefined，new Fn() 的 this 是新实例，fn.call(x) 的 this 是 x。箭头函数是唯一例外，它没有自己的 this，定义时外层是谁就是谁。调试 this 问题时，先找到调用那一行，再看是不是把方法摘下来单独调用了。bind 可以永久固定 this，是回调场景的常用解药。\n\ncall、apply、bind 的本质都是「指定 this 调用函数」。call 和 apply 立即执行，bind 返回新函数。apply 的第二个参数是数组，适合参数数量不定的场景；call 适合参数固定的场景。bind 还可以预设参数，形成偏函数：var add5 = add.bind(null, 5)。箭头函数没有 arguments，也没有自己的 this，不能用作构造函数。需要动态 this 的方法不要写成箭头函数。\n\nthis 丢失的另一种场景是对象方法被赋值给另一个对象的同名属性。解决方式除了 bind，还可以在定义时用箭头函数捕获外层 this。但箭头函数不能用作构造函数，也不能用 call/apply 改变 this。选择哪种方式取决于是否需要动态 this：需要就用普通函数加 bind，不需要就用箭头函数。"
+      },
+      {
+        "type": "text",
+        "text": "调试 this 时可以在函数第一行打印 this，观察它到底是什么。非严格模式下普通调用的 this 是全局对象，严格模式下是 undefined。方法调用时 this 是调用它的对象，但把方法赋给变量后再调用就丢了。箭头函数的 this 在定义时确定，之后不会改变，适合用在回调里保持外层上下文。\n\n最后给出一个判断口诀：看到 this，先找调用表达式；看到箭头函数，直接找外层；看到 bind，认准绑定的对象。三者按顺序检查，基本不会判断错。写代码时尽量让 this 的使用局部化，方法内部不要跨多层回调引用 this，需要时先存成 var self = this，这是 ES5 时代最稳的写法。"
+      },
+      {
+        "type": "code",
+        "code": "var ship = {\n  name: 'Normandy',\n  greet: function (pilot) {\n    return this.name + ' -> ' + pilot;\n  }\n};\n\nconsole.log(ship.greet('Joker'));\n\nvar detached = ship.greet;\nconsole.log(detached.call({ name: 'SR2' }, 'V'));\nconsole.log(ship.greet.apply({ name: 'SR1' }, ['Judy']));\n\nvar bound = ship.greet.bind({ name: 'Bound' }, 'Jackie');\nconsole.log(bound());",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "Normandy -> Joker\nSR2 -> V\nSR1 -> Judy\nBound -> Jackie"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "调用方式",
+          "this 指向",
+          "示例"
+        ],
+        "rows": [
+          [
+            "方法调用",
+            "调用它的对象",
+            "obj.fn()"
+          ],
+          [
+            "普通调用",
+            "全局 / undefined（严格）",
+            "var f = obj.fn; f()"
+          ],
+          [
+            "new 调用",
+            "新实例",
+            "new Fn()"
+          ],
+          [
+            "call / apply",
+            "显式传入的第一个参数",
+            "fn.call(ctx, a)"
+          ],
+          [
+            "bind",
+            "固定为新函数的第一参数",
+            "var g = fn.bind(ctx)"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "偏函数：fn.bind(null, 1) 把第一个参数固定为 1，之后调用只需传剩余参数。bind 返回新函数，原函数不受影响。"
+      },
+      {
+        "type": "quiz",
+        "question": "var f = obj.method; f(); 在非严格模式下，f 内部的 this 是？",
+        "options": [
+          "obj",
+          "undefined",
+          "全局对象",
+          "null"
+        ],
+        "answer": 2,
+        "explain": "方法被摘下来单独调用，绑定丢失；非严格模式下 this 回落到全局对象。"
+      },
+      {
+        "type": "code",
+        "code": "function sum(a, b) {\n  return this.base + a + b;\n}\n\nvar ctx = { base: 100 };\n\nconsole.log(sum.call(ctx, 1, 2));\nconsole.log(sum.apply(ctx, [3, 4]));\n\nvar addTen = sum.bind(ctx, 10);\nconsole.log(addTen(5));\n\nfunction Person(name) {\n  this.name = name;\n}\nPerson.prototype.say = function () {\n  return 'I am ' + this.name;\n};\n\nvar p = new Person('V');\nvar say = p.say.bind(p);\nconsole.log(say());",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "103\n107\n115\nI am V"
+      },
+      {
+        "type": "practice",
+        "title": "借用方法",
+        "code": "var stats = { values: [3, 9, 2] };\n\nvar max = Math.max.apply(null, stats.values);\n\nconsole.log(max);\nconsole.log(Math.max.apply(null, [1, 5, 4]));",
+        "output": "9\n5",
+        "hint": "apply 把数组展开成参数列表，Math.max 需要一个个数字。"
+      }
+    ],
+    "exercise": {
+      "title": "绑定工具",
+      "brief": "实现 bindAll(obj, names)：names 是方法名数组，返回一个新对象，其中每个方法都绑定到 obj，单独调用也不会丢失 this。",
+      "starterCode": "function bindAll(obj, names) {\n  // 逐个 bind 后放进新对象\n\n}\n\nvar ship = { name: 'Normandy', greet: function () { return this.name; } };\nvar safe = bindAll(ship, ['greet']);\nvar g = safe.greet;\nconsole.log(g());",
+      "hint": "var out = {}; 遍历 names，out[name] = obj[name].bind(obj); 最后 return out。",
+      "tests": [
+        "var ship = { name: 'N', greet: function () { return this.name; } };\nvar safe = bindAll(ship, ['greet']);\nvar g = safe.greet;\nassert(g() === 'N', '解绑后仍能读到 this.name')",
+        "var ctx = { n: 5, add: function (x) { return this.n + x; } };\nvar b = bindAll(ctx, ['add']).add;\nassert(b(3) === 8, '带参数的方法也要绑定')",
+        "var o = { a: function () { return 1; }, b: function () { return 2; } };\nvar both = bindAll(o, ['a','b']);\nassert(both.a() === 1 && both.b() === 2, '多个方法一起绑定')",
+        "assert(typeof bindAll({ x: function () {} }, []).x === 'undefined', '空数组返回空对象')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function bindAll(obj, names) {\n  var out = {};\n  for (var i = 0; i < names.length; i++) {\n    var key = names[i];\n    out[key] = obj[key].bind(obj);\n  }\n  return out;\n}\n\nvar ship = { name: 'Normandy', greet: function () { return this.name; } };\nvar safe = bindAll(ship, ['greet']);\nvar g = safe.greet;\nconsole.log(g());"
+    }
+  },
+  {
+    "id": "js23",
+    "order": 322,
+    "chapter": 23,
+    "chapterName": "JavaScript · 进阶篇",
+    "lang": "javascript",
+    "title": "原型继承",
+    "subtitle": "ES5 的 OOP 组装术",
+    "xp": 120,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把原型链接起来"
+      },
+      {
+        "type": "text",
+        "text": "继承的本质是让子类的实例能访问父类原型上的方法。ES5 的标准做法分两步：子类构造函数内部调用父类构造函数（借用 this），再把子类的 prototype 设为一个以父类 prototype 为原型的空对象。第二步不能写成 Child.prototype = Parent.prototype，否则子类方法会污染父类；要写 Object.create(Parent.prototype)。继承设置的三行模板要背下来：Child.prototype = Object.create(Parent.prototype); Child.prototype.constructor = Child; 构造函数里 Parent.call(this, ...)。少任何一行都会留下隐患：不接原型就没有继承，不修 constructor 就判断错类型，不调父构造函数就缺属性。\n\n接好原型链后，还要修正 constructor 指向：Child.prototype.constructor = Child。否则实例的 constructor 会指向 Parent。方法覆盖时，子类可以定义同名方法，需要复用父类实现就用 Parent.prototype.method.call(this, ...)。这就是 ES5 世界里的 super。整条链路是：实例 -> 子类 prototype -> 父类 prototype -> Object.prototype -> null。方法覆盖时想复用父类实现，用 Parent.prototype.method.call(this, args)。直接写 this.method() 会递归调用自己。覆盖的方法签名应与父类一致，返回值语义也要一致，否则调用方按父类契约使用时会出现意外。\n\n原型继承的坑集中在三处：忘记 Object.create 导致共享原型；忘记修正 constructor 导致 instanceof 之外的判断出错；在构造函数里忘了调用父类构造函数，导致父类属性缺失。另外，给原型加方法要在创建实例之前完成，或者接受已创建实例也能看到新方法（原型是活的，这一点其实是优势）。组合优于继承：如果两个类只是共享一部分行为，用 mixin 或把共享逻辑抽成独立函数，比硬套继承层级更灵活。继承表达「是一种」，组合表达「有一个」，大多数业务场景其实是后者。"
+      },
+      {
+        "type": "text",
+        "text": "ES5 的继承写法虽然啰嗦，但每一行都有明确目的：借用父类构造函数复制实例属性，用 Object.create 接上原型链，修正 constructor 保持类型判断正确。理解这三步，再去看 ES6 的 class 语法，会发现它只是同一套机制的语法糖。继承的层次不宜过深，两三层足够；更多时候应该用组合，把可复用的行为抽成独立函数或混入对象。继承表达「是一种」，组合表达「有一个」，业务代码里后者更常见。\n\n继承链上的方法查找顺序是：实例自身 -> 子类 prototype -> 父类 prototype -> Object.prototype。任何一环找到同名方法就停止，所以子类方法会覆盖父类方法。想调用父类实现，用 Parent.prototype.method.call(this)。instanceof 检查的是原型链上是否存在某个 prototype，而不是构造函数本身。Object.create(null) 创建的对象没有原型链，适合做纯字典，但不能调用 hasOwnProperty 等方法。\n\n继承体系设计时，父类只放通用行为和字段，子类放差异部分。父类构造函数不要做太多事，尤其是不要调用子类才能提供的方法，否则初始化顺序会出问题。方法覆盖时保持签名一致，返回值语义一致。能用组合解决的问题不要用继承，继承层次越深，修改父类的影响面越大。"
+      },
+      {
+        "type": "text",
+        "text": "继承体系的测试要覆盖：父类方法可访问、子类方法可访问、覆盖方法生效、instanceof 两级都成立、constructor 指向正确。任何一项失败都说明原型链接错了。修改原型后，已创建的实例也会看到新方法，这是原型动态性的体现。不要在继承链上放可变共享状态，那会导致实例之间互相影响。"
+      },
+      {
+        "type": "code",
+        "code": "function Unit(name, hp) {\n  this.name = name;\n  this.hp = hp;\n}\nUnit.prototype.describe = function () {\n  return this.name + '(' + this.hp + ')';\n};\nUnit.prototype.hit = function (dmg) {\n  this.hp = Math.max(0, this.hp - dmg);\n  return this.hp;\n};\n\nfunction Ninja(name, hp, weapon) {\n  Unit.call(this, name, hp);\n  this.weapon = weapon;\n}\nNinja.prototype = Object.create(Unit.prototype);\nNinja.prototype.constructor = Ninja;\n\nNinja.prototype.hit = function (dmg) {\n  return Unit.prototype.hit.call(this, Math.floor(dmg / 2));\n};\n\nvar n = new Ninja('K', 100, 'katana');\nconsole.log(n.describe());\nconsole.log(n.hit(30));\nconsole.log(n instanceof Ninja, n instanceof Unit);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "K(100)\n85\ntrue true"
+      },
+      {
+        "type": "diagram",
+        "text": "n（实例）\n └─ Ninja.prototype { hit, constructor }\n     └─ Unit.prototype { describe, hit }\n         └─ Object.prototype\n             └─ null"
+      },
+      {
+        "type": "warn",
+        "text": "不要修改内置对象的原型（如 Array.prototype），这会影响运行环境里的所有代码，属于典型的全局污染。"
+      },
+      {
+        "type": "quiz",
+        "question": "Ninja.prototype = Object.create(Unit.prototype) 的作用是？",
+        "options": [
+          "复制父类所有方法到子类",
+          "让子类原型以父类原型为原型",
+          "调用父类构造函数",
+          "把子类变成父类"
+        ],
+        "answer": 1,
+        "explain": "Object.create 创建一个新对象，并把它的原型设为参数。方法不复制，靠原型链查找。"
+      },
+      {
+        "type": "code",
+        "code": "function Shape(kind) {\n  this.kind = kind;\n}\nShape.prototype.area = function () {\n  return 0;\n};\nShape.prototype.info = function () {\n  return this.kind + ':' + this.area();\n};\n\nfunction Rect(w, h) {\n  Shape.call(this, 'rect');\n  this.w = w;\n  this.h = h;\n}\nRect.prototype = Object.create(Shape.prototype);\nRect.prototype.constructor = Rect;\nRect.prototype.area = function () {\n  return this.w * this.h;\n};\n\nvar r = new Rect(3, 4);\nconsole.log(r.info());\nconsole.log(r.constructor === Rect);\nconsole.log(Shape.prototype.isPrototypeOf(r));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "rect:12\ntrue\ntrue"
+      },
+      {
+        "type": "practice",
+        "title": "复用父类方法",
+        "code": "function Animal(name) {\n  this.name = name;\n}\nAnimal.prototype.speak = function () {\n  return this.name + ' makes a sound';\n};\n\nfunction Dog(name) {\n  Animal.call(this, name);\n}\nDog.prototype = Object.create(Animal.prototype);\nDog.prototype.constructor = Dog;\n\nconsole.log(new Dog('Rex').speak());",
+        "output": "Rex makes a sound",
+        "hint": "Dog 没定义 speak，沿原型链找到 Animal.prototype.speak。"
+      }
+    ],
+    "exercise": {
+      "title": "员工继承体系",
+      "brief": "实现 Person(name)：有 name 属性和 describe() 返回 name。实现 Engineer(name, stack)：继承 Person，额外有 stack 属性，describe() 返回 'name [stack]'。要求 instanceof 同时成立。",
+      "starterCode": "function Person(name) {\n  // 实例属性\n\n}\nPerson.prototype.describe = function () {\n  // 返回 name\n\n};\n\nfunction Engineer(name, stack) {\n  // 调用父类构造函数并挂 stack\n\n}\n// 接好原型链并修正 constructor\n\nconsole.log(new Engineer('V', 'JS').describe());",
+      "hint": "Engineer 里 Person.call(this, name)；Engineer.prototype = Object.create(Person.prototype)；再修正 constructor；覆盖 describe。",
+      "tests": [
+        "var p = new Person('Judy');\nassert(p.describe() === 'Judy', 'Person.describe 返回名字')",
+        "var e = new Engineer('V', 'JS');\nassert(e.describe() === 'V [JS]', 'Engineer 覆盖 describe')",
+        "assert(e instanceof Engineer && e instanceof Person, '两边的 instanceof 都应成立')",
+        "assert(e.constructor === Engineer, 'constructor 应修正为 Engineer')",
+        "assert(Person.prototype.describe.call(e) === 'V', '父类方法仍可借用')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function Person(name) {\n  this.name = name;\n}\nPerson.prototype.describe = function () {\n  return this.name;\n};\n\nfunction Engineer(name, stack) {\n  Person.call(this, name);\n  this.stack = stack;\n}\nEngineer.prototype = Object.create(Person.prototype);\nEngineer.prototype.constructor = Engineer;\nEngineer.prototype.describe = function () {\n  return this.name + ' [' + this.stack + ']';\n};\n\nconsole.log(new Engineer('V', 'JS').describe());"
+    }
+  },
+  {
+    "id": "js24",
+    "order": 323,
+    "chapter": 23,
+    "chapterName": "JavaScript · 进阶篇",
+    "lang": "javascript",
+    "title": "迭代器与生成器",
+    "subtitle": "function* 与惰性序列",
+    "xp": 120,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "可暂停的函数"
+      },
+      {
+        "type": "text",
+        "text": "生成器用 function* 声明，调用它不会立即执行函数体，而是返回一个迭代器。每次调用迭代器的 next()，函数执行到下一个 yield 就暂停，并把 yield 的值包装成 { value, done } 返回。这让我们能按需生成序列，而不是一次性把整个数组造出来。无限序列在生成器里是合法的，因为值只在被请求时才计算。生成器的执行是惰性的：调用生成器函数只创建迭代器，函数体一行都不执行；第一次 next 才运行到第一个 yield。这个特性让「无限序列」变得可行，因为值只在被请求时计算。需要多少取多少，不会撑爆内存。\n\n生成器天然实现了迭代器协议：有 next 方法，返回 { value, done }。因此可以直接用 for-of 遍历，也可以配合手写迭代器。next(value) 可以把值送回生成器，作为上一个 yield 表达式的结果。return 会提前结束并设置 done。理解「暂停/恢复」模型后，生成器可以用来写状态机、分页器、树遍历。next(value) 可以把值送回生成器，作为上一个 yield 表达式的结果，形成双向通信；这也是 async/await 的底层机制之一（本运行时不支持 async）。return 会提前结束生成器，done 变为 true，后续 next 都返回 undefined。\n\n生成器的价值在于「惰性」和「可组合」。惰性意味着不必为用不到的数据付出内存；可组合意味着可以写 take、map、filter 这样的生成器适配器，把数据管道拆成小步骤。代价是调试稍难、每次 next 有状态开销。数据量小的时候直接返回数组更简单，不要为了用生成器而用生成器。生成器适合：分页拉取、树结构遍历、无限序列、状态机。不适合：简单数组处理、需要随机访问、需要多次遍历同一序列（生成器只能消费一次）。选型时先问「数据要不要重复读」，答案是否就用数组。"
+      },
+      {
+        "type": "text",
+        "text": "生成器把「产出值」和「控制节奏」分开：函数体负责计算，调用方通过 next 决定何时继续。这种暂停能力让无限序列、懒加载、分页、树遍历变得自然。生成器只能消费一次，遍历完就结束；需要重复遍历时重新调用生成器函数。for-of 会自动处理 done，比手动 next 简洁。生成器的调试不如普通函数直观，关键位置加日志，或者用数组收集结果再检查。\n\n生成器的 next 可以传值，也可以传异常：it.throw(err) 会在暂停点抛出异常，it.return(v) 会提前结束。生成器委托用 yield* 把一个生成器的产出转交给另一个。生成器函数的返回值会放在最后一个 { value, done: true } 里。无限生成器必须配合 take 或 break 使用，否则 for-of 会永远跑下去。生成器不能跨脚本保存状态，但迭代器对象可以。\n\n生成器的调试可以用一个辅助函数把前 n 个值收集成数组，打印出来检查。生成器内部抛出的异常会传给 next 的调用方，可以用 try/catch 捕获。生成器函数不能是箭头函数，必须用 function*。yield 只能在生成器函数内部使用，嵌套函数里不行。"
+      },
+      {
+        "type": "text",
+        "text": "生成器的常见用途是分页：每次 yield 一页数据，调用方处理完再请求下一页。也可以用来做树的深度优先遍历，把递归改成可暂停的迭代。生成器函数的返回值会出现在 done 为 true 的那次 next 里，别忘了取。生成器不能重复使用，需要重新遍历时再调用一次生成器函数。"
+      },
+      {
+        "type": "code",
+        "code": "function* naturals() {\n  var i = 0;\n  while (true) {\n    yield i;\n    i = i + 1;\n  }\n}\n\nvar it = naturals();\nconsole.log(it.next().value);\nconsole.log(it.next().value);\nconsole.log(it.next().value);\n\nfunction* take(source, n) {\n  var count = 0;\n  for (var v of source) {\n    if (count >= n) return;\n    yield v;\n    count = count + 1;\n  }\n}\n\nvar out = [];\nfor (var x of take(naturals(), 5)) {\n  out.push(x);\n}\nconsole.log(out.join(','));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "0\n1\n2\n0,1,2,3,4"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "成员",
+          "作用",
+          "示例"
+        ],
+        "rows": [
+          [
+            "function*",
+            "声明生成器函数",
+            "function* gen() {}"
+          ],
+          [
+            "yield",
+            "产出一个值并暂停",
+            "yield i;"
+          ],
+          [
+            "next()",
+            "恢复执行，返回 {value, done}",
+            "it.next()"
+          ],
+          [
+            "return",
+            "提前结束生成器",
+            "return;"
+          ],
+          [
+            "for-of",
+            "自动消费到 done",
+            "for (var v of gen())"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "生成器函数调用后函数体一行都没执行，只有第一次 next() 才开始。这是判断「是不是生成器」的最快方式。"
+      },
+      {
+        "type": "quiz",
+        "question": "function* g() { yield 1; yield 2; } 调用 g() 之后立即得到什么？",
+        "options": [
+          "1",
+          "[1, 2]",
+          "一个迭代器对象",
+          "undefined"
+        ],
+        "answer": 2,
+        "explain": "生成器函数返回迭代器，函数体尚未执行；第一次 next() 才执行到第一个 yield。"
+      },
+      {
+        "type": "code",
+        "code": "function* range(start, end) {\n  for (var i = start; i < end; i++) {\n    yield i;\n  }\n}\n\nvar values = [];\nfor (var n of range(2, 6)) {\n  values.push(n * n);\n}\nconsole.log(values.join(' '));\n\nfunction* mapGen(source, fn) {\n  for (var v of source) {\n    yield fn(v);\n  }\n}\n\nvar doubled = [];\nfor (var d of mapGen(range(1, 4), function (x) { return x * 2; })) {\n  doubled.push(d);\n}\nconsole.log(doubled.join(','));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "4 9 16 25\n2,4,6"
+      },
+      {
+        "type": "practice",
+        "title": "手动取三个",
+        "code": "function* letters() {\n  yield 'a';\n  yield 'b';\n  yield 'c';\n}\n\nvar it = letters();\nconsole.log(it.next().value);\nconsole.log(it.next().value);\nconsole.log(it.next().done);\nconsole.log(it.next().done);",
+        "output": "a\nb\nfalse\ntrue",
+        "hint": "第三次 next 返回 c 且 done 为 false；第四次才 done 为 true。"
+      }
+    ],
+    "exercise": {
+      "title": "生成器工具",
+      "brief": "实现 genRange(start, end)：生成 [start, end) 的整数。实现 takeGen(iterable, n)：返回前 n 个元素组成的数组。",
+      "starterCode": "function* genRange(start, end) {\n  // 逐个 yield\n\n}\n\nfunction takeGen(iterable, n) {\n  // 用 for-of 收集前 n 个\n\n}\n\nconsole.log(takeGen(genRange(1, 10), 3).join(','));",
+      "hint": "genRange 用 for 循环 yield；takeGen 里 count 达到 n 就 break，把值 push 进数组。",
+      "tests": [
+        "assert(JSON.stringify(takeGen(genRange(1, 10), 3)) === '[1,2,3]', '取前 3 个')",
+        "assert(JSON.stringify(takeGen(genRange(5, 6), 5)) === '[5]', '不足 n 个时全部返回')",
+        "assert(JSON.stringify(takeGen(genRange(0, 0), 3)) === '[]', '空区间返回空数组')",
+        "var it = genRange(2, 4);\nassert(it.next().value === 2 && it.next().value === 3 && it.next().done === true, '生成器逐个产出并结束')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function* genRange(start, end) {\n  for (var i = start; i < end; i++) {\n    yield i;\n  }\n}\n\nfunction takeGen(iterable, n) {\n  var out = [];\n  for (var v of iterable) {\n    if (out.length >= n) break;\n    out.push(v);\n  }\n  return out;\n}\n\nconsole.log(takeGen(genRange(1, 10), 3).join(','));"
+    }
+  },
+  {
+    "id": "js25",
+    "order": 324,
+    "chapter": 23,
+    "chapterName": "JavaScript · 进阶篇",
+    "lang": "javascript",
+    "title": "递归与算法",
+    "subtitle": "自己调用自己的艺术",
+    "xp": 120,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把大问题拆成同构的小问题"
+      },
+      {
+        "type": "text",
+        "text": "递归函数在内部调用自己，把规模为 n 的问题化成规模更小的同类问题。写递归只需要想清楚两件事：基准情形（什么时候直接返回，不再递归）和递归步骤（如何把 n 变成 n-1 或更小）。缺少基准情形会导致无限递归，最终栈溢出。递归的思维价值在于「相信子调用能正确工作」，不要试图在脑子里展开每一层。递归的思考方式是数学归纳法：证明基准情形成立，假设 n-1 成立，证明 n 也成立。写代码时只写这两步，不要试图在脑中展开整个调用树。调试递归时打印深度和参数，能快速看出是哪一层没有收敛。\n\n递归不是免费的：每次调用都会压栈，深度过大（通常几万层）会抛 RangeError: Maximum call stack size exceeded。斐波那契的朴素递归复杂度是 O(2^n)，因为大量重复计算；用记忆化（缓存已算结果）可以降到 O(n)。尾递归在部分语言里能优化，但 JS 引擎普遍不保证，所以深递归应改成循环或显式栈。递归深度受调用栈限制，浏览器和 Node 通常在几千到几万层。树遍历、深拷贝这类天然递归的问题，如果数据可能很深，要改成显式栈的迭代写法。显式栈用数组 push/pop 模拟调用栈，代码长但不会栈溢出。"
+      },
+      {
+        "type": "text",
+        "text": "记忆化递归用一个对象缓存参数到结果的映射：进入函数先查缓存，算完写回。参数必须是可稳定序列化的简单值，否则缓存键会撞。更通用的做法是把缓存放在闭包里，避免污染全局。递归和迭代可以互相转换：任何递归都能用显式栈模拟，但代码通常更长；选择的标准是清晰度和深度。记忆化是递归优化的第一把刀：用对象缓存参数到结果的映射。缓存键要能唯一标识参数，多个参数时拼接字符串或嵌套 Map。缓存放在闭包里避免全局污染。斐波那契、爬楼梯、路径计数都是记忆化的经典题。\n\n递归和迭代是同一件事的两种表达。递归更贴近数学定义，代码短、可读性好；迭代更贴近机器执行，内存可控、不会栈溢出。选择标准是问题本身的形状：树、分治、回溯天然适合递归；线性扫描、累计计算适合迭代。写递归时先写终止条件，再写递推关系，最后检查是否重复计算。记忆化能把指数级递归降到多项式级，是性价比最高的优化手段之一。"
+      },
+      {
+        "type": "text",
+        "text": "递归的终止条件要覆盖所有分支，包括空数组、null、负数。写递归前先写出递推公式，再翻译成代码。递归深度过大时改为迭代，用显式栈保存待处理节点。记忆化的缓存键要能唯一标识参数，多参数时用分隔符拼接或嵌套 Map。动态规划本质上是「自底向上的记忆化」，先把小规模的结果算好存表，再逐步推到目标规模。\n\n递归算法的复杂度分析要看递归树：每层有多少个子问题、每个子问题规模多大、树有多深。斐波那契的递归树是指数级的，记忆化后每个状态只算一次，降到线性。树的遍历每个节点访问一次，是线性的。写递归时先把递推关系写清楚，再考虑优化，不要一上来就纠结性能。"
+      },
+      {
+        "type": "code",
+        "code": "function factorial(n) {\n  if (n <= 1) return 1;\n  return n * factorial(n - 1);\n}\n\nfunction fib(n) {\n  if (n < 2) return n;\n  return fib(n - 1) + fib(n - 2);\n}\n\nconsole.log(factorial(5));\nconsole.log(fib(10));\n\nfunction sumTree(node) {\n  if (node === null) return 0;\n  return node.value + sumTree(node.left) + sumTree(node.right);\n}\n\nvar tree = {\n  value: 1,\n  left: { value: 2, left: null, right: null },\n  right: { value: 3, left: null, right: null }\n};\nconsole.log(sumTree(tree));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "120\n55\n6"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "问题",
+          "基准情形",
+          "递归步骤"
+        ],
+        "rows": [
+          [
+            "阶乘",
+            "n <= 1 返回 1",
+            "n * factorial(n-1)"
+          ],
+          [
+            "斐波那契",
+            "n < 2 返回 n",
+            "fib(n-1) + fib(n-2)"
+          ],
+          [
+            "树求和",
+            "节点为 null 返回 0",
+            "value + 左 + 右"
+          ],
+          [
+            "数组求和",
+            "空数组返回 0",
+            "首元素 + 剩余部分"
+          ]
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "递归函数一定要先写基准情形，再写递归步骤。只写递归步骤的代码在运行时才会暴露问题，而且往往以栈溢出的形式出现。"
+      },
+      {
+        "type": "quiz",
+        "question": "朴素递归 fib(30) 很慢，主要原因是？",
+        "options": [
+          "函数调用开销大",
+          "重复计算大量子问题",
+          "数字太大溢出",
+          "缺少基准情形"
+        ],
+        "answer": 1,
+        "explain": "fib(n-1) 和 fib(n-2) 会重复计算同一批子问题，复杂度指数级。记忆化可以消除重复。"
+      },
+      {
+        "type": "code",
+        "code": "function fibMemo(n, memo) {\n  if (memo === undefined) memo = {};\n  if (memo[n] !== undefined) return memo[n];\n  if (n < 2) return n;\n  memo[n] = fibMemo(n - 1, memo) + fibMemo(n - 2, memo);\n  return memo[n];\n}\n\nconsole.log(fibMemo(10));\nconsole.log(fibMemo(40));\n\nfunction flatten(list) {\n  var out = [];\n  for (var i = 0; i < list.length; i++) {\n    if (Array.isArray(list[i])) {\n      var inner = flatten(list[i]);\n      for (var j = 0; j < inner.length; j++) out.push(inner[j]);\n    } else {\n      out.push(list[i]);\n    }\n  }\n  return out;\n}\nconsole.log(flatten([1, [2, [3, 4]], 5]).join(','));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "55\n102334155\n1,2,3,4,5"
+      },
+      {
+        "type": "practice",
+        "title": "递归求和",
+        "code": "function sum(list) {\n  if (list.length === 0) return 0;\n  return list[0] + sum(list.slice(1));\n}\n\nconsole.log(sum([1, 2, 3, 4]));\nconsole.log(sum([]));",
+        "output": "10\n0",
+        "hint": "基准情形是空数组；递归步骤取首元素，剩下的交给子调用。"
+      }
+    ],
+    "exercise": {
+      "title": "递归工具箱",
+      "brief": "实现 power(base, exp)：用递归计算 base 的 exp 次方（exp 为非负整数，0 次方返回 1）。实现 countDown(n)：返回从 n 到 0 的数组，n 小于 0 返回空数组。",
+      "starterCode": "function power(base, exp) {\n  // 基准情形 exp === 0\n\n}\n\nfunction countDown(n) {\n  // 递归拼接\n\n}\n\nconsole.log(power(2, 10));\nconsole.log(countDown(3).join(','));",
+      "hint": "power: if (exp === 0) return 1; return base * power(base, exp - 1); countDown: if (n < 0) return []; return [n].concat(countDown(n - 1));",
+      "tests": [
+        "assert(power(2, 10) === 1024, '2 的 10 次方')",
+        "assert(power(5, 0) === 1, '0 次方返回 1')",
+        "assert(power(3, 4) === 81, '3 的 4 次方')",
+        "assert(JSON.stringify(countDown(3)) === '[3,2,1,0]', '倒计时包含 0')",
+        "assert(JSON.stringify(countDown(-1)) === '[]', '负数返回空数组')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function power(base, exp) {\n  if (exp === 0) return 1;\n  return base * power(base, exp - 1);\n}\n\nfunction countDown(n) {\n  if (n < 0) return [];\n  return [n].concat(countDown(n - 1));\n}\n\nconsole.log(power(2, 10));\nconsole.log(countDown(3).join(','));"
+    }
+  },
+  {
+    "id": "js26",
+    "order": 325,
+    "chapter": 23,
+    "chapterName": "JavaScript · 进阶篇",
+    "lang": "javascript",
+    "title": "IIFE 与模块模式",
+    "subtitle": "用函数造一个封闭宇宙",
+    "xp": 110,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "立即执行函数表达式"
+      },
+      {
+        "type": "text",
+        "text": "IIFE（Immediately Invoked Function Expression）是定义后立刻执行的函数：(function () { ... })(); 外层括号把函数声明变成表达式，后面的括号立即调用它。它创建了一个独立作用域，内部的变量不会泄漏到全局。在模块系统出现之前，这是 JS 隔离代码的主要手段，至今仍用于初始化、避免全局污染和创建单例。IIFE 的本质是「函数表达式 + 立即调用」。外层括号不能省，否则解析器把 function 当成声明，声明后面直接跟括号会报语法错误。箭头函数也可以 IIFE：(() => { ... })()，但箭头函数没有 arguments，需要时用普通函数。\n\n模块模式在 IIFE 基础上增加「公开接口」：内部保留私有变量和函数，返回一个对象，只暴露必要的方法。外部拿不到私有状态，只能通过公开方法操作。这就是闭包的实际应用。现代项目用 ES Modules（import/export），但本运行时和很多老代码库仍依赖 IIFE，理解它对读旧代码非常重要。模块模式的三要素：私有状态、公开方法、单一实例。返回对象里的方法共享同一份闭包状态，因此天然是单例。需要多个实例时，把 IIFE 改成工厂函数，每次调用创建独立闭包。两者结构相同，只是执行时机不同。\n\nIIFE 的参数可以用来注入依赖： (function (window, undefined) { ... })(window) 这种写法在旧库里很常见，好处是内部引用更短，也能防止 undefined 被外部改写。本课程不需要这么极端，但可以借鉴「显式传入依赖」的思路：把外部依赖作为参数传进去，模块的可测试性会更好。IIFE 前加分号是防御性写法：如果上一个文件最后一行没有分号，下一行以 ( 开头会被解析成函数调用。现代构建工具会处理拼接，但手写脚本、书签脚本、嵌入式代码仍要注意。统一写分号最省心。"
+      },
+      {
+        "type": "text",
+        "text": "IIFE 和模块模式是 JS 模块化的史前史。在 import/export 出现之前，所有库都靠函数作用域隔离变量，靠返回对象暴露 API。这种模式至今仍有价值：写单文件脚本、书签工具、嵌入第三方页面的代码时，IIFE 能保证不污染全局。模块模式的私有变量通过闭包实现，外部只能调用公开方法，无法直接读写内部状态。理解它，再学 ES Modules 会更容易看清「模块」到底解决了什么问题。\n\nIIFE 的返回值可以是任何类型，常见的是对象（模块模式）或函数（工厂）。IIFE 内部的变量对外完全不可见，这是它最大的价值。命名 IIFE 便于调试，但名字只在内部有效。箭头函数 IIFE 写法更短，但没有 arguments 和 this。模块模式返回的对象方法共享同一份闭包状态，所以是单例；需要多实例时用工厂函数。\n\n模块模式返回的对象可以逐步扩展：先定义核心方法，再按需添加辅助方法，最后统一返回。内部函数之间可以互相调用，不需要通过返回对象。私有变量命名加下划线只是约定，真正的私有靠闭包实现。IIFE 的参数注入可以让依赖更明确，测试时也更容易替换。"
+      },
+      {
+        "type": "text",
+        "text": "IIFE 和模块模式在单文件脚本里非常实用：把变量包起来，只暴露一个全局名字。返回的对象就是模块的公开 API，内部实现可以随时替换。模块之间通过参数注入依赖，避免隐式依赖全局变量。现代项目虽然用 ES Modules，但理解模块模式有助于读懂打包后的代码和旧库。"
+      },
+      {
+        "type": "code",
+        "code": "var counterModule = (function () {\n  var count = 0;\n\n  function increase() {\n    count = count + 1;\n    return count;\n  }\n\n  function reset() {\n    count = 0;\n    return count;\n  }\n\n  return {\n    increase: increase,\n    reset: reset,\n    current: function () { return count; }\n  };\n})();\n\nconsole.log(counterModule.increase());\nconsole.log(counterModule.increase());\nconsole.log(counterModule.current());\nconsole.log(typeof counterModule.count);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "1\n2\n2\nundefined"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "作用域",
+          "典型用途"
+        ],
+        "rows": [
+          [
+            "(function () {})()",
+            "独立函数作用域",
+            "初始化、隔离变量"
+          ],
+          [
+            "模块模式",
+            "IIFE + 返回对象",
+            "私有状态 + 公开 API"
+          ],
+          [
+            "命名空间对象",
+            "单个全局对象挂方法",
+            "旧式库的组织方式"
+          ],
+          [
+            "ES Module",
+            "文件级作用域",
+            "现代项目的标准"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "如果 IIFE 前一行没有分号，JS 可能把上一行的表达式和它连起来解析。习惯上在 IIFE 前加分号，或者统一给每行语句写分号。"
+      },
+      {
+        "type": "quiz",
+        "question": "IIFE 的主要作用是？",
+        "options": [
+          "让函数执行得更快",
+          "创建独立作用域，避免污染全局",
+          "把函数变成对象",
+          "实现异步"
+        ],
+        "answer": 1,
+        "explain": "IIFE 立即执行并形成封闭作用域，内部变量外部不可见。"
+      },
+      {
+        "type": "code",
+        "code": "var config = (function () {\n  var secret = 'offline-mode';\n\n  function get(key) {\n    if (key === 'mode') return secret;\n    return null;\n  }\n\n  function set(key, value) {\n    if (key === 'mode') secret = value;\n  }\n\n  return { get: get, set: set };\n})();\n\nconsole.log(config.get('mode'));\nconfig.set('mode', 'online');\nconsole.log(config.get('mode'));\nconsole.log(typeof config.secret);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "offline-mode\nonline\nundefined"
+      },
+      {
+        "type": "practice",
+        "title": "一次性初始化",
+        "code": "var boot = (function () {\n  var started = true;\n  return {\n    started: function () { return started; },\n    stop: function () { started = false; }\n  };\n})();\n\nconsole.log(boot.started());\nboot.stop();\nconsole.log(boot.started());",
+        "output": "true\nfalse",
+        "hint": "started 被闭包保存，只能通过返回的方法读写。"
+      }
+    ],
+    "exercise": {
+      "title": "模块化计数器",
+      "brief": "实现 createStore(initial)：用闭包保存一个值，返回 { get, set, add }。get() 读值；set(v) 覆盖并返回值；add(n) 累加并返回新值。initial 缺省时按 0 处理。",
+      "starterCode": "function createStore(initial) {\n  // 用 IIFE 或普通闭包都可以\n\n}\n\nvar store = createStore(10);\nconsole.log(store.add(5));",
+      "hint": "var value = initial === undefined ? 0 : initial; 返回三个方法，全部读写 value。",
+      "tests": [
+        "var s = createStore(10);\nassert(s.get() === 10, '初始值 10')",
+        "assert(s.add(5) === 15 && s.get() === 15, 'add 累加并返回新值')",
+        "assert(s.set(0) === 0 && s.get() === 0, 'set 覆盖')",
+        "var d = createStore();\nassert(d.get() === 0, '缺省初始值为 0')",
+        "assert(typeof s.value === 'undefined', '内部值不应暴露')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function createStore(initial) {\n  var value = initial === undefined ? 0 : initial;\n  return {\n    get: function () { return value; },\n    set: function (v) { value = v; return value; },\n    add: function (n) { value = value + n; return value; }\n  };\n}\n\nvar store = createStore(10);\nconsole.log(store.add(5));"
+    }
+  },
+  {
+    "id": "js27",
+    "order": 326,
+    "chapter": 23,
+    "chapterName": "JavaScript · 进阶篇",
+    "lang": "javascript",
+    "title": "不可变数据与纯函数",
+    "subtitle": "让变化可控",
+    "xp": 120,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "同样的输入，永远同样的输出"
+      },
+      {
+        "type": "text",
+        "text": "纯函数满足两个条件：相同的输入永远返回相同的输出；不修改外部状态、不产生可观察的副作用。Math.max、数组的 slice、字符串方法都是纯的；push、sort、Math.random、console.log 不是。纯函数容易测试、容易推理、可以安全缓存，是函数式编程的基石。把业务计算写成纯函数，把读写外部世界的操作推到边界，代码会稳定得多。不可变更新的关键是「沿路径复制」：改嵌套字段时，从根到目标路径上的每个对象都要新建，其他分支保持共享。这样既避免了深拷贝的性能开销，又保证了新旧状态互不影响。手写辅助函数时，先复制再覆盖，顺序不能反。\n\n不可变数据指「不修改原对象，而是返回带改动的新对象」。JS 没有内置的持久化数据结构，但可以用浅复制加覆盖实现：var next = Object.assign({}, state, { level: 67 })；数组用 slice 复制后修改，或者用 concat、map、filter 生成新数组。嵌套结构要逐层复制，否则内层仍是共享引用。纯函数不等于「不调用其他函数」，而是不依赖外部可变状态、不产生副作用。读取全局配置算不算纯？如果配置在运行期不变，可以视为常量；如果会变，就不是纯函数。判断标准是「同样输入是否永远同样输出」。"
+      },
+      {
+        "type": "text",
+        "text": "不可变的代价是内存和写法啰嗦。Object.assign 只做浅复制，嵌套对象仍然共享；真正的深更新要写辅助函数，沿路径逐层复制。判断是否值得：状态被多方共享、需要撤销/重做、需要比较前后差异时，不可变收益很大；局部临时计算则没必要教条。关键是「谁拥有这份数据、谁有权修改」要有明确约定。不可变数据让时间旅行调试成为可能：保存每次的状态快照，就能回放任意一步。它也让 React 这类 UI 框架的更新判断变简单：引用变了就重渲染。代价是内存和写法，适合状态复杂、共享频繁的场景。\n\n纯函数和不可变数据是一对搭档：纯函数不修改输入，不可变数据保证旧状态不被意外改动，两者合起来让程序的行为可以预测。实际项目里不需要 100% 纯函数，边界层（读写存储、发请求、打印日志）天然有副作用，把它们隔离出来，核心计算保持纯即可。判断一个函数是否纯，看它有没有读写外部变量、有没有调用随机数或时间、有没有修改参数。纯函数最容易测试，因为它不依赖环境。"
+      },
+      {
+        "type": "text",
+        "text": "不可变更新在嵌套结构里要逐层复制：改 obj.a.b.c，需要新 obj、新 a、新 b，其他分支共享引用。手写容易出错，可以写一个 setIn 辅助函数，沿路径递归复制。数组的不可变操作有 concat、slice、map、filter，对象的不可变操作有 Object.assign、展开运算符（本运行时不支持展开，用 Object.assign 代替）。Object.freeze 只冻结第一层，深层仍需逐层处理。\n\n纯函数的测试非常直接：给定输入，断言输出，不需要准备环境。不可变更新的测试要断言两件事：新状态正确、旧状态未被修改。写不可变代码时，先复制再修改，顺序不能反；直接修改原对象再复制，旧状态已经被污染。深层次更新可以写通用的 setIn 工具，避免每层手写复制。"
+      },
+      {
+        "type": "code",
+        "code": "var state = { level: 66, hp: 100 };\n\nvar up = Object.assign({}, state, { level: 67 });\nvar hurt = Object.assign({}, state, { hp: 80 });\n\nconsole.log(state.level, up.level);\nconsole.log(state.hp, hurt.hp);\nconsole.log(state === up);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "66 67\n100 80\nfalse"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "操作",
+          "可变写法",
+          "不可变写法"
+        ],
+        "rows": [
+          [
+            "改对象字段",
+            "obj.x = 1",
+            "Object.assign({}, obj, {x:1})"
+          ],
+          [
+            "追加数组",
+            "arr.push(x)",
+            "arr.concat([x])"
+          ],
+          [
+            "删除字段",
+            "delete obj.x",
+            "复制后不写入该键"
+          ],
+          [
+            "排序",
+            "arr.sort()",
+            "arr.slice().sort()"
+          ],
+          [
+            "更新嵌套",
+            "obj.a.b = 1",
+            "逐层复制"
+          ]
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "Object.freeze 是浅冻结，嵌套对象仍可修改。它也不能阻止数组元素被重新赋值，除非逐层冻结。不要把它当成深度不可变方案。"
+      },
+      {
+        "type": "quiz",
+        "question": "var b = Object.assign({}, a); b.x = 9; 之后 a.x 会变吗？",
+        "options": [
+          "会，因为共享引用",
+          "不会，b 是新对象",
+          "取决于 x 的类型",
+          "报错"
+        ],
+        "answer": 1,
+        "explain": "Object.assign 把 a 的可枚举属性复制到新对象，b.x 修改的是新对象的属性，a 不受影响。"
+      },
+      {
+        "type": "code",
+        "code": "var cart = [\n  { name: 'chip', price: 10 },\n  { name: 'cell', price: 25 }\n];\n\nfunction addItem(items, item) {\n  return items.concat([item]);\n}\n\nfunction total(items) {\n  return items.reduce(function (sum, it) { return sum + it.price; }, 0);\n}\n\nvar bigger = addItem(cart, { name: 'deck', price: 100 });\n\nconsole.log(cart.length, bigger.length);\nconsole.log(total(cart), total(bigger));\n\nfunction applyDamage(state, dmg) {\n  return Object.assign({}, state, {\n    hp: Math.max(0, state.hp - dmg)\n  });\n}\n\nvar s1 = { hp: 100 };\nvar s2 = applyDamage(s1, 30);\nconsole.log(s1.hp, s2.hp);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "2 3\n35 135\n100 70"
+      },
+      {
+        "type": "practice",
+        "title": "不修改原数组",
+        "code": "var base = [3, 1, 2];\n\nvar sorted = base.slice().sort(function (a, b) { return a - b; });\nvar added = base.concat([4]);\n\nconsole.log(base.join(','), sorted.join(','), added.join(','));",
+        "output": "3,1,2 1,2,3 3,1,2,4",
+        "hint": "slice 复制后排序；concat 生成新数组，base 始终不变。"
+      }
+    ],
+    "exercise": {
+      "title": "不可变更新",
+      "brief": "实现 updateScore(state, delta)：返回新对象，score 增加 delta，其余字段不变，原对象不能被修改。实现 addTag(state, tag)：返回新对象，tags 是追加 tag 后的新数组，原 state 与 tags 都不能被修改。",
+      "starterCode": "function updateScore(state, delta) {\n  // 用 Object.assign 生成新对象\n\n}\n\nfunction addTag(state, tag) {\n  // tags 也要生成新数组\n\n}\n\nvar s = { score: 10, tags: ['a'] };\nconsole.log(updateScore(s, 5).score);",
+      "hint": "updateScore: Object.assign({}, state, { score: state.score + delta }); addTag 再额外传 { tags: state.tags.concat([tag]) }。",
+      "tests": [
+        "var s = { score: 10, tags: ['a'] };\nassert(updateScore(s, 5).score === 15 && s.score === 10, '新对象变化，原对象不变')",
+        "var s2 = { score: 1, extra: 'keep' };\nassert(updateScore(s2, 2).extra === 'keep', '其余字段应保留')",
+        "var t = addTag({ tags: ['a'] }, 'b');\nassert(JSON.stringify(t.tags) === '[\"a\",\"b\"]', 'tags 应追加')",
+        "assert(t !== null && JSON.stringify(t.tags) === '[\"a\",\"b\"]' && t.tags.length === 2, '返回新 tags')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function updateScore(state, delta) {\n  return Object.assign({}, state, { score: state.score + delta });\n}\n\nfunction addTag(state, tag) {\n  return Object.assign({}, state, { tags: state.tags.concat([tag]) });\n}\n\nvar s = { score: 10, tags: ['a'] };\nconsole.log(updateScore(s, 5).score);\nconsole.log(JSON.stringify(addTag(s, 'b').tags));"
+    }
+  },
+  {
+    "id": "js28",
+    "order": 327,
+    "chapter": 23,
+    "chapterName": "JavaScript · 进阶篇",
+    "lang": "javascript",
+    "title": "Promise 概念与链式",
+    "subtitle": "同步调度下的 then / catch / all",
+    "xp": 130,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "一个代表未来结果的对象"
+      },
+      {
+        "type": "text",
+        "text": "Promise 是一个占位对象，代表「现在还没有、将来会有的结果」。它有三种状态：pending（进行中）、fulfilled（成功）、rejected（失败），状态只能从 pending 变一次，之后不可逆。用 new Promise(function (resolve, reject) { ... }) 创建，成功调 resolve(value)，失败调 reject(error)。then 注册成功回调，catch 注册失败回调。Promise 的三种状态只能转换一次：pending 到 fulfilled 或 rejected，之后不可再变。resolve 一个 Promise 会等待它完成，这叫「状态吸收」。理解这一点，才能解释为什么 then 里返回 Promise 可以继续链式等待。\n\nthen 返回一个新的 Promise，因此可以链式调用：每个 then 的回调返回值会成为下一个 then 的输入；如果回调抛出异常，链条转入 rejected，由后面的 catch 接住。这就是 Promise 解决「回调地狱」的方式——把嵌套改成扁平的链。注意 then 的回调总是异步执行（微任务队列），所以它不会阻塞当前同步代码。错误传播是 Promise 的核心优势：链上任何一环抛错或返回 rejected，都会跳过后续的 then，直到遇到 catch。catch 本身返回新 Promise，回调返回值会让链恢复成功状态。把 catch 放在链尾，或者在每个可能失败的环节局部处理，按业务需要选择。\n\n本运行时（Rhino）的 Promise 是同步调度的：then 回调会在当前代码跑完后、同一轮里执行，不依赖事件循环。因此上面的输出里 sync first 先出现，随后才是 got 和 next。这与其他环境的微任务时序略有差异，但链式语义、错误传播、返回值传递完全一致。课程里的示例不依赖精确的微任务时序，只依赖「同步代码先跑、回调后跑」。本运行时没有事件循环意义上的宏任务，Promise 回调在脚本执行完后同步清空。所以「先注册后执行」的顺序仍然成立，但不要依赖精确的微任务时序写业务逻辑。判题时测试会在下一个脚本里看到回调结果，这已经足够验证链式语义。"
+      },
+      {
+        "type": "text",
+        "text": "Promise 解决了回调地狱的两个问题：错误处理分散、流程难以组合。链式调用让成功路径保持扁平，catch 统一兜底；Promise.all 让并行任务汇合，Promise.race 取最快的结果。then 的返回值会被自动包装成 Promise，所以可以返回普通值、Promise 或抛出异常。不要在一个 then 里嵌套另一个 then，那是退回回调地狱；把链拉平，每一步只做一件事。错误要尽早捕获，或者在最外层统一处理。\n\nPromise 的 then 可以只传成功回调，错误会继续向后传播；catch 等价于 then(null, onRejected)。Promise.all 在所有成功时返回结果数组，任何一个失败就整体失败；Promise.race 返回最先完成的结果，无论成功失败。Promise.resolve 可以包装普通值，Promise.reject 创建失败状态。本运行时的 Promise 回调在脚本结束后统一执行，写示例时不要在同一个脚本里依赖回调结果。\n\nPromise 链的最后一定要有 catch，否则失败会变成未处理的拒绝。catch 里可以返回兜底值让链恢复，也可以重新抛出。then 里返回 Promise 会等待它完成，返回普通值会立即传递。不要在 then 里写复杂的同步逻辑，那会阻塞后续链；把计算抽成函数，保持每一步短小。"
+      },
+      {
+        "type": "text",
+        "text": "Promise 的错误处理要区分「可恢复」和「不可恢复」：网络超时可以重试，参数错误重试也没用。catch 里根据错误类型决定策略，不要一律返回同一个兜底值。Promise.all 的失败会丢失其他成功结果，需要全部结果时用 allSettled（本运行时不一定支持），或者给每个 Promise 单独 catch。链式调用保持扁平，不要嵌套。"
+      },
+      {
+        "type": "code",
+        "code": "var p = new Promise(function (resolve, reject) {\n  resolve(7);\n});\n\np.then(function (v) {\n  console.log('got', v);\n  return v + 1;\n}).then(function (v) {\n  console.log('next', v);\n})['catch'](function (e) {\n  console.log('error', e.message);\n});\n\nconsole.log('sync first');",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "sync first\ngot 7\nnext 8"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "成员",
+          "作用",
+          "返回"
+        ],
+        "rows": [
+          [
+            "new Promise(executor)",
+            "创建 Promise，executor 立即执行",
+            "Promise 实例"
+          ],
+          [
+            "then(onFulfilled)",
+            "注册成功回调",
+            "新 Promise"
+          ],
+          [
+            "catch(onRejected)",
+            "注册失败回调",
+            "新 Promise"
+          ],
+          [
+            "Promise.resolve(v)",
+            "创建已成功的 Promise",
+            "Promise"
+          ],
+          [
+            "Promise.reject(e)",
+            "创建已失败的 Promise",
+            "Promise"
+          ],
+          [
+            "Promise.all(list)",
+            "等全部成功",
+            "结果数组的 Promise"
+          ]
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "Promise 一旦创建就会立即执行 executor，无法取消。不要在里面做不可回滚的副作用；需要惰性执行时包成函数，调用时再 new Promise。"
+      },
+      {
+        "type": "quiz",
+        "question": "then 回调里 return 5 之后，下一个 then 收到什么？",
+        "options": [
+          "undefined",
+          "5",
+          "原来的 Promise",
+          "报错"
+        ],
+        "answer": 1,
+        "explain": "then 的返回值会成为下一个 then 的输入；如果返回 Promise，还会等它 resolve。"
+      },
+      {
+        "type": "code",
+        "code": "Promise.resolve(2)\n  .then(function (v) { return v * 3; })\n  .then(function (v) { return v + 4; })\n  .then(function (v) { console.log('result', v); });",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "result 10"
+      },
+      {
+        "type": "practice",
+        "title": "错误恢复链",
+        "code": "Promise.reject(new Error('denied'))\n  .then(function () { console.log('never'); })\n  ['catch'](function (e) { return 'recovered:' + e.message; })\n  .then(function (v) { console.log(v); });",
+        "output": "recovered:denied",
+        "hint": "catch 的回调返回普通值时，链条重新变成成功状态。"
+      },
+      {
+        "type": "practice",
+        "title": "并行汇合",
+        "code": "Promise.all([Promise.resolve('a'), Promise.resolve('b')])\n  .then(function (list) { console.log('all', list.join('')); });",
+        "output": "all ab",
+        "hint": "Promise.all 等全部成功，结果顺序与输入顺序一致。"
+      },
+      {
+        "type": "practice",
+        "title": "错误恢复",
+        "code": "Promise.reject(new Error('boom'))\n  .then(function () { return 'skipped'; })\n  ['catch'](function (e) {\n    return 'recovered:' + e.message;\n  })\n  .then(function (v) { console.log(v); });",
+        "output": "recovered:boom",
+        "hint": "catch 的回调返回普通值时，链条重新变成成功状态，后续 then 会执行。"
+      }
+    ],
+    "exercise": {
+      "title": "Promise 工具集",
+      "brief": "实现 delayedValue(v)：返回一个立即 resolve 为 v 的 Promise。实现 chainDouble(p)：返回新 Promise，p 成功后把结果乘 2，失败则原样传递错误。",
+      "starterCode": "function delayedValue(v) {\n  // 返回已成功的 Promise\n\n}\n\nfunction chainDouble(p) {\n  // 用 then 转换，错误自动透传\n\n}\n\nchainDouble(delayedValue(5)).then(function (v) { console.log(v); });",
+      "hint": "delayedValue 用 Promise.resolve(v)；chainDouble 用 p.then(function (v) { return v * 2; })。",
+      "tests": [
+        "var seen = null;\ndelayedValue(7).then(function (v) { seen = v; });\nassert(seen === null, 'then 回调不应同步执行')",
+        "assert(seen === 7, '上一次判题结束后回调应已执行')",
+        "var out = null;\nchainDouble(Promise.resolve(5)).then(function (v) { out = v; });\nassert(out === null, '链式回调不应同步执行')",
+        "assert(out === 10, '上一次判题结束后结果应已翻倍')",
+        "assert(typeof chainDouble(Promise.resolve(1)).then === 'function', '应返回 Promise')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function delayedValue(v) {\n  return Promise.resolve(v);\n}\n\nfunction chainDouble(p) {\n  return p.then(function (v) {\n    return v * 2;\n  });\n}\n\nchainDouble(delayedValue(5)).then(function (v) { console.log(v); });"
+    }
+  },
+  {
+    "id": "js29",
+    "order": 328,
+    "chapter": 23,
+    "chapterName": "JavaScript · 进阶篇",
+    "lang": "javascript",
+    "title": "性能与复杂度",
+    "subtitle": "让代码跑得聪明",
+    "xp": 120,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "先量，再优化"
+      },
+      {
+        "type": "text",
+        "text": "性能优化最常见的错误是凭直觉改代码。正确顺序是：先确认瓶颈在哪（测量），再判断算法复杂度是否合理，最后才做常数级优化。复杂度描述输入规模 n 增长时工作量如何增长：O(1) 常数、O(log n) 对数、O(n) 线性、O(n log n)、O(n^2) 平方。n 翻倍时，O(n) 的工作量翻倍，O(n^2) 翻四倍。复杂度分析看的是增长趋势，不是绝对耗时。O(n) 的算法在小数据上可能比 O(n^2) 慢，因为常数因子不同；但 n 增大后，趋势决定胜负。优化前先确认 n 的量级，几百条数据用嵌套循环完全没问题，几万条才需要换结构。\n\nJS 里最常见的性能陷阱是嵌套循环里的线性查找。判断数组是否包含某元素，includes/indexOf 是 O(n)，放进循环就变成 O(n^2)。换成 Set 或 Map 的 has 是平均 O(1)，整体降到 O(n)。另一个陷阱是在循环里反复计算不变的 length 或拼接大字符串；前者影响很小，后者在旧引擎里是 O(n^2)，现代引擎有优化但仍建议用数组收集后 join。空间换时间是常用手段：Set/Map 把查找从 O(n) 降到 O(1)，缓存把重复计算变成一次计算，索引把排序后的查询变快。代价是内存占用，内存紧张时要权衡。测量内存可以用运行时提供的接口，或者粗略看数据规模。"
+      },
+      {
+        "type": "text",
+        "text": "测量用 Date 取毫秒时间戳，跑足够多的次数取平均，避免单次抖动。不要用 console.time，本运行时不一定提供。测量时注意「热身」：第一次执行包含解析和缓存预热，通常比后续慢。比较两个实现要在相同数据、相同环境下跑，否则数字没有意义。优化后必须重跑测试，确认行为没变。字符串拼接、数组 push、对象属性增删在大数据量下都有成本。批量操作时尽量一次成型：数组先收集再 join，对象先构造再赋值。微优化只有在你确认它是热点后才值得做，否则只是给代码增加噪音。\n\n性能优化有三条原则：先测量、再优化、别过度。没有测量数据的优化是猜测，可能让代码更复杂却没有收益。复杂度是宏观指标，常数因子是微观指标，两者都要看。常见的手法是空间换时间（缓存、索引、Set）、减少重复计算（提取循环不变量）、选择合适的数据结构（Map 代替线性查找）。优化后一定要重跑正确性测试，性能提升不能以行为改变为代价。"
+      },
+      {
+        "type": "text",
+        "text": "复杂度分析要区分最好、最坏、平均情况。查重的最好情况是第一个元素就重复，最坏要遍历完；算法分析通常看最坏情况。空间复杂度也算成本，递归的调用栈、缓存的哈希表都要计入。优化时先找热点：用计时器测量各个函数的耗时，优先优化占比最大的部分。微优化（比如把 i++ 改成 ++i）在现代引擎里几乎没有收益，不要浪费时间。\n\n性能测试要用真实数据规模，不要用十个元素测完就下结论。测多次取平均，排除首次运行的预热影响。比较两个实现时，除了耗时还要看内存和代码复杂度。优化后的代码必须通过同样的测试，行为不能变。如果优化让代码难以理解，而收益只有几个百分点，通常不值得。"
+      },
+      {
+        "type": "code",
+        "code": "function hasDuplicateSlow(list) {\n  for (var i = 0; i < list.length; i++) {\n    for (var j = i + 1; j < list.length; j++) {\n      if (list[i] === list[j]) return true;\n    }\n  }\n  return false;\n}\n\nfunction hasDuplicateFast(list) {\n  var seen = new Set();\n  for (var i = 0; i < list.length; i++) {\n    if (seen.has(list[i])) return true;\n    seen.add(list[i]);\n  }\n  return false;\n}\n\nvar data = [3, 9, 1, 7, 9];\nconsole.log(hasDuplicateSlow(data));\nconsole.log(hasDuplicateFast(data));",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "true\ntrue"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "复杂度",
+          "n=10",
+          "n=1000",
+          "典型场景"
+        ],
+        "rows": [
+          [
+            "O(1)",
+            "1",
+            "1",
+            "对象/Map 取值"
+          ],
+          [
+            "O(log n)",
+            "约 3",
+            "约 10",
+            "二分查找"
+          ],
+          [
+            "O(n)",
+            "10",
+            "1000",
+            "一次遍历"
+          ],
+          [
+            "O(n log n)",
+            "约 33",
+            "约 10000",
+            "高效排序"
+          ],
+          [
+            "O(n^2)",
+            "100",
+            "1000000",
+            "双重循环"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "先让代码正确，再让它清晰，最后才让它快。三者冲突时，可读性通常比微优化更值钱，除非测量证明这里是热点。"
+      },
+      {
+        "type": "quiz",
+        "question": "在长度 1000 的数组里用嵌套循环查重，比较次数大约是多少？",
+        "options": [
+          "1000",
+          "10000",
+          "500000",
+          "1000000"
+        ],
+        "answer": 2,
+        "explain": "内层从 i+1 开始，总比较次数是 n(n-1)/2，约 50 万次，属于 O(n^2)。"
+      },
+      {
+        "type": "code",
+        "code": "function sumLoop(n) {\n  var total = 0;\n  for (var i = 1; i <= n; i++) total = total + i;\n  return total;\n}\n\nfunction sumFormula(n) {\n  return n * (n + 1) / 2;\n}\n\nconsole.log(sumLoop(100));\nconsole.log(sumFormula(100));\nconsole.log(sumLoop(100) === sumFormula(100));\n\nvar start = new Date().getTime();\nvar acc = 0;\nfor (var k = 0; k < 2000; k++) acc = acc + sumLoop(200);\nvar cost = new Date().getTime() - start;\nconsole.log('loop cost ms >= 0:', cost >= 0);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "5050\n5050\ntrue\nloop cost ms >= 0: true"
+      },
+      {
+        "type": "practice",
+        "title": "用空间换时间",
+        "code": "var prices = { chip: 10, cell: 25, deck: 100 };\nvar wanted = ['chip', 'deck', 'missing'];\n\nvar out = [];\nfor (var i = 0; i < wanted.length; i++) {\n  if (wanted[i] in prices) out.push(prices[wanted[i]]);\n}\n\nconsole.log(out.join(','));",
+        "output": "10,100",
+        "hint": "对象查找是 O(1)，比每次遍历价格列表快得多。"
+      }
+    ],
+    "exercise": {
+      "title": "两数之和",
+      "brief": "实现 twoSum(nums, target)：返回两个下标组成的数组，使对应元素之和为 target；不存在返回 null。要求用 Map 做一次遍历，时间复杂度 O(n)。",
+      "starterCode": "function twoSum(nums, target) {\n  // 边遍历边记录「还差多少」\n\n}\n\nconsole.log(JSON.stringify(twoSum([2, 7, 11, 15], 9)));",
+      "hint": "遍历时先算 diff = target - nums[i]，若 Map 里有 diff 就返回 [map.get(diff), i]，否则 map.set(nums[i], i)。",
+      "tests": [
+        "assert(JSON.stringify(twoSum([2,7,11,15], 9)) === '[0,1]', '经典样例')",
+        "assert(JSON.stringify(twoSum([3,2,4], 6)) === '[1,2]', '答案在后半段')",
+        "assert(twoSum([1,2], 100) === null, '无解返回 null')",
+        "assert(JSON.stringify(twoSum([3,3], 6)) === '[0,1]', '重复元素也要处理')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function twoSum(nums, target) {\n  var seen = new Map();\n  for (var i = 0; i < nums.length; i++) {\n    var diff = target - nums[i];\n    if (seen.has(diff)) return [seen.get(diff), i];\n    seen.set(nums[i], i);\n  }\n  return null;\n}\n\nconsole.log(JSON.stringify(twoSum([2, 7, 11, 15], 9)));"
+    }
+  },
+  {
+    "id": "js30",
+    "order": 329,
+    "chapter": 23,
+    "chapterName": "JavaScript · 进阶篇",
+    "lang": "javascript",
+    "title": "综合项目：文本冒险",
+    "subtitle": "状态机 + 命令解析 + 状态更新",
+    "xp": 150,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把三十讲拧成一个作品"
+      },
+      {
+        "type": "text",
+        "text": "最后这一讲做一个纯文本冒险游戏。核心是一个有限状态机：state 记录当前位置、背包、已访问房间；命令解析器把 'go north'、'take key' 这样的输入拆成动词和宾语；reducer 是纯函数，接收旧状态和命令，返回新状态；渲染器把状态转成文字。所有逻辑都在内存里，不依赖 DOM、文件或网络。状态机的关键是「状态 + 事件 -> 新状态」的映射表。把每个命令的处理写成独立函数，主循环只负责解析和分发，新增功能时改表不改循环。这样代码的复杂度随功能线性增长，而不是指数爆炸。\n\n设计上有三个关键决定：第一，状态不可变，每次命令都返回新对象，方便回放和调试；第二，房间表用对象索引，房间之间用出口名字连接；第三，未知命令和非法移动返回带提示的新状态，而不是抛错，游戏循环永远能继续。这套「数据 + 纯函数 + 小解析器」的结构，可以直接迁移到工作流引擎、表单校验器等场景。解析器要宽容：多余空格、大小写、未知命令都不应该让程序崩溃。先 trim、转小写、按空格切分，再查命令表；查不到就返回提示。游戏循环永远继续，玩家才有继续探索的欲望。真实系统里，宽容解析同样重要。"
+      },
+      {
+        "type": "text",
+        "text": "把这段代码继续扩展的方向：给房间加锁和钥匙、给物品加使用效果、加战斗回合、把命令表做成对象映射而不是 if 链。每次扩展都遵守同一个原则：只加数据和纯函数，不改游戏循环。这样即使功能变多，复杂度也是线性增长，而不是互相纠缠。测试时直接断言 step 的返回值，不需要模拟输入输出。测试状态机不需要模拟输入输出：直接构造初始状态，调用 step，断言返回的新状态。纯函数让测试变得简单，也让回放和撤销成为可能。把这条原则用到业务代码里，你会发现大部分逻辑都可以脱离界面独立验证。\n\n综合项目是把零散知识连成体系的最好方式。状态机、命令解析、纯函数更新、渲染输出，这四块可以复用到很多场景：工作流引擎、表单校验、游戏逻辑、对话系统。写项目时先定义数据结构和状态转换，再写解析和渲染，最后补测试。不要一上来就写界面，界面是最容易变的部分，核心逻辑稳定后再接界面，返工成本最低。项目完成后回顾一遍：哪些设计当时觉得麻烦、后来省了事？这些就是经验。"
+      },
+      {
+        "type": "text",
+        "text": "项目收尾时做三件事：补测试、写说明、清理临时文件。测试覆盖核心路径和边界情况，说明写清楚怎么运行、依赖什么、有哪些限制。临时文件和调试代码不要留在交付物里。回顾整个项目，把「当时为什么这样设计」记录下来，这是比代码更值钱的经验。下一步可以尝试把状态机扩展成多房间、多物品、带存档的完整游戏，或者把同样的结构用到自己的业务项目里。\n\n把项目拆成模块时，先定义数据结构，再定义操作这些数据的纯函数，最后写解析和渲染。数据结构稳定后，功能扩展只是增加函数和命令，不会牵动全局。测试直接针对纯函数，不需要模拟用户输入。交付前跑一遍完整流程，确认每个命令都能正确改变状态，错误命令不会破坏状态。"
+      },
+      {
+        "type": "code",
+        "code": "var rooms = {\n  hall: { desc: '大厅', exits: { north: 'lab' }, items: [] },\n  lab: { desc: '实验室', exits: { south: 'hall' }, items: ['key'] }\n};\n\nvar start = { at: 'hall', bag: [], log: [] };\n\nfunction step(state, command) {\n  var parts = command.split(' ');\n  var verb = parts[0];\n  var arg = parts[1];\n  var room = rooms[state.at];\n  var next = Object.assign({}, state, { log: state.log.concat([command]) });\n\n  if (verb === 'look') {\n    return Object.assign(next, { message: room.desc + ' / ' + room.items.join(',') });\n  }\n  if (verb === 'go') {\n    var dest = room.exits[arg];\n    if (!dest) return Object.assign(next, { message: 'no exit: ' + arg });\n    return Object.assign(next, { at: dest, message: 'moved to ' + dest });\n  }\n  if (verb === 'take') {\n    var idx = room.items.indexOf(arg);\n    if (idx === -1) return Object.assign(next, { message: 'not here: ' + arg });\n    var items = room.items.slice();\n    items.splice(idx, 1);\n    rooms[state.at] = Object.assign({}, room, { items: items });\n    return Object.assign(next, { bag: state.bag.concat([arg]), message: 'took ' + arg });\n  }\n  return Object.assign(next, { message: 'unknown: ' + verb });\n}\n\nvar s1 = step(start, 'look');\nconsole.log(s1.message);\nvar s2 = step(s1, 'go north');\nconsole.log(s2.message, s2.at);\nvar s3 = step(s2, 'take key');\nconsole.log(s3.message, s3.bag.join(','));\nvar s4 = step(s3, 'go west');\nconsole.log(s4.message, s4.at);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "大厅 /\nmoved to lab lab\ntook key key\nno exit: west lab"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "模块",
+          "职责",
+          "输入到输出"
+        ],
+        "rows": [
+          [
+            "状态 state",
+            "保存位置、背包、日志",
+            "不可变对象"
+          ],
+          [
+            "解析器 parse",
+            "拆分动词与宾语",
+            "'go north' -> ['go','north']"
+          ],
+          [
+            "reducer step",
+            "根据命令产生新状态",
+            "(state, cmd) -> state"
+          ],
+          [
+            "渲染 render",
+            "把状态转成可读文本",
+            "state -> string"
+          ]
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "示例里为了演示简洁直接改了 rooms 这个模块级数据。真实项目应把房间表也放进 state 或作为只读配置传入，避免隐式共享状态破坏「纯函数」承诺。"
+      },
+      {
+        "type": "quiz",
+        "question": "reducer 风格的核心特征是？",
+        "options": [
+          "直接修改传入的 state",
+          "返回新 state，不修改旧 state",
+          "必须用 class 实现",
+          "必须异步"
+        ],
+        "answer": 1,
+        "explain": "reducer 是纯函数：(state, action) => newState，旧 state 保持不变，便于追踪和回放。"
+      },
+      {
+        "type": "code",
+        "code": "function makeGame() {\n  var rooms = {\n    hall: { desc: 'hall', exits: { north: 'lab' }, items: [] },\n    lab: { desc: 'lab', exits: { south: 'hall' }, items: ['key'] }\n  };\n  var state = { at: 'hall', bag: [], moves: 0 };\n\n  function step(cmd) {\n    var parts = cmd.split(' ');\n    var room = rooms[state.at];\n    var next = Object.assign({}, state, { moves: state.moves + 1 });\n    if (parts[0] === 'go') {\n      if (!room.exits[parts[1]]) return { ok: false, state: next };\n      state = Object.assign(next, { at: room.exits[parts[1]] });\n      return { ok: true, state: state };\n    }\n    return { ok: false, state: next };\n  }\n\n  return { step: step, state: function () { return state; } };\n}\n\nvar game = makeGame();\nconsole.log(game.step('go north').ok);\nconsole.log(game.step('go west').ok);\nconsole.log(game.state().at);",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "true\nfalse\nlab"
+      },
+      {
+        "type": "task",
+        "text": "给示例加一个 'inventory' 命令，打印背包内容；再加一个 'drop' 命令，把物品放回当前房间。"
+      }
+    ],
+    "exercise": {
+      "title": "状态机冒险",
+      "brief": "实现 makeAdventure()：返回 { run(cmd), state() }。初始在 hall，出口 north 通往 lab，lab 里有 key。run 支持 look（返回当前房间描述）、go <dir>（合法则移动）、take key（在 lab 时拿到钥匙）、其他命令返回 'unknown'。每次 run 返回一条消息字符串，state() 返回 { at, bag }。",
+      "starterCode": "function makeAdventure() {\n  // 房间表、状态、命令处理\n\n}\n\nvar game = makeAdventure();\nconsole.log(game.run('look'));\nconsole.log(game.run('go north'));",
+      "hint": "用闭包保存 state；run 里用 cmd.split(' ') 取动词和参数；go 查 exits，take 检查当前房间和 key。",
+      "tests": [
+        "var g = makeAdventure();\nassert(g.run('look') === 'hall', '初始房间是 hall')",
+        "assert(g.run('go north') === 'moved to lab' && g.state().at === 'lab', '向北进入 lab')",
+        "assert(g.run('take key') === 'took key' && g.state().bag.join(',') === 'key', '可以拿钥匙')",
+        "assert(g.run('go west') === 'unknown' && g.state().at === 'lab', '非法出口不移动')",
+        "assert(g.run('dance') === 'unknown', '未知命令返回 unknown')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function makeAdventure() {\n  var rooms = {\n    hall: { exits: { north: 'lab' } },\n    lab: { exits: { south: 'hall' }, items: ['key'] }\n  };\n  var state = { at: 'hall', bag: [] };\n\n  function run(cmd) {\n    var parts = cmd.split(' ');\n    var verb = parts[0];\n    var arg = parts[1];\n    if (verb === 'look') return state.at;\n    if (verb === 'go') {\n      var dest = rooms[state.at].exits[arg];\n      if (!dest) return 'unknown';\n      state.at = dest;\n      return 'moved to ' + dest;\n    }\n    if (verb === 'take') {\n      var items = rooms[state.at].items || [];\n      if (items.indexOf(arg) === -1) return 'unknown';\n      state.bag = state.bag.concat([arg]);\n      rooms[state.at].items = items.filter(function (x) { return x !== arg; });\n      return 'took ' + arg;\n    }\n    return 'unknown';\n  }\n\n  return { run: run, state: function () { return state; } };\n}\n\nvar game = makeAdventure();\nconsole.log(game.run('look'));\nconsole.log(game.run('go north'));"
+    }
+  }
+]

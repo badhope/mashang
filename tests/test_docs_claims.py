@@ -155,15 +155,15 @@ class TestCapabilityClaims(unittest.TestCase):
                     self.assertIn(lang, text, f"{name} 缺少语言：{lang}")
 
     def test_readmes_list_all_shipped_languages(self):
-        """三语 README 的「学什么」表必须逐门列出四个运行时，且点明按需下载。
+        """三语 README 的「学什么」表必须逐门列出六门运行时，且点明课程已预装。
 
         口径约定（2026-11）：对外讲「有哪些语言、各能学到什么」，
         不再用单一的判题总数当卖点——数字会随内容增删漂移，语言清单不会。
         """
         cases = {
-            "README.zh-CN.md": ("Python", "JavaScript", "TypeScript", "C", "Lua", "SQL", "按需下载"),
-            "README.md": ("Python", "JavaScript", "TypeScript", "C", "Lua", "SQL", "download"),
-            "README.ja-JP.md": ("Python", "JavaScript", "TypeScript", "C", "Lua", "SQL", "ダウンロード"),
+            "README.zh-CN.md": ("Python", "JavaScript", "TypeScript", "C", "Lua", "SQL", "预装"),
+            "README.md": ("Python", "JavaScript", "TypeScript", "C", "Lua", "SQL", "ship"),
+            "README.ja-JP.md": ("Python", "JavaScript", "TypeScript", "C", "Lua", "SQL", "同梱"),
         }
         for name, needles in cases.items():
             with self.subTest(file=name):

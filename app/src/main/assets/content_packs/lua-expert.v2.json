@@ -1,0 +1,955 @@
+[
+  {
+    "id": "lua31",
+    "order": 430,
+    "chapter": 44,
+    "chapterName": "Lua · 专业篇",
+    "lang": "lua",
+    "title": "性能与表优化",
+    "subtitle": "预分配、复用与字符串拼接代价",
+    "xp": 120,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "让热路径少做无用功"
+      },
+      {
+        "type": "text",
+        "text": "性能优化在 Lua 里通常不是换语言的问题，而是少做无用功。Lua 的表同时承担数组和字典两种角色，写入新键可能触发扩容与重哈希；字符串又是不可变值，每次用 .. 拼接都会新建一个字符串，并把两边的字节完整复制一遍。把这两条记牢，脚本里大部分卡顿都能找到解释。\n\n优化的第一步永远是测量，而不是凭直觉改代码。课程沙箱没有 os.clock，但可以用确定性计数代替计时：统计循环执行了多少次、累计复制了多少字节、创建了多少张临时表。这些数字不随机器波动，适合写进测试，也能直观看出算法量级。\n\n计数器本身也有讲究：变量声明在循环外，累加只做整数加法，别让测量代码变成新的开销。如果一段逻辑在计数之后仍然看不出量级差异，说明它大概率不在热点上，这时收手比继续优化更明智。"
+      },
+      {
+        "type": "code",
+        "code": "local n = 1000\nlocal s = ''\nlocal copied = 0\nfor i = 1, n do\n  s = s .. 'x'\n  copied = copied + #s\nend\n\nlocal parts = {}\nfor i = 1, n do\n  parts[i] = 'x'\nend\nlocal joined = table.concat(parts)\n\nprint(n, #s, copied)\nprint(#joined, copied / #joined)",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "1000\t1000\t500500\n1000\t500.5"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "代价",
+          "更好的做法"
+        ],
+        "rows": [
+          [
+            "循环里 s = s .. x",
+            "每轮复制全部已有字节，O(n²)",
+            "收集到数组，最后 table.concat"
+          ],
+          [
+            "t[#t + 1] = v 逐步增长",
+            "可能多次扩容与重哈希",
+            "规模已知时先填占位再覆盖"
+          ],
+          [
+            "循环里创建临时表",
+            "分配次数等于循环次数，GC 压力大",
+            "复用一张 scratch 表"
+          ],
+          [
+            "循环里创建闭包",
+            "每轮分配一个函数对象",
+            "把函数提到循环外"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "表优化的第一招是预分配。数组部分按需增长，规模已知时先用占位值把位置填满，再逐个覆盖，能减少中途扩容与重哈希的次数。第二招是复用：循环里反复创建形状相同的小表，会把压力全部推给 GC，改成模块级的一张 scratch 表，每轮只改字段，分配次数立刻归零。第三招是收敛作用域：闭包会捕获上值，循环里创建闭包等于每轮分配一个函数对象，把函数提到循环外通常既快又清楚。\n\n需要强调的是，这些技巧只在热路径上值得做。一次创建几十张表、拼接几十个短字符串，对现代机器毫无压力；真正的问题是十万级循环里的重复分配。优化的顺序应该是先定量级、再定位热点、最后才动结构，否则很容易把代码改复杂却没有收益。\n\n字符串拼接的代价最容易被低估。s = s .. x 在每一轮都要复制 s 的全部旧内容，n 轮下来复制量是 1+2+...+n，也就是 O(n²)。表拼接则是另一条路：把每段放进数组，最后调用一次 table.concat，总复制量只有 O(n)，而且分隔符由函数统一处理。数据量越大，差距越明显。"
+      },
+      {
+        "type": "code",
+        "code": "local created = 0\n\nlocal function make(x)\n  created = created + 1\n  return {v = x}\nend\n\nlocal total = 0\nfor i = 1, 100 do\n  local p = make(i)\n  total = total + p.v\nend\nprint(total, created)\n\ncreated = 0\nlocal scratch = {v = 0}\ntotal = 0\nfor i = 1, 100 do\n  scratch.v = i\n  total = total + scratch.v\nend\nprint(total, created)\n\nlocal slots = {}\nfor i = 1, 6 do slots[i] = 0 end\nfor i = 1, 6 do slots[i] = i * i end\nprint(#slots, slots[1], slots[6])",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "5050\t100\n5050\t0\n6\t1\t36"
+      },
+      {
+        "type": "text",
+        "text": "table.concat 只接受字符串和数字组成的序列，中间不能有空洞。若要拼接的不是字符串，先用 tostring 转换；若要拼接的是嵌套结构，先递归展开成扁平数组再一次性合并。把「收集」和「合并」分成两步，是 Lua 里处理文本的标准姿势，也是本讲练习要练的手感。\n\n还有一个常被忽略的细节：table.concat 在数据量大时也会一次性分配最终长度的字符串，这是不可避免的成本；但它只发生一次，而不是每轮一次。把「每轮 O(n)」变成「一次 O(n)」，这就是量级上的胜利。写代码时可以用一个简单的问题自查：这段逻辑如果输入扩大十倍，耗时是线性增长还是平方增长？答案决定了要不要重构。另外，预分配也不是越多越好，占位值本身会消耗内存，超出实际需要的容量同样浪费；按典型规模加少量余量估算即可。最后提醒一句：局部变量的读取比全局变量快，把频繁访问的函数和常量用 local 缓存到文件顶部，是最便宜也最安全的优化，几乎不需要改结构。"
+      },
+      {
+        "type": "tip",
+        "text": "先测量再优化：把循环次数放大到十万级再对比，否则差异会被启动开销淹没。沙箱里没有计时器，就用复制字节数、分配次数这类确定性计数代替时间。\n\n一个实测差异要记住：本沙箱的 string.format 会忽略精度修饰，string.format('%.2f', 3.14159) 仍然输出 3.14159。要保留两位小数，用 math.floor(x * 100 + 0.5) / 100 手动取整，不要指望格式化字符串。"
+      },
+      {
+        "type": "practice",
+        "title": "带序号的清单",
+        "code": "local rows = {'alpha', 'beta', 'gamma'}\nlocal out = {}\nfor i, name in ipairs(rows) do\n  out[#out + 1] = i .. ':' .. name\nend\nprint(table.concat(out, '|'))",
+        "output": "1:alpha|2:beta|3:gamma",
+        "hint": "先把每行拼成 i .. ':' .. name 放进数组，最后只调用一次 table.concat。"
+      },
+      {
+        "type": "quiz",
+        "question": "在循环里反复执行 s = s .. 'x'，主要开销来自哪里？",
+        "options": [
+          "每次创建新字符串并复制已有内容",
+          "每次都要重新计算字符串长度",
+          "表的扩容与重哈希",
+          "GC 会立即回收旧字符串"
+        ],
+        "answer": 0,
+        "explain": "字符串不可变，.. 每次都产生新字符串并复制两侧字节；第 i 轮复制 i 个字节，累计是 O(n²)。"
+      }
+    ],
+    "exercise": {
+      "title": "拼接字段清单",
+      "brief": "实现 join_fields(rows)：rows 是 {id=..., name=...} 的数组，返回 'id:name' 形式、用分号连接的字符串。空数组返回空字符串。",
+      "starterCode": "function join_fields(rows)\n  \nend\n\nprint(join_fields({{id = 1, name = 'a'}, {id = 2, name = 'b'}}))",
+      "hint": "先遍历 rows，把 row.id .. ':' .. row.name 放进临时数组，最后 table.concat(out, ';')。",
+      "tests": [
+        "assert(join_fields({{id = 1, name = 'a'}, {id = 2, name = 'b'}}) == '1:a;2:b', '基本拼接')",
+        "assert(join_fields({}) == '', '空数组')",
+        "assert(join_fields({{id = 7, name = 'x'}}) == '7:x', '单个元素')",
+        "assert(join_fields({{id = 10, name = 'n'}, {id = 11, name = 'm'}}) == '10:n;11:m', '不丢分隔符')"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "function join_fields(rows)\n  local out = {}\n  for i = 1, #rows do\n    local row = rows[i]\n    out[#out + 1] = row.id .. ':' .. row.name\n  end\n  return table.concat(out, ';')\nend\n"
+    }
+  },
+  {
+    "id": "lua32",
+    "order": 431,
+    "chapter": 44,
+    "chapterName": "Lua · 专业篇",
+    "lang": "lua",
+    "title": "内存与 GC 概念",
+    "subtitle": "增量回收与弱引用",
+    "xp": 120,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "自动回收背后的规则"
+      },
+      {
+        "type": "text",
+        "text": "Lua 的内存管理是全自动的：脚本只管创建表和字符串，回收交给垃圾收集器。Lua 5.2 使用的是增量式标记清扫（incremental mark and sweep）：从根集合出发做三色标记，把可达对象标黑，白色对象在清扫阶段回收。「增量」意味着收集器把工作拆成很多小步，穿插在程序执行之间，避免一次性停顿太久；pause 控制两次收集之间允许堆增长的比例，stepmul 控制每步的工作量。\n\n因为用的是可达性分析而不是引用计数，循环引用不会造成泄漏：只要整个环都不可达，标记阶段就碰不到它们，清扫时一并回收。反过来说，只要还有一条从根出发的引用链，对象就必须留着。全局表、长生命周期的缓存、闭包捕获的上值，都是常见的「根」或「根的延伸」。\n\n弱表是让缓存不阻止回收的工具。给表设置元表并写入 __mode 字段：'k' 表示弱键，'v' 表示弱值，'kv' 表示两者都弱。弱引用不参与可达性判断，键或值没有其他强引用时，条目会在下一次 GC 后被移除。弱键表还有一个细节：如果键被回收，整个条目消失，即使值反过来引用这个键也一样，这叫 ephemeron 语义。"
+      },
+      {
+        "type": "code",
+        "code": "local cache = setmetatable({}, {__mode = 'v'})\nlocal keep = {id = 'keep'}\n\ncache.keep = keep\ncache.temp1 = {id = 'temp1'}\ncache.temp2 = {id = 'temp2'}\n\ncollectgarbage('collect')\ncollectgarbage('collect')\n\nlocal alive = 0\nfor k, v in pairs(cache) do\n  alive = alive + 1\nend\nprint(getmetatable(cache).__mode, alive, cache.keep.id, cache.temp1 == nil)",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "v\t1\tkeep\ttrue"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "__mode",
+          "键",
+          "值",
+          "典型用途"
+        ],
+        "rows": [
+          [
+            "（无）",
+            "强引用",
+            "强引用",
+            "普通表"
+          ],
+          [
+            "'k'",
+            "弱引用",
+            "强引用",
+            "给对象附加数据，对象消失条目消失"
+          ],
+          [
+            "'v'",
+            "强引用",
+            "弱引用",
+            "缓存大对象，没人用就回收"
+          ],
+          [
+            "'kv'",
+            "弱引用",
+            "弱引用",
+            "两边都可丢弃的临时索引"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "只有对象类型会受弱表影响：表、函数、线程和 userdata 可以被回收；字符串、数字、布尔不是带身份的对象，不会因为弱表而被移除。缓存字符串没有意义，字符串本身是值；缓存大表、闭包、协程对象才需要弱表。用弱表做 memoize 时，一定要确认缓存的值没有其它强引用，否则它永远不会被清掉。\n\n实际工程里，GC 友好的代码有三个习惯。第一，控制生命周期：临时对象在循环内创建、循环内丢弃，不要让它们被模块级表意外捕获。第二，给缓存设上限或改用弱表，避免「只增不减」的字典。第三，复用高频对象：对象池把创建和释放变成取出与归还，减少分配次数，也减少 GC 的扫描压力。\n\n调试内存问题时，collectgarbage('count') 能读到当前堆大小的近似值（单位 KB，具体数值因实现而异），collectgarbage('collect') 强制做一次完整回收。注意这些手段适合演示与测试，不适合写进业务逻辑：依赖 GC 的具体时机，代码在不同实现上就会表现出不同结果。"
+      },
+      {
+        "type": "code",
+        "code": "local pool = {free = {}}\nlocal created = 0\n\nlocal function acquire()\n  local n = #pool.free\n  if n > 0 then\n    local obj = pool.free[n]\n    pool.free[n] = nil\n    return obj\n  end\n  created = created + 1\n  return {active = false}\nend\n\nlocal function release(obj)\n  obj.active = false\n  pool.free[#pool.free + 1] = obj\nend\n\nlocal live = {}\nfor i = 1, 5 do\n  live[i] = acquire()\n  live[i].active = true\nend\nfor i = 1, 5 do release(live[i]) end\nlocal again = acquire()\nprint(created, #pool.free, again.active)\nrelease(again)\nprint(created, #pool.free)",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "5\t4\tfalse\n5\t5"
+      },
+      {
+        "type": "text",
+        "text": "理解 GC 还要建立「分配成本」的直觉：创建表要分配内存并初始化，回收要扫描与清扫，两者都比复用贵。频繁创建短命对象时，GC 会更频繁地运行，停顿也可能更明显。把「每轮循环创建多少对象」当成一项指标，比盯着堆大小更有意义。对象池并不总是答案：它会延长对象寿命、增加状态清理的负担，只有在对象构造成本高或数量巨大时才划算。真正稳妥的路线是先减少不必要的分配，再考虑池化。最后，弱表不是万能的：它只影响可达性判断，不负责立即释放；条目被清除的时机由 GC 决定，因此不能把弱表当作按时间过期的缓存，需要过期语义时得自己记录时间戳。\n\n最后理解一个数字：count 返回的是千字节量级的近似值，不同实现、不同构建参数下会有偏差，所以它只适合看趋势，不适合做断言中的精确值。想验证对象是否被回收，正确做法是检查弱表条目还在不在，而不是比较 count 的差。把这条记住，测试就不会因为实现差异而随机失败。"
+      },
+      {
+        "type": "warn",
+        "text": "不要用 collectgarbage 的调用次数来推断业务对象一定被回收：GC 是增量执行的，弱表条目的清除时机取决于实现与当前堆状态。演示可以连续调用两次 collect，业务代码不应依赖这种时序。"
+      },
+      {
+        "type": "practice",
+        "title": "观察堆大小变化",
+        "code": "local before = collectgarbage('count')\nlocal bag = {}\nfor i = 1, 2000 do bag[i] = {i} end\nlocal peak = collectgarbage('count')\nbag = nil\ncollectgarbage('collect')\nlocal after = collectgarbage('count')\nprint(peak > before, after < peak)",
+        "output": "true\ttrue",
+        "hint": "count 返回当前堆大小的近似值；先记基线，再创建大量表看峰值，最后断开引用并强制回收。"
+      },
+      {
+        "type": "quiz",
+        "question": "把缓存表设置成 __mode = 'k'，含义是什么？",
+        "options": [
+          "键是弱引用，键没有其它强引用时整个条目会被移除",
+          "值是弱引用，值没有其它强引用时条目会被移除",
+          "键和值都是弱引用",
+          "表本身不会被 GC 扫描"
+        ],
+        "answer": 0,
+        "explain": "'k' 只让键变弱；键被回收时条目整体消失。值与键都弱是 'kv'。"
+      }
+    ],
+    "exercise": {
+      "title": "弱引用缓存",
+      "brief": "实现 make_cache()：返回一张 __mode = 'v' 的表；再实现 cache_put(cache, key, value) 与 cache_get(cache, key)。缓存的值没有外部引用时应能被 GC 回收。",
+      "starterCode": "function make_cache()\n  \nend\n\nfunction cache_put(cache, key, value)\n  \nend\n\nfunction cache_get(cache, key)\n  \nend\n\nlocal c = make_cache()\ncache_put(c, 'a', {1})\nprint(cache_get(c, 'a')[1])",
+      "hint": "make_cache 里用 setmetatable({}, {__mode = 'v'})；put/get 就是普通索引赋值与读取。",
+      "tests": [
+        "local c = make_cache(); cache_put(c, 'a', {1}); assert(cache_get(c, 'a')[1] == 1, '能取回')",
+        "assert(getmetatable(make_cache()).__mode == 'v', '必须是弱值表')",
+        "local c = make_cache(); local function seed() cache_put(c, 'tmp', {1}) end; seed(); collectgarbage('collect'); collectgarbage('collect'); assert(cache_get(c, 'tmp') == nil, '无引用应回收')",
+        "local c = make_cache(); local keep = {2}; cache_put(c, 'k', keep); collectgarbage('collect'); collectgarbage('collect'); assert(cache_get(c, 'k') == keep, '有引用应保留')",
+        "local c = make_cache(); cache_put(c, 'x', {1}); cache_put(c, 'x', {2}); assert(cache_get(c, 'x')[1] == 2, '覆盖旧值')"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "function make_cache()\n  return setmetatable({}, {__mode = 'v'})\nend\n\nfunction cache_put(cache, key, value)\n  cache[key] = value\nend\n\nfunction cache_get(cache, key)\n  return cache[key]\nend\n"
+    }
+  },
+  {
+    "id": "lua33",
+    "order": 432,
+    "chapter": 44,
+    "chapterName": "Lua · 专业篇",
+    "lang": "lua",
+    "title": "元表进阶",
+    "subtitle": "代理、比较、长度与拼接",
+    "xp": 130,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把赋值、比较、长度和拼接都接管"
+      },
+      {
+        "type": "text",
+        "text": "__newindex 是元表里最容易被误解的入口。它只在「键不存在」时触发：rawget(t, k) 为 nil，赋值才会走元方法；键已经存在时直接覆盖，完全不看元表。这条规则带来两个直接后果：一是校验逻辑必须配合 rawset，否则在 __newindex 里再写 t[k] 会无限递归；二是「第一次写入被校验、第二次写入被绕过」，想要每次都拦截，得把数据藏在代理表后面，让代理永远保持空表。\n\n代理模式还有一个变体：__newindex 可以不是函数，而是一张表。此时赋值会转发到那张表上，并可能继续触发目标表自己的元方法。利用这一点可以做分层存储，但要小心链条过长导致调试困难。\n\n__eq 的规则比想象中严格。Lua 5.2 里只有当两个操作数都是表、原始比较不相等，并且两侧取到的是同一个__eq 函数时才会调用；否则直接按引用返回 false。换句话说，两个不同元表各自定义不同的 __eq 函数时，比较不会互相调用。这一点和 __add 等算术元方法不同，写相等语义时最稳妥的做法是让同类实例共享同一张元表。"
+      },
+      {
+        "type": "code",
+        "code": "local defaults = {hp = 100, mp = 50}\nlocal writes = 0\n\nlocal unit = setmetatable({}, {\n  __index = function(_, k)\n    return defaults[k]\n  end,\n  __newindex = function(t, k, v)\n    if type(k) ~= 'string' then\n      error('字段名必须是字符串', 2)\n    end\n    if type(v) ~= 'number' then\n      error('字段 ' .. k .. ' 必须是数字', 2)\n    end\n    writes = writes + 1\n    rawset(t, k, v)\n  end\n})\n\nprint(unit.hp, unit.mp)\nunit.hp = 80\nunit.hp = 90\nprint(unit.hp, unit.mp, writes)\nlocal ok, err = pcall(function() unit.name = 'x' end)\nprint(ok, err:match('字段[^\\n]*'))\nprint(unit.name)",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "100\t50\n90\t50\t1\nfalse\t字段 name 必须是数字\nnil"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "元方法",
+          "触发条件",
+          "参数",
+          "常见坑"
+        ],
+        "rows": [
+          [
+            "__newindex",
+            "给不存在的键赋值",
+            "表, 键, 值",
+            "已有键直接覆盖，不触发"
+          ],
+          [
+            "__eq",
+            "两个表比较且共享同一 __eq",
+            "两个操作数",
+            "不同元表不会互相调用"
+          ],
+          [
+            "__len",
+            "# 作用于表",
+            "表",
+            "rawlen 可绕过"
+          ],
+          [
+            "__concat",
+            ".. 任一侧不是字符串或数字",
+            "两个操作数",
+            "右结合，先看左侧元方法"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "__len 在 Lua 5.2 里对表同样生效：#t 会先看元表的 __len，没有才去数数组部分；rawlen(t) 则绕过元方法。__concat 处理 ..：先看左操作数的元方法，没有再看右操作数；a .. b .. c 是右结合，等价于 a .. (b .. c)。因此链式拼接时，中间结果的类型会决定下一步调用谁的元方法。\n\n把这些元方法组合起来，可以做出很像「对象协议」的东西：默认值走 __index，写入校验走 __newindex，长度走 __len，合并走 __concat，相等走 __eq。代价是每次触发都要多一次函数调用和表查找，热路径里不要滥用；元表更适合表达语义与安全边界，而不是替代普通字段访问。\n\n调试时先确认三件事：元表是否真的挂上（getmetatable）、字段名是否拼对（__newindex 不是 _newindex）、操作是否真的触发了元方法（键已存在时 __newindex 不触发，原始值相等时 __eq 不触发）。把这三条排查完，九成的「元表没生效」都能定位。"
+      },
+      {
+        "type": "code",
+        "code": "local Polyline = {}\nPolyline.__index = Polyline\n\nlocal function new(points)\n  return setmetatable({points = points}, Polyline)\nend\n\nPolyline.__len = function(self)\n  return #self.points\nend\n\nPolyline.__eq = function(a, b)\n  if #a.points ~= #b.points then return false end\n  for i = 1, #a.points do\n    if a.points[i] ~= b.points[i] then return false end\n  end\n  return true\nend\n\nPolyline.__concat = function(a, b)\n  local pts = {}\n  for i = 1, #a.points do pts[#pts + 1] = a.points[i] end\n  for i = 1, #b.points do pts[#pts + 1] = b.points[i] end\n  return new(pts)\nend\n\nlocal a = new({1, 2, 3})\nlocal b = new({1, 2, 3})\nlocal c = new({4, 5})\nprint(#a, a == b, a == c)\nlocal joined = a .. c\nprint(#joined, joined.points[1], joined.points[4])\nlocal chained = a .. c .. b\nprint(#chained, chained.points[4])",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "3\ttrue\tfalse\n5\t1\t4\n8\t4"
+      },
+      {
+        "type": "text",
+        "text": "另一个容易踩的坑是元方法的继承关系：__index 可以是一条链，但 __newindex、__eq、__len、__concat 不会沿着 __index 链去找，它们只在操作数自身的元表里查。给子类设置元表、让 __index 指向父类，只能继承字段与方法，不能继承这些元方法，除非把父类的元方法显式复制过来或再套一层代理。理解这一点，才能解释为什么子类没有触发父类的 __eq。实践建议是把元表当成接口契约：字段名固定、行为可预测、实例共享同一张元表。写完后用几行 pcall 把非法输入跑一遍，确认错误消息能指出具体字段，这比事后调试便宜得多。\n\n还有一个实践细节：__eq 的比较函数必须自己处理同一对象的短路。Lua 在调用元方法前已经排除了原始相等的情况，但两个不同实例字段相同时仍会进入函数，所以要逐字段比较而不是直接 return true。__len 也要注意返回非负整数：本沙箱对 2.5 这类返回值不报错，但用作数组下标或循环上界时会带来难以追踪的偏差。__concat 的返回值通常应该是同类型对象，这样才能支持 a .. b .. c 连写；如果返回字符串，后续拼接就退化成普通字符串处理，链式语义会断掉。把这些约定写进注释，团队协作时能少很多误会。"
+      },
+      {
+        "type": "tip",
+        "text": "在 __newindex 内部一定要用 rawset 写原表，在 __index 内部用 rawget 读原表。直接索引会再次触发同一个元方法，轻则逻辑错乱，重则栈溢出。\n\n另外，本沙箱的 print 直接取值的内建字符串表示，不调用 __tostring；要让自定义描述生效，必须写成 print(tostring(obj))。"
+      },
+      {
+        "type": "practice",
+        "title": "观察 __newindex 的触发次数",
+        "code": "local logs = {}\nlocal obj = setmetatable({x = 1}, {\n  __newindex = function(t, k, v)\n    logs[#logs + 1] = tostring(k)\n    rawset(t, k, v)\n  end,\n  __len = function() return 2 end,\n  __concat = function(a, b) return 'cat' end\n})\nobj.y = 2\nobj.y = 3\nobj.x = 9\nprint(#obj, #logs, logs[1], obj.x, obj.y)\nprint(obj .. 'z')",
+        "output": "2\t1\ty\t9\t3\ncat",
+        "hint": "obj.y 第一次赋值时键不存在，触发 __newindex；第二次键已存在，直接覆盖，不再进日志。"
+      },
+      {
+        "type": "quiz",
+        "question": "__newindex 什么时候会被调用？",
+        "options": [
+          "每次给表赋值时",
+          "只在给不存在的键赋值时",
+          "只在读取不存在的键时",
+          "只在删除键时"
+        ],
+        "answer": 1,
+        "explain": "键已存在时赋值直接覆盖原值，元表不参与。想拦截所有写入需要用空代理表配合 rawset。"
+      }
+    ],
+    "exercise": {
+      "title": "只读代理",
+      "brief": "实现 readonly(t)：返回一个只读代理。读取已有键要返回 t 里的值，任何写入（无论键是否存在）都必须抛错，# 要返回 t 的长度，getmetatable 要返回字符串 'readonly'。",
+      "starterCode": "function readonly(t)\n  \nend\n\nlocal r = readonly({a = 1})\nprint(r.a)",
+      "hint": "代理表本身保持为空，__index 指向 t，__newindex 直接 error；__len 返回 #t，__metatable 设为 'readonly'。",
+      "tests": [
+        "local r = readonly({a = 1}); assert(r.a == 1, '读取已有键')",
+        "local r = readonly({a = 1}); assert(pcall(function() r.b = 2 end) == false, '写新键应报错')",
+        "local r = readonly({a = 1}); assert(pcall(function() r.a = 9 end) == false, '写已有键也应报错')",
+        "assert(#readonly({1, 2, 3}) == 3, '长度转发')",
+        "assert(getmetatable(readonly({})) == 'readonly', '__metatable 保护')"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "function readonly(t)\n  return setmetatable({}, {\n    __index = t,\n    __newindex = function(_, k)\n      error('readonly: ' .. tostring(k), 2)\n    end,\n    __len = function() return #t end,\n    __metatable = 'readonly'\n  })\nend\n"
+    }
+  },
+  {
+    "id": "lua34",
+    "order": 433,
+    "chapter": 44,
+    "chapterName": "Lua · 专业篇",
+    "lang": "lua",
+    "title": "协程进阶",
+    "subtitle": "双向通信与轮转调度",
+    "xp": 130,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "协程之间的来回对话"
+      },
+      {
+        "type": "text",
+        "text": "第 25 讲把协程当成「可以暂停的函数」：resume 启动，yield 交出控制权。进阶的用法是让数据双向流动。第一次 resume(co, a, b) 的参数会成为协程函数的参数；之后每次 resume(co, x) 的参数会成为上一个 yield 的返回值。也就是说，yield 不但是「交出值」，还是「等待一个回信」。生产者把任务 yield 出去，消费者处理完，把结果通过下一次 resume 送回协程，协程从 yield 的返回值继续执行。\n\n这套握手协议特别适合流水线：生产、处理、确认三个阶段各自保持顺序，又不需要把状态拆成一堆全局变量。注意 resume 的第一个返回值永远是成功标志，真正的数据从第二个返回值开始；协程结束时返回 true 加 return 值，出错时返回 false 加错误信息，协程随即变成 dead。\n\n协程调度器的思路是把多个协程放进一张表，每轮依次 resume 一次，谁 yield 了就轮到下一个，谁返回了就标记完成。这就是最朴素的轮转调度（round-robin）：所有任务公平推进，单个任务不会独占执行权。因为 Lua 协程不是线程，同一时刻只有一个协程在跑，切换点由 yield 显式决定，所以不需要锁，也不存在真正的数据竞争；但共享表仍然可能被「执行到一半」的任务改坏，需要靠协议约束。"
+      },
+      {
+        "type": "code",
+        "code": "local co = coroutine.create(function()\n  for i = 1, 3 do\n    local ack = coroutine.yield('job' .. i)\n    print('ack', ack)\n  end\n  return 'finished'\nend)\n\nlocal ok, job = coroutine.resume(co)\nwhile ok and job ~= 'finished' do\n  ok, job = coroutine.resume(co, 'ok:' .. job)\nend\nprint(ok, job, coroutine.status(co))",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "ack\tok:job1\nack\tok:job2\nack\tok:job3\ntrue\tfinished\tdead"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "场景",
+          "写法",
+          "要点"
+        ],
+        "rows": [
+          [
+            "生产者-消费者",
+            "yield 任务，resume 回传确认",
+            "第一次 resume 传参给函数，之后传参给 yield"
+          ],
+          [
+            "轮转调度",
+            "任务表 + 每轮各 resume 一次",
+            "dead 跳过并计数，归零退出"
+          ],
+          [
+            "回合制流程",
+            "每个事件 yield 一次",
+            "外层驱动负责展示与推进"
+          ],
+          [
+            "错误隔离",
+            "协程内 pcall 包住逻辑",
+            "把错误转成返回值再 yield"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "调度器要处理三种状态：suspended 可以 resume，running 不会出现在调度表里（正在执行的就是它），dead 要跳过并计数。每轮结束后检查剩余任务数，归零就退出。这个结构可以直接扩展成任务队列、动画时间轴、回合制战斗的驱动循环。\n\n用协程表达回合流程是另一个高价值用法：把「每个回合发生什么」写成顺序代码，每个关键节点 yield 一个事件，外层驱动循环负责渲染、输入和推进。这样业务逻辑读起来像剧本，而不是一堆回调。\n\n调试协程时记住三条：不要 resume 一个 dead 协程（返回 false 与 cannot resume dead coroutine）；create 之后别忘了 resume，否则代码一行都不会执行；测试里必须把协程驱动到结束，否则只能看到前半段行为。协程的栈信息比普通函数少，出错时优先在协程内部用 pcall 把错误转成结构化返回值，再 yield 给外层，比让整个协程直接死掉更容易定位。"
+      },
+      {
+        "type": "code",
+        "code": "local tasks = {}\nfor id = 1, 3 do\n  tasks[id] = coroutine.create(function()\n    for step = 1, 2 do\n      coroutine.yield('T' .. id .. 'S' .. step)\n    end\n  end)\nend\n\nlocal active = #tasks\nlocal round = 0\nwhile active > 0 do\n  round = round + 1\n  for i = 1, #tasks do\n    local co = tasks[i]\n    if coroutine.status(co) ~= 'dead' then\n      local ok, value = coroutine.resume(co)\n      if coroutine.status(co) == 'dead' then\n        active = active - 1\n        print('end', i)\n      else\n        print(round, i, value)\n      end\n    end\n  end\nend\nprint('rounds', round)",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "1\t1\tT1S1\n1\t2\tT2S1\n1\t3\tT3S1\n2\t1\tT1S2\n2\t2\tT2S2\n2\t3\tT3S2\nend\t1\nend\t2\nend\t3\nrounds\t3"
+      },
+      {
+        "type": "text",
+        "text": "协程的另一个常见误区是把 yield 当成暂停整个程序。实际上 yield 只暂停当前协程，控制权回到 resume 的调用者；如果调用者本身也在协程里，就形成嵌套恢复，外层的 coroutine.status 会显示 normal 而不是 running。理解 status 的四种取值，能快速判断当前处在哪一层。写调度器时建议给每个任务加一个 id 或名字，事件日志里带上任务标识，否则多个协程交替输出时很难对应。还有一点：coroutine.wrap 出错时会直接把错误抛给调用者，没有 ok 标志；需要区分正常结束与异常时，用 create 加手动 resume 更清晰。把这两套 API 的差异记牢，调试时能省很多时间。\n\n调度器还有一个隐藏问题：任务之间共享的表可能被跨轮修改。比如任务 A 在 yield 前改了共享的配置表，任务 B 下一轮读到的是新值，行为就依赖于调度顺序。解决办法是让每个任务持有自己的局部状态，共享数据只读；确实需要写入时，把修改做成事件交给外层统一应用。这样调度顺序只影响执行时机，不影响最终结果，测试也更容易写。"
+      },
+      {
+        "type": "warn",
+        "text": "协程不是线程，不会并行。把 CPU 密集的计算放进协程并不能加速，它只是把执行切成了多段；真正的并行需要多线程或多进程，而 Lua 沙箱不提供这些能力。"
+      },
+      {
+        "type": "practice",
+        "title": "按需取值的生成器",
+        "code": "local function gen(n)\n  return coroutine.wrap(function()\n    for i = 1, n do coroutine.yield(i) end\n    return nil\n  end)\nend\n\nlocal g = gen(4)\nlocal count, total = 0, 0\nwhile true do\n  local v = g()\n  if v == nil then break end\n  count = count + 1\n  total = total + v\nend\nprint(count, total)",
+        "output": "4\t10",
+        "hint": "生成器在循环结束后返回 nil，外层用 while 一直取到 nil 为止；不要只取固定次数，避免协程停在 suspended。"
+      },
+      {
+        "type": "quiz",
+        "question": "第二次执行 coroutine.resume(co, x) 时，x 会变成什么？",
+        "options": [
+          "协程函数的第一个参数",
+          "上一个 coroutine.yield 的返回值",
+          "协程的返回值",
+          "被丢弃，resume 只接受状态"
+        ],
+        "answer": 1,
+        "explain": "首次 resume 的参数给函数形参；之后的 resume 参数会成为对应 yield 表达式的返回值。"
+      }
+    ],
+    "exercise": {
+      "title": "过滤生成器",
+      "brief": "实现 filter_gen(t, pred)：返回一个迭代器函数，每次调用产出 t 中下一个满足 pred 的元素，取完后返回 nil。要求用协程实现，且保持原顺序。",
+      "starterCode": "function filter_gen(t, pred)\n  \nend\n\nlocal g = filter_gen({1, 2, 3, 4}, function(x) return x % 2 == 0 end)\nprint(g())",
+      "hint": "用 coroutine.wrap 包一个遍历 t 的循环，pred(v) 为真时 coroutine.yield(v)；函数结束自然返回 nil。",
+      "tests": [
+        "local function drain(g) local out = {}; while true do local v = g(); if v == nil then break end; out[#out + 1] = v end; return out end; local r = drain(filter_gen({1,2,3,4}, function(x) return x % 2 == 0 end)); assert(#r == 2 and r[1] == 2 and r[2] == 4, '过滤偶数')",
+        "local function drain(g) local out = {}; while true do local v = g(); if v == nil then break end; out[#out + 1] = v end; return out end; local r = drain(filter_gen({1,3,5}, function(x) return x > 9 end)); assert(#r == 0, '无匹配')",
+        "local function drain(g) local out = {}; while true do local v = g(); if v == nil then break end; out[#out + 1] = v end; return out end; local r = drain(filter_gen({'a','bb','c'}, function(s) return #s == 2 end)); assert(#r == 1 and r[1] == 'bb', '字符串过滤')",
+        "local function drain(g) local out = {}; while true do local v = g(); if v == nil then break end; out[#out + 1] = v end; return out end; local r = drain(filter_gen({}, function() return true end)); assert(#r == 0, '空表')",
+        "local function drain(g) local out = {}; while true do local v = g(); if v == nil then break end; out[#out + 1] = v end; return out end; local r = drain(filter_gen({5,1,4,2}, function(x) return x > 1 end)); assert(#r == 3 and r[1] == 5 and r[3] == 2, '保持顺序')"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "function filter_gen(t, pred)\n  return coroutine.wrap(function()\n    for i = 1, #t do\n      local v = t[i]\n      if pred(v) then coroutine.yield(v) end\n    end\n  end)\nend\n"
+    }
+  },
+  {
+    "id": "lua35",
+    "order": 434,
+    "chapter": 44,
+    "chapterName": "Lua · 专业篇",
+    "lang": "lua",
+    "title": "序列化与配置",
+    "subtitle": "嵌套表的文本往返",
+    "xp": 130,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "嵌套表与文本的双向搬运"
+      },
+      {
+        "type": "text",
+        "text": "第 27 讲处理的是扁平表：一层键值、每行一个 key=value，够用但遇到嵌套就束手无策。专业篇往前走一步，做一张能表达嵌套结构的文本格式。思路有两条：一条是生成 Lua 字面量，像 {name = 'V', tags = {'a', 'b'}}；另一条是路径式，把嵌套压平成 a.b[1] = 'x' 这样的行。前者紧凑、贴近源码；后者可读、可 diff、解析器也更好写，本讲采用路径式。\n\n无论选哪种，序列化都要解决四个问题：类型怎么表示、键怎么排序、特殊字符怎么转义、空表怎么处理。四个问题答清楚，格式就稳定了；格式稳定，才能做版本管理和回归测试。\n\n序列化的核心是一次递归遍历。遇到字符串就加引号并转义反斜杠、双引号、换行；遇到数字和布尔直接 tostring；遇到表就继续往下走，键是数字时写成 [1]，键是字符串时用点号连接。为了让输出可复现，键必须排序：先按类型排，再按值排，否则 pairs 的遍历顺序一变，生成的文件就会整体漂移，diff 里全是噪声。"
+      },
+      {
+        "type": "code",
+        "code": "local function quote(s)\n  s = s:gsub('\\\\', '\\\\\\\\'):gsub('\"', '\\\\\"'):gsub('\\n', '\\\\n')\n  return '\"' .. s .. '\"'\nend\n\nlocal function leaf(v)\n  local t = type(v)\n  if t == 'string' then return quote(v) end\n  if t == 'number' or t == 'boolean' then return tostring(v) end\n  return nil\nend\n\nlocal function path_of(prefix, k)\n  if type(k) == 'number' then\n    return prefix .. '[' .. k .. ']'\n  end\n  if prefix == '' then return k end\n  return prefix .. '.' .. k\nend\n\nlocal function flatten(v, prefix, out)\n  local keys = {}\n  for k in pairs(v) do keys[#keys + 1] = k end\n  table.sort(keys, function(a, b)\n    local ta, tb = type(a), type(b)\n    if ta ~= tb then return ta < tb end\n    return a < b\n  end)\n  for _, k in ipairs(keys) do\n    local val = v[k]\n    local path = path_of(prefix, k)\n    if type(val) == 'table' then\n      flatten(val, path, out)\n    else\n      local text = leaf(val)\n      if text then out[#out + 1] = path .. ' = ' .. text end\n    end\n  end\nend\n\nlocal function serialize(t)\n  local out = {}\n  flatten(t, '', out)\n  return table.concat(out, '\\n')\nend\n\nlocal cfg = {\n  name = 'V\"1',\n  level = 3,\n  tags = {'a', 'b'},\n  flags = {boss = true},\n  note = 'line1\\nline2',\n}\nprint(serialize(cfg))",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "flags.boss = true\nlevel = 3\nname = \"V\\\"1\"\nnote = \"line1\\nline2\"\ntags[1] = \"a\"\ntags[2] = \"b\""
+      },
+      {
+        "type": "table",
+        "headers": [
+          "值形态",
+          "序列化写法",
+          "解析规则"
+        ],
+        "rows": [
+          [
+            "字符串",
+            "\"text\"（转义引号与换行）",
+            "带引号一律按字符串还原"
+          ],
+          [
+            "数字",
+            "3 / 2.5",
+            "tonumber 成功则转数字"
+          ],
+          [
+            "布尔",
+            "true / false",
+            "精确匹配两个关键字"
+          ],
+          [
+            "嵌套表",
+            "a.b[1] = ...",
+            "按点号与 [n] 逐段建表"
+          ],
+          [
+            "空表",
+            "不产生任何行",
+            "解析后为 nil，需默认值兜底"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "转义要注意顺序：必须先处理反斜杠，再处理引号，最后处理换行。顺序反了会把刚插入的转义符再转义一遍，产生双反斜杠。解析端则要按相反顺序还原：先识别换行、制表、引号和反斜杠四种转义，再拼回字符串。另外，循环引用的表无法用这种递归直接序列化，需要 visited 集合检测并报错；本讲不展开，但设计格式时要给它留位置。\n\n解析器的骨架是逐行扫描：跳过空行和以 # 开头的注释，用模式匹配拆出键和值，再把路径拆成段。路径支持两种片段：name 形式的字段名和 [1] 形式的数组下标。拆分完成后逐段建表，遇到类型冲突（比如 a 已经是数字，又出现 a.b）就返回 nil 加行号。错误信息里没有行号，排查成本会翻好几倍。\n\n类型还原要保守：带引号的一律当字符串，true/false 当布尔，能 tonumber 成功的当数字，其余保留原文。这个规则简单，但要知道它的边界——版本号 \"1.10\" 如果没加引号会被解析成 1.1；前导零也会丢失。真正重要的配置应该显式声明类型，或者约定字符串必须加引号。解析完再做一次字段校验与默认值合并，错误在启动时暴露，比运行到一半才发现好得多。"
+      },
+      {
+        "type": "code",
+        "code": "local function unquote(s)\n  local body = s:sub(2, -2)\n  return (body:gsub('\\\\(.)', function(c)\n    if c == 'n' then return '\\n' end\n    if c == 't' then return '\\t' end\n    if c == '\"' then return '\"' end\n    if c == '\\\\' then return '\\\\' end\n    return c\n  end))\nend\n\nlocal function split_path(path)\n  local segs = {}\n  local i = 1\n  while i <= #path do\n    local rest = path:sub(i)\n    local idx = rest:match('^%[(%d+)%]')\n    if idx then\n      segs[#segs + 1] = tonumber(idx)\n      i = i + #idx + 2\n    else\n      local name = rest:match('^([%w_]+)')\n      if not name then return nil end\n      segs[#segs + 1] = name\n      i = i + #name\n    end\n    local ch = path:sub(i, i)\n    if ch == '.' then\n      i = i + 1\n    elseif ch ~= '' and ch ~= '[' then\n      return nil\n    end\n  end\n  return segs\nend\n\nlocal function assign(root, segs, value)\n  local node = root\n  for i = 1, #segs - 1 do\n    local key = segs[i]\n    local nxt = node[key]\n    if nxt == nil then\n      nxt = {}\n      node[key] = nxt\n    elseif type(nxt) ~= 'table' then\n      return false\n    end\n    node = nxt\n  end\n  node[segs[#segs]] = value\n  return true\nend\n\nlocal function parse_value(raw)\n  if raw:sub(1, 1) == '\"' and raw:sub(-1) == '\"' then\n    return unquote(raw)\n  end\n  if raw == 'true' then return true end\n  if raw == 'false' then return false end\n  local n = tonumber(raw)\n  if n then return n end\n  return raw\nend\n\nlocal function parse(text)\n  local root = {}\n  local line_no = 0\n  for raw_line in text:gmatch('[^\\n]+') do\n    line_no = line_no + 1\n    local line = raw_line:match('^%s*(.-)%s*$')\n    if line ~= '' and line:sub(1, 1) ~= '#' then\n      local k, v = line:match('^([^=]+)%s*=%s*(.+)$')\n      if not k then return nil, 'line ' .. line_no .. ': missing =' end\n      local segs = split_path(k:match('^%s*(.-)%s*$'))\n      if not segs then return nil, 'line ' .. line_no .. ': bad path' end\n      if not assign(root, segs, parse_value(v)) then\n        return nil, 'line ' .. line_no .. ': path conflict'\n      end\n    end\n  end\n  return root\nend\n\nlocal text = [[\n# 战斗配置\nname = \"训练场\"\nrounds = 3\nboss = false\nspawn.point[1] = 10\nspawn.point[2] = 20\n]]\nlocal cfg, err = parse(text)\nprint(cfg.name, cfg.rounds, cfg.boss, err)\nprint(cfg.spawn.point[1], cfg.spawn.point[2])\nlocal bad, msg = parse('oops line')\nprint(bad, msg)",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "训练场\t3\tfalse\tnil\n10\t20\nnil\tline 1: missing ="
+      },
+      {
+        "type": "text",
+        "text": "还有一个工程细节：序列化输出要和输入解耦。不要边遍历边拼接再边写入，先把所有行收集到数组，最后统一 table.concat，这样既能保证顺序，也方便在测试里逐行断言。解析器则应该把语法错误和语义错误分开：前者是行格式不对，后者是路径冲突或类型不符，两类错误给不同的消息前缀，排查时一眼就能分类。最后，配置文件最好带一个 version 字段，格式升级时可以按版本分支处理，而不是猜测旧文件的结构。把这些约定写进注释和测试，格式才真正稳定。\n\n性能上也要有预期：路径式格式每行都要重新拆分路径，行数上万时解析会明显变慢。优化方式是缓存已拆分的前缀，或者按层级组织成缩进格式；但那是另一个复杂度层级，小配置不必提前做。先保证正确和可读，等真的有性能问题再换格式，这个顺序不能反。"
+      },
+      {
+        "type": "warn",
+        "text": "不要用 load 解析配置文件。把外部文本当代码执行，既可能执行任意代码，也无法给出稳定的类型与错误信息；自己写解析器虽然啰嗦，但边界清晰、可以逐行报错。"
+      },
+      {
+        "type": "practice",
+        "title": "解析单行配置",
+        "code": "local function parse_line(line)\n  local k, v = line:match('^([%w_]+)%s*=%s*(.+)$')\n  if not k then return nil end\n  if v == 'true' then return k, true end\n  if v == 'false' then return k, false end\n  return k, tonumber(v) or v\nend\n\nlocal k1, v1 = parse_line('hp = 120')\nlocal k2, v2 = parse_line('name = hero')\nlocal k3, v3 = parse_line('broken')\nprint(k1, v1, type(v1))\nprint(k2, v2, type(v2))\nprint(k3, v3)",
+        "output": "hp\t120\tnumber\nname\thero\tstring\nnil\tnil",
+        "hint": "先匹配 key = value，再依次判断布尔、数字，最后兜底为字符串；格式不对返回 nil。"
+      },
+      {
+        "type": "quiz",
+        "question": "文本里的 1.10 没加引号，解析后变成 1.1，根本原因是什么？",
+        "options": [
+          "Lua 的 tonumber 把它当数字，尾零被丢掉",
+          "字符串在 Lua 里不可变",
+          "解析器把点号当成了路径分隔符",
+          "table.concat 会去掉末尾的零"
+        ],
+        "answer": 0,
+        "explain": "tonumber('1.10') 得到数字 1.1，尾零没有意义。要保留原文必须加引号，或显式声明字段为字符串。"
+      }
+    ],
+    "exercise": {
+      "title": "扁平化路径清单",
+      "brief": "实现 flatten_paths(t)：把嵌套表展开成 'path=value' 的字符串数组。字符串键用点号连接，数字键写成 [n]，值直接用 tostring；键按「类型 + 值」排序，保证输出稳定。",
+      "starterCode": "function flatten_paths(t)\n  \nend\n\nlocal lines = flatten_paths({b = 2, a = {c = 3}})\nprint(#lines)",
+      "hint": "递归遍历，prefix 为空时键就是 path，否则拼成 prefix .. '.' .. k；数字键拼成 prefix .. '[' .. k .. ']'。每层先收集键、排序，再递归。",
+      "tests": [
+        "local l = flatten_paths({a = 1}); assert(#l == 1 and l[1] == 'a=1', '单层')",
+        "local l = flatten_paths({t = {x = 2}}); assert(#l == 1 and l[1] == 't.x=2', '嵌套')",
+        "local l = flatten_paths({t = {10, 20}}); assert(#l == 2 and l[1] == 't[1]=10' and l[2] == 't[2]=20', '数组')",
+        "local l = flatten_paths({b = 1, a = 2}); assert(l[1] == 'a=2' and l[2] == 'b=1', '排序')",
+        "local l = flatten_paths({}); assert(#l == 0, '空表')"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "local function path_of(prefix, k)\n  if type(k) == 'number' then return prefix .. '[' .. k .. ']' end\n  if prefix == '' then return k end\n  return prefix .. '.' .. k\nend\n\nfunction flatten_paths(t)\n  local out = {}\n  local function walk(node, prefix)\n    local keys = {}\n    for k in pairs(node) do keys[#keys + 1] = k end\n    table.sort(keys, function(a, b)\n      local ta, tb = type(a), type(b)\n      if ta ~= tb then return ta < tb end\n      return a < b\n    end)\n    for _, k in ipairs(keys) do\n      local v = node[k]\n      local path = path_of(prefix, k)\n      if type(v) == 'table' then\n        walk(v, path)\n      else\n        out[#out + 1] = path .. '=' .. tostring(v)\n      end\n    end\n  end\n  walk(t, '')\n  return out\nend\n"
+    }
+  },
+  {
+    "id": "lua36",
+    "order": 435,
+    "chapter": 44,
+    "chapterName": "Lua · 专业篇",
+    "lang": "lua",
+    "title": "游戏脚本模式",
+    "subtitle": "状态机、事件总线与组件表",
+    "xp": 130,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把规则放进数据，把流程留给代码"
+      },
+      {
+        "type": "text",
+        "text": "游戏脚本的第一个模式是状态机。角色、UI、关卡、AI 都有「当前处于什么状态、能切到哪些状态」的问题。最差的写法是把状态判断散落在一堆 if 里：加一个状态要改五处，查一个非法转移要翻半天。更好的做法是把状态与转移写成一张表：transitions[from][to] = true，切换前先查表，非法转移返回 false 和原因，让调用方决定怎么处理。\n\n状态机只负责「能不能切」和「切的时候触发什么」，不负责播放动画、不负责弹提示。进入和离开的钩子也写成表：hooks[state] = {on_enter = ..., on_exit = ...}。这样加状态只需要补数据和两条钩子，调度代码完全不动，这就是数据驱动最直接的好处。\n\n第二个模式是事件分发。模块之间直接互相调用会织出一张难以维护的网：战斗模块要通知 UI、音效、成就、统计，每加一个监听者就要改一次战斗代码。事件总线把「谁发生了什么」和「谁关心」解耦：监听者用 on 注册，发布者用 emit 广播，双方只认识事件名和载荷表。"
+      },
+      {
+        "type": "code",
+        "code": "local fsm = {state = 'idle', trace = {}}\n\nlocal transitions = {\n  idle = {walk = true},\n  walk = {idle = true, attack = true},\n  attack = {idle = true},\n}\n\nlocal hooks = {\n  walk = {on_enter = function() fsm.trace[#fsm.trace + 1] = 'enter walk' end},\n  attack = {\n    on_enter = function() fsm.trace[#fsm.trace + 1] = 'enter attack' end,\n    on_exit = function() fsm.trace[#fsm.trace + 1] = 'exit attack' end,\n  },\n}\n\nlocal function switch(target)\n  local allowed = transitions[fsm.state] or {}\n  if not allowed[target] then\n    return false, fsm.state .. '->' .. target\n  end\n  local old_hooks = hooks[fsm.state]\n  if old_hooks and old_hooks.on_exit then old_hooks.on_exit() end\n  fsm.state = target\n  local new_hooks = hooks[target]\n  if new_hooks and new_hooks.on_enter then new_hooks.on_enter() end\n  return true\nend\n\nprint(switch('walk'))\nprint(switch('attack'))\nprint(switch('walk'))\nprint(fsm.state, table.concat(fsm.trace, '|'))",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "true\ntrue\nfalse\tattack->walk\nattack\tenter walk|enter attack"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "模式",
+          "数据结构",
+          "适用场景",
+          "注意"
+        ],
+        "rows": [
+          [
+            "状态机",
+            "transitions[from][to] + hooks",
+            "角色、UI、关卡、AI",
+            "非法转移返回原因"
+          ],
+          [
+            "事件总线",
+            "handlers[event] = 列表",
+            "模块解耦、成就、统计",
+            "遍历前复制列表"
+          ],
+          [
+            "组件表",
+            "entity.components[name]",
+            "能力组合、系统化更新",
+            "约定组件名与更新顺序"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "实现上有两个细节值得注意。第一是优先级：日志、结算、表现层的顺序可能影响结果，注册时带一个数值，触发前排序。第二是遍历中修改监听者列表：如果回调里又 on 或 off，直接遍历原列表会漏项或重复，稳妥做法是先复制一份再遍历。事件载荷用一张表传，比一长串位置参数更容易扩展。\n\n第三个模式是组件表。与其为每种敌人写一个类、再为组合能力搭继承树，不如让实体只带一个 components 表：位置、速度、生命、背包各是一张子表，系统函数按需读取。移动系统只关心 pos 和 vel，回复系统只关心 health，实体有什么组件就参与什么逻辑。组合优于继承，加能力就是加一张子表。\n\n组件表的代价是约束变松：字段名写错不会报错，系统之间的更新顺序需要明确约定。实践里给组件名定常量、给每个系统写清楚「读什么、写什么」，再配合测试，就能把风险压住。这套结构在 Lua 游戏脚本里非常常见，也是本讲练习要动手实现的部分。"
+      },
+      {
+        "type": "code",
+        "code": "local bus = {handlers = {}}\n\nfunction bus:on(event, fn, priority)\n  priority = priority or 0\n  local list = self.handlers[event] or {}\n  list[#list + 1] = {fn = fn, priority = priority}\n  table.sort(list, function(a, b) return a.priority > b.priority end)\n  self.handlers[event] = list\nend\n\nfunction bus:emit(event, payload)\n  local list = self.handlers[event] or {}\n  for _, h in ipairs(list) do h.fn(payload) end\nend\n\nlocal entities = {\n  {name = 'hero', hp = 100, armor = 2},\n  {name = 'slime', hp = 30, armor = 0},\n}\n\nbus:on('damage', function(e) print('log', e.name, e.hp) end, 1)\nbus:on('damage', function(e) e.hp = e.hp - 10 end, 10)\nfor _, e in ipairs(entities) do\n  bus:emit('damage', e)\nend\nprint(entities[1].hp, entities[2].hp)",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "log\thero\t90\nlog\tslime\t20\n90\t20"
+      },
+      {
+        "type": "text",
+        "text": "三个模式可以组合使用：状态机切换时 emit 一个事件，事件回调里修改组件，系统在下一帧读取组件更新表现。组合的关键是明确谁拥有状态：状态机拥有当前状态字符串，实体拥有组件数据，事件总线只负责转发、不保存业务状态。只要这条边界清楚，加功能就不会互相污染。另外，事件名建议集中定义成常量表，避免各处拼写不一致；组件名同理。测试时先测纯函数（转移判断、伤害计算），再测带副作用的流程（事件顺序、组件更新），最后测组合场景。分层测试能让失败信息直接指向出问题的那一层。\n\n还有一个容易忽略的点：事件回调里不要做重活。回调应该只更新数据或标记状态，真正的计算放到系统更新阶段统一处理。否则一次 emit 可能触发几十个回调，每个都改一点状态，顺序稍有变化结果就不同。把回调当成通知而不是执行，是事件总线用得好不好的分水岭。"
+      },
+      {
+        "type": "tip",
+        "text": "事件回调里如果还要注册或取消监听，先复制 handlers[event] 再遍历；直接边遍历边修改列表，轻则漏掉回调，重则行为不可预测。"
+      },
+      {
+        "type": "practice",
+        "title": "组件表与系统",
+        "code": "local world = {entities = {}}\n\nlocal function spawn(id)\n  local e = {id = id, components = {}}\n  world.entities[#world.entities + 1] = e\n  return e\nend\n\nlocal function add(e, name, data)\n  e.components[name] = data\nend\n\nlocal systems = {\n  function(e, dt)\n    local h = e.components.health\n    if h and h.regen then\n      h.hp = math.min(h.max, h.hp + h.regen * dt)\n    end\n  end,\n  function(e, dt)\n    local p, v = e.components.pos, e.components.vel\n    if p and v then\n      p.x = p.x + v.x * dt\n      p.y = p.y + v.y * dt\n    end\n  end,\n}\n\nlocal function update(dt)\n  for _, e in ipairs(world.entities) do\n    for _, system in ipairs(systems) do system(e, dt) end\n  end\nend\n\nlocal hero = spawn('hero')\nadd(hero, 'health', {hp = 90, max = 100, regen = 2})\nadd(hero, 'pos', {x = 0, y = 0})\nadd(hero, 'vel', {x = 3, y = 0})\n\nlocal rock = spawn('rock')\nadd(rock, 'pos', {x = 10, y = 5})\n\nupdate(1)\nupdate(2)\nprint(hero.components.health.hp, hero.components.pos.x, rock.components.pos.x)",
+        "output": "96\t9\t10",
+        "hint": "每个系统先检查实体有没有需要的组件，有就更新；rock 没有 vel，所以位置不动。"
+      },
+      {
+        "type": "quiz",
+        "question": "把状态转移写成 transitions[from][to] 这样的表，最主要的收益是什么？",
+        "options": [
+          "运行速度一定比 if 快",
+          "新增状态只改数据，调度逻辑不用动",
+          "可以自动生成动画",
+          "不再需要测试"
+        ],
+        "answer": 1,
+        "explain": "数据驱动的核心是把规则从代码里抽出来；加状态、改可达关系只动表，流程保持稳定。"
+      }
+    ],
+    "exercise": {
+      "title": "通用状态机",
+      "brief": "实现 make_fsm(transitions, initial)：返回对象，带有 state 字段、can(target) 与 go(target)。go 成功切换返回 true，非法转移返回 false 且 state 不变。",
+      "starterCode": "function make_fsm(transitions, initial)\n  \nend\n\nlocal f = make_fsm({idle = {run = true}}, 'idle')\nprint(f.go('run'))",
+      "hint": "闭包或表都行：把 transitions 与当前状态保存在对象里；can 查 transitions[state][target]，go 先 can 再赋值。",
+      "tests": [
+        "local f = make_fsm({idle = {run = true}, run = {stop = true}}, 'idle'); assert(f.go('run') == true and f.state == 'run', '允许转移')",
+        "local f = make_fsm({idle = {run = true}}, 'idle'); assert(f.go('stop') == false and f.state == 'idle', '拒绝转移')",
+        "local f = make_fsm({idle = {run = true}}, 'idle'); assert(f.can('run') == true and f.can('stop') == false, 'can 查询')",
+        "local f = make_fsm({}, 'solo'); assert(f.go('x') == false, '没有转移时拒绝')"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "function make_fsm(transitions, initial)\n  local self = {state = initial}\n  function self.can(target)\n    local allowed = transitions[self.state]\n    return allowed ~= nil and allowed[target] == true\n  end\n  function self.go(target)\n    if not self.can(target) then\n      return false, self.state .. '->' .. target\n    end\n    self.state = target\n    return true\n  end\n  return self\nend\n"
+    }
+  },
+  {
+    "id": "lua37",
+    "order": 436,
+    "chapter": 44,
+    "chapterName": "Lua · 专业篇",
+    "lang": "lua",
+    "title": "调试与测试",
+    "subtitle": "让错误可定位，让用例可复现",
+    "xp": 130,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "让失败变得可复现"
+      },
+      {
+        "type": "text",
+        "text": "调试的第一原则是让错误尽早、尽量具体地暴露。assert(cond, msg) 在条件为假时抛出带消息的错误，条件为真时原样返回所有参数，所以既能做校验也能做透传。写库时把前置条件写成 assert：参数类型、取值范围、必要字段，一开始就挡住，比运行到深处再报 nil 索引好查得多。\n\n错误的位置信息由 error 的第二个参数控制。标准 Lua 里 level 为 1 指向调用 error 的那一行，传 2 指向上一层调用者，传 0 不带位置前缀。但本沙箱实测有差异：LuaJ 3.0.1 会忽略 level，无论传 0、1 还是 2，消息前缀始终是 error 调用处所在行，所以不要靠 level 调整报错位置，封装校验函数时把上下文直接拼进消息更可靠。\n\npcall 返回 false 加错误对象，错误对象可以是字符串，也可以是表——用表能携带错误码和上下文，但打印时只会显示 table: 地址，需要自己格式化。\n\n沙箱移除了 debug 库，不能主动调用 debug.traceback，错误字符串里虽然可能附带堆栈，但形状不稳定、不适合拿来做逻辑判断，所以定位要靠自己补上下文：在错误消息里带上函数名、参数、关键中间值；在测试里记录用例编号和输入。不要写「出错了」这种没有信息量的消息，也不要吞掉错误只返回 nil——调用方无法区分「没有结果」和「执行失败」。"
+      },
+      {
+        "type": "code",
+        "code": "local function safe_div(a, b)\n  assert(type(a) == 'number', 'a 必须是数字')\n  assert(type(b) == 'number', 'b 必须是数字')\n  assert(b ~= 0, '除数不能为 0')\n  return a / b\nend\n\nlocal ok, err = pcall(safe_div, 10, 0)\nprint(ok, type(err), err:match('除数[^\\n]*'))\nlocal ok2, err2 = pcall(safe_div, 'x', 2)\nprint(ok2, err2:match('a 必须是数字'))\nprint(safe_div(9, 3))\nprint(pcall(safe_div, 10, 2))",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "false\tstring\t除数不能为 0\nfalse\ta 必须是数字\n3\ntrue\t5"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "边界类型",
+          "示例输入",
+          "期望",
+          "容易漏掉的点"
+        ],
+        "rows": [
+          [
+            "空输入",
+            "{} / '' / nil",
+            "空结果或明确错误",
+            "nil 与空表要分开处理"
+          ],
+          [
+            "数值边界",
+            "0、最大值、最大值+1",
+            "边界内通过，越界拒绝",
+            "闭区间还是开区间"
+          ],
+          [
+            "类型错误",
+            "'12' 当数字、nil 当表",
+            "返回错误而非崩溃",
+            "tonumber 会接受空格"
+          ],
+          [
+            "容量边界",
+            "刚好满、超一格",
+            "超一格失败且不半写",
+            "先检查再修改"
+          ],
+          [
+            "重复与顺序",
+            "重复 id、乱序输入",
+            "聚合结果稳定",
+            "排序保证可复现"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "最小测试框架只需要三样东西：用例数组、pcall 执行、结果聚合。每个用例是一个函数，内部用 assert 断言；框架逐个执行，统计通过和失败，失败时打印用例序号与去掉位置前缀的消息。这个结构不到三十行，却能把「手动点一遍」变成可重复的门禁，课程里的 exercises 用的就是同一套思路。\n\n边界用例的设计比断言本身更重要。拿到一个函数，先列输入域：空、单元素、典型值、边界值、越界值、错误类型、重复值、极端规模。然后为每一类写一条最小用例。以解析年龄为例：'0' 和 '150' 是合法边界，'151' 越界，'-1' 不是自然数，'12.5' 不是整数，nil 和数字类型要拒绝。把这些写全，比写十条重复的正常路径有价值得多。\n\n测试还要验证「失败时状态不变」。容量刚好满时再加一个必须失败且背包不能半写；非法转移被拒绝后状态机必须停在原状态。只断言返回值、不断言副作用，是测试里最常见的漏洞。最后，先让用例红，再让实现绿：看着失败信息写代码，能避免「测试刚好通过了但其实没测到」的假象。"
+      },
+      {
+        "type": "code",
+        "code": "local function run_tests(name, cases)\n  local passed, failed = 0, 0\n  local messages = {}\n  for i, case in ipairs(cases) do\n    local ok, err = pcall(case.fn)\n    if ok then\n      passed = passed + 1\n    else\n      failed = failed + 1\n      local msg = tostring(err):match('^[^\\n]*') or ''\n      msg = msg:gsub('^.-:%d+:?%s*', '')\n      messages[#messages + 1] = 'case ' .. i .. ': ' .. msg\n    end\n  end\n  print(name, passed, failed)\n  for _, m in ipairs(messages) do print(m) end\nend\n\nlocal function div(a, b)\n  if b == 0 then error('divide by zero') end\n  return a / b\nend\n\nrun_tests('div', {\n  {fn = function() assert(div(6, 3) == 2) end},\n  {fn = function() assert(div(1, 0) == 0) end},\n  {fn = function() assert(div(-3, 2) == -1.5) end},\n})",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "div\t2\t1\ncase 2: divide by zero"
+      },
+      {
+        "type": "text",
+        "text": "再补充一个实用技巧：把断言消息写成可搜索的关键词，比如 parse_age: negative，而不是自然语言长句。测试失败时用关键词定位比读整段话快。另一个技巧是给每个用例写一句注释说明它想验证什么，用例名比断言消息更能表达意图。还有，测试之间要互相独立：不要依赖前一个用例留下的全局状态，每个用例自己构造输入、自己清理。共享状态会让失败顺序变得敏感，今天通过明天失败。最后，测试通过不代表实现正确，只代表当前用例覆盖的输入正确；定期回看用例列表，补上遗漏的边界，比盲目增加断言数量更有价值。\n\n最后说说怎么读失败信息：先看用例编号定位输入，再看业务消息判断违反了什么约定，最后才看行号。顺序反了容易被栈信息带偏。如果一条用例经常在同一处失败，说明它测的其实是实现细节，应该改成断言可观察的输出或副作用。"
+      },
+      {
+        "type": "tip",
+        "text": "断言消息要写「期望什么」而不是「错了」：assert(b ~= 0, '除数不能为 0') 比 assert(b ~= 0) 多花几秒，却能省下半小时排查。位置前缀可以先用 ^[^\\n]* 截出首行，再用 ^.-:%d+:?%s* 去掉，只留业务消息。"
+      },
+      {
+        "type": "practice",
+        "title": "空表与 nil 的边界",
+        "code": "local function first_positive(t)\n  for i, v in ipairs(t) do\n    if v > 0 then return i, v end\n  end\n  return nil, nil\nend\n\nprint(first_positive({0, -1, 4, 5}))\nprint(first_positive({}))\nlocal ok, err = pcall(first_positive, nil)\nprint(ok, type(err))",
+        "output": "3\t4\nnil\tnil\nfalse\tstring",
+        "hint": "空表返回 nil, nil；传 nil 会在 ipairs 处报错，pcall 捕获后 ok 为 false、错误类型是 string。"
+      },
+      {
+        "type": "quiz",
+        "question": "pcall(f, x) 返回值的第一个元素表示什么？",
+        "options": [
+          "调用是否成功，false 表示捕获到错误",
+          "f 的返回值本身",
+          "错误对象的具体类型",
+          "函数执行了多长时间"
+        ],
+        "answer": 0,
+        "explain": "pcall 成功时返回 true 加所有返回值；失败时返回 false 加错误对象，真正的数据从第二个返回值开始。"
+      }
+    ],
+    "exercise": {
+      "title": "年龄解析器",
+      "brief": "实现 parse_age(text)：只接受由数字字符组成的字符串，返回数字；'0' 与 '150' 合法，超过 150、带负号、带小数点、非字符串都返回 nil 加错误消息。",
+      "starterCode": "function parse_age(text)\n  \nend\n\nprint(parse_age('30'))",
+      "hint": "先用 type 检查字符串，再用 ^%d+$ 检查纯数字，然后 tonumber，最后判断上限；每个失败分支返回 nil, '原因'。",
+      "tests": [
+        "assert(parse_age('0') == 0, '下边界')",
+        "assert(parse_age('150') == 150, '上边界')",
+        "local n, err = parse_age('151'); assert(n == nil and err, '越界')",
+        "local n, err = parse_age('-1'); assert(n == nil and err, '负数')",
+        "local n, err = parse_age('12.5'); assert(n == nil and err, '小数')"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "function parse_age(text)\n  if type(text) ~= 'string' then return nil, 'not a string' end\n  if not text:match('^%d+$') then return nil, 'not an integer' end\n  local n = tonumber(text)\n  if n > 150 then return nil, 'too large' end\n  return n\nend\n"
+    }
+  },
+  {
+    "id": "lua38",
+    "order": 437,
+    "chapter": 44,
+    "chapterName": "Lua · 专业篇",
+    "lang": "lua",
+    "title": "综合项目：背包掉落结算",
+    "subtitle": "背包、结算与回合驱动",
+    "xp": 150,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把八讲的能力拼成一个能跑的系统"
+      },
+      {
+        "type": "text",
+        "text": "最后一讲做一个完整的小项目：背包与战斗结算。它由三块组成——背包对象用元表封装数据与不变量，结算函数用表做聚合与容量检查，战斗流程用协程逐回合产出事件。三块单独看都不复杂，拼在一起才会暴露真正的问题：状态在哪里、失败如何回滚、事件由谁驱动。\n\n背包的不变量有三条：每种物品数量必须为正、所有物品总量不超过容量、数量归零时删除键。add、remove、count、total 都围绕这三条写，外部只能通过方法修改 items。把 __len 接到 total 上，#bag 就表示「已占用格数」，读起来比 bag:total() 更自然；__len 应返回非负整数，别把小数带进长度语义。\n\n结算的流程值得单独设计：先把掉落按 id 聚合，再一次性预检容量，确认放得下才逐项写入，最后返回经验、金币、物品数量的摘要。为什么不边加边检查？因为中途失败会留下半套物品，调用方既不能重试也不能回滚。「先聚合、再预检、最后应用」让失败发生在任何写入之前，语义干净，测试也好写。"
+      },
+      {
+        "type": "code",
+        "code": "local Inventory = {}\nInventory.__index = Inventory\n\nfunction Inventory.new(capacity)\n  return setmetatable({items = {}, capacity = capacity or 10}, Inventory)\nend\n\nfunction Inventory:count(id)\n  return self.items[id] or 0\nend\n\nfunction Inventory:total()\n  local t = 0\n  for _, c in pairs(self.items) do t = t + c end\n  return t\nend\n\nfunction Inventory:add(id, n)\n  n = n or 1\n  if n <= 0 then return false, 'count must be positive' end\n  if self:total() + n > self.capacity then return false, 'full' end\n  self.items[id] = self:count(id) + n\n  return true\nend\n\nfunction Inventory:remove(id, n)\n  n = n or 1\n  if self:count(id) < n then return false, 'not enough' end\n  self.items[id] = self:count(id) - n\n  if self.items[id] == 0 then self.items[id] = nil end\n  return true\nend\n\nInventory.__len = function(self)\n  return self:total()\nend\n\nlocal inv = Inventory.new(5)\nprint(inv:add('potion', 3), inv:add('sword', 1))\nprint(#inv, inv:count('potion'))\nprint(inv:remove('potion', 3), inv:count('potion'), #inv)\nprint(inv:add('shield', 3))",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "true\ttrue\n4\t3\ntrue\t0\t1\ntrue"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "模块",
+          "职责",
+          "关键点"
+        ],
+        "rows": [
+          [
+            "Inventory",
+            "存物品、校验容量、维护不变量",
+            "__len 返回总量，remove 归零删键"
+          ],
+          [
+            "settle",
+            "聚合掉落、预检、写入、返回摘要",
+            "先检查后写入，失败不半写"
+          ],
+          [
+            "battle",
+            "按回合产出事件",
+            "yield 事件表，return 胜者"
+          ],
+          [
+            "driver",
+            "resume 直到 dead",
+            "区分 yield 与 return"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "聚合时还要过滤异常数据：数量为 0 或负数的条目直接忽略，缺失数量的按 0 处理；重复 id 累加而不是覆盖。这些规则不写清楚，结算结果就会随输入顺序变化。摘要里的 items 是本次实际入包的件数，不是掉落条目数，两个数字混淆会导致成就与统计出错。\n\n战斗部分用协程把回合流程写成顺序代码。battle(hero, enemy) 返回一个协程：每回合先算伤害、扣血，yield 一个事件表；对方反击再 yield 一次；有人倒下就 return 胜者名字。外层驱动循环反复 resume，把事件交给 UI 或日志，直到状态变成 dead。伤害公式用 max(1, atk - def) 保证至少掉一点血，避免高防御单位互相打不动。\n\n把三块组合起来时，测试要覆盖组合边界：背包刚好满时结算必须整体失败且不写入；空掉落要成功并返回零摘要；重复掉落要正确累加；战斗事件数量要与回合数对得上。项目做完后可以继续扩展：装备槽、多背包、战斗中的道具使用、存档序列化。每加一个功能，先问它会不会破坏已有不变量，再动手写代码。"
+      },
+      {
+        "type": "code",
+        "code": "local function actor(name, hp, atk, def)\n  return {name = name, hp = hp, atk = atk, def = def}\nend\n\nlocal function damage(a, d)\n  local raw = a.atk - d.def\n  if raw < 1 then raw = 1 end\n  return raw\nend\n\nlocal function battle(hero, enemy)\n  return coroutine.create(function()\n    local turn = 0\n    while hero.hp > 0 and enemy.hp > 0 do\n      turn = turn + 1\n      local hit = damage(hero, enemy)\n      enemy.hp = enemy.hp - hit\n      coroutine.yield({turn = turn, from = hero.name, to = enemy.name, dmg = hit, hp = enemy.hp})\n      if enemy.hp <= 0 then break end\n      hit = damage(enemy, hero)\n      hero.hp = hero.hp - hit\n      coroutine.yield({turn = turn, from = enemy.name, to = hero.name, dmg = hit, hp = hero.hp})\n    end\n    return hero.hp > 0 and hero.name or enemy.name\n  end)\nend\n\nlocal hero = actor('hero', 30, 8, 2)\nlocal enemy = actor('slime', 14, 5, 1)\nlocal co = battle(hero, enemy)\nwhile true do\n  local ok, ev = coroutine.resume(co)\n  if coroutine.status(co) == 'dead' then\n    print('winner', ev)\n    break\n  end\n  print(ev.turn, ev.from, ev.to, ev.dmg, ev.hp)\nend\nprint(hero.hp, enemy.hp)",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "1\thero\tslime\t7\t7\n1\tslime\thero\t3\t27\n2\thero\tslime\t7\t0\nwinner\thero\n27\t0"
+      },
+      {
+        "type": "text",
+        "text": "项目收尾时做一次自查：所有公开函数是否都处理了 nil 输入、容量边界是否在写入前检查、事件顺序是否稳定、摘要字段是否和文档一致。再看一眼失败路径：settle 返回 false 时背包必须保持原样；battle 协程在敌人已死时不能继续扣血；add 传入负数不能改变总量。把这些写成用例，项目就有了回归保护。最后，给代码留一个清晰的扩展点：把掉落聚合、容量预检、写入拆成三个小函数，将来接入装备槽或多背包时，只需要替换其中一层，而不是重写整个结算流程。这也是本讲想传达的工程习惯。\n\n如果继续往前做，下一站是存档：把背包与角色状态序列化成文本，读档时校验版本与字段，非法数据拒绝加载而不是带着半套状态继续跑。再往前是事件化：把结算结果通过事件总线广播，成就、统计、UI 各自订阅，互不依赖。这些扩展都不需要推翻现有结构，因为它们遵守同一条原则：数据与规则分离，失败先于写入。"
+      },
+      {
+        "type": "practice",
+        "title": "结算前的聚合",
+        "code": "local loot = {\n  {id = 'potion', n = 2},\n  {id = 'potion', n = 1},\n  {id = 'fang', n = 1},\n}\nlocal merged = {}\nfor _, item in ipairs(loot) do\n  merged[item.id] = (merged[item.id] or 0) + item.n\nend\nlocal total, ids = 0, {}\nfor id, n in pairs(merged) do\n  total = total + n\n  ids[#ids + 1] = id\nend\ntable.sort(ids)\nprint(total, table.concat(ids, ','))\nprint(merged.potion, merged.fang)",
+        "output": "4\tfang,potion\n3\t1",
+        "hint": "先把同 id 的数量累加，再统计总件数；直接逐条入包会让重复条目变成多次容量判断。"
+      },
+      {
+        "type": "steps",
+        "items": [
+          "定义数据模型：Inventory 的 items 与 capacity，actor 的 hp/atk/def",
+          "写操作函数：add、remove、count、total，先校验再修改",
+          "写结算：聚合掉落、预检容量、批量写入、返回摘要",
+          "写战斗协程：每回合 yield 事件，死亡时 return 胜者",
+          "补测试：容量刚好满、空掉落、重复掉落、非法数量"
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "结算函数不要直接修改调用方传入的 result 表，也不要依赖 pairs 的遍历顺序。聚合结果写入新表、按需排序，才能保证同样的输入永远得到同样的输出。"
+      },
+      {
+        "type": "quiz",
+        "question": "结算为什么要求「先聚合、再预检容量、最后写入」？",
+        "options": [
+          "这样代码行数更少",
+          "避免中途失败留下写入了一半的背包",
+          "让协程可以暂停",
+          "因为 pairs 不能直接修改表"
+        ],
+        "answer": 1,
+        "explain": "预检把失败提前到任何写入之前，保证失败时状态不变；边加边检查会留下半套物品，难以回滚。"
+      }
+    ],
+    "exercise": {
+      "title": "掉落结算",
+      "brief": "实现 Bag 与 settle(bag, result)。Bag 需要 new(cap)、count、total、free、add；settle 聚合 result.loot（每项 {id=..., n=...}）并按 id 累加，容量不足时返回 false 且不写入任何物品，成功时返回 true 与{exp, gold, items} 摘要（items 为实际入包件数）。",
+      "starterCode": "Bag = {}\nBag.__index = Bag\n\nfunction Bag.new(cap)\n  return setmetatable({items = {}, cap = cap}, Bag)\nend\n\nfunction Bag:count(id)\n  return self.items[id] or 0\nend\n\nfunction Bag:total()\n  local n = 0\n  for _, c in pairs(self.items) do n = n + c end\n  return n\nend\n\nfunction Bag:free()\n  return self.cap - self:total()\nend\n\nfunction Bag:add(id, n)\n  if n <= 0 or self:free() < n then return false end\n  self.items[id] = self:count(id) + n\n  return true\nend\n\nfunction settle(bag, result)\n  \nend\n\nlocal b = Bag.new(5)\nprint(settle(b, {loot = {{id = 'x', n = 1}}}))",
+      "hint": "先把 loot 聚合成 merged 并统计总件数；total > bag:free() 时直接返回 false, 'bag full'；确认放得下再逐项 bag:add，最后返回摘要。",
+      "tests": [
+        "local b = Bag.new(10); local ok, s = settle(b, {loot = {{id = 'potion', n = 2}, {id = 'potion', n = 1}}}); assert(ok and s.items == 3 and b:count('potion') == 3, '重复条目累加')",
+        "local b = Bag.new(2); local ok = settle(b, {loot = {{id = 'a', n = 2}, {id = 'b', n = 1}}}); assert(ok == false and b:total() == 0, '容量不足不写入')",
+        "local b = Bag.new(5); local ok, s = settle(b, {loot = {{id = 'x', n = 0}}}); assert(ok and s.items == 0 and b:total() == 0, '零数量忽略')",
+        "local b = Bag.new(5); local ok, s = settle(b, {}); assert(ok and s.exp == 0 and s.gold == 0 and s.items == 0, '空掉落')",
+        "local b = Bag.new(5); local ok, s = settle(b, {exp = 12, gold = 30, loot = {{id = 'a', n = 1}}}); assert(ok and s.exp == 12 and s.gold == 30, '透传奖励')"
+      ],
+      "stdin": [],
+      "xp": 150,
+      "solution": "Bag = {}\nBag.__index = Bag\n\nfunction Bag.new(cap)\n  return setmetatable({items = {}, cap = cap}, Bag)\nend\n\nfunction Bag:count(id)\n  return self.items[id] or 0\nend\n\nfunction Bag:total()\n  local n = 0\n  for _, c in pairs(self.items) do n = n + c end\n  return n\nend\n\nfunction Bag:free()\n  return self.cap - self:total()\nend\n\nfunction Bag:add(id, n)\n  if n <= 0 or self:free() < n then return false end\n  self.items[id] = self:count(id) + n\n  return true\nend\n\nfunction settle(bag, result)\n  local merged = {}\n  local total = 0\n  for _, item in ipairs(result.loot or {}) do\n    local n = item.n or 0\n    if n > 0 then\n      merged[item.id] = (merged[item.id] or 0) + n\n      total = total + n\n    end\n  end\n  if total > bag:free() then\n    return false, 'bag full'\n  end\n  for id, n in pairs(merged) do\n    bag:add(id, n)\n  end\n  return true, {exp = result.exp or 0, gold = result.gold or 0, items = total}\nend\n"
+    }
+  }
+]

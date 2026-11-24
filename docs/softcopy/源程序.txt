@@ -1558,78 +1558,7 @@ object CInterpreter {
 
         /** 结构体说明符：struct Tag { ... } 或 struct Tag */
 
-码上多语言编程学习软件 V1.0 第 31 页 [app/src/main/java/com/pyneon/academy/ui/theme/AppThemes.kt 自第 147 行起]
-        softEyeCare,
-        paperLight
-    )
-
-    // 按 id 找主题，找不到就回赛博霓虹。
-
-    fun getThemeById(id: String): AppTheme {
-        return allThemes.find { it.id == id } ?: cyberNeon
-    }
-
-    // 自定义主题在 ThemePreference 里的固定 id。
-    const val CUSTOM_THEME_ID = "custom"
-
-    // 支持 #RRGGBB 和 #AARRGGBB，格式不对返回 null。
-    fun parseHex(hex: String): Color? {
-        val trimmed = hex.trim().removePrefix("#")
-        if (trimmed.length != 6 && trimmed.length != 8) return null
-        return try {
-            Color(AndroidColor.parseColor("#$trimmed"))
-        } catch (_: IllegalArgumentException) {
-            null
-        }
-    }
-
-    // 拿一个主色生成整套主题。辅助色和强调色在色环上往后转，饱和度降一点；
-    // 主色太暗就换成亮底，不然字看不清。
-    fun customTheme(hexColor: String): AppTheme {
-        val base = parseHex(hexColor) ?: cyberNeon.primary
-        val hsv = FloatArray(3)
-        AndroidColor.colorToHSV(base.toArgb(), hsv)
-        val h = hsv[0]; val s = hsv[1]; val v = hsv[2]
-        val secondary = Color(AndroidColor.HSVToColor(floatArrayOf((h + 0.11f) % 1f, (s * 0.85f).coerceIn(0f, 1f), v)))
-        val accent = Color(AndroidColor.HSVToColor(floatArrayOf((h + 0.22f) % 1f, (s * 0.70f).coerceIn(0f, 1f), v)))
-        val light = v < 0.35f
-        val baseTheme = if (light) paperLight else cyberNeon
-        return AppTheme(
-            id = CUSTOM_THEME_ID,
-            name = "自定义",
-            primary = base,
-            secondary = secondary,
-            accent = accent,
-            background = baseTheme.background,
-            surface = baseTheme.surface,
-            surfaceHigh = baseTheme.surfaceHigh,
-            textPrimary = baseTheme.textPrimary,
-            textSecondary = baseTheme.textSecondary,
-            textDim = baseTheme.textDim,
-            isLight = light
-        )
-    }
-
-码上多语言编程学习软件 V1.0 第 32 页 [app/src/main/java/com/pyneon/academy/ui/theme/AppThemes.kt 自第 197 行起]
-}
-package com.pyneon.academy.ui.theme
-
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.graphics.Color
-
-// 界面颜色都从这里取。切主题就是换一套值，调用方不用动。
-data class NeonTokens(
-    // 背景层级（从最深到最浅）
-    val bg0: Color,          // 页面主背景
-    val bg1: Color,          // 次级背景（代码/输出面板等）
-    val surfaceDark: Color,  // 卡片/弹窗表面
-    val surfaceHigh: Color,  // 高亮表面（表头、输入框等）
-    // 文字层级（从最亮到最暗）
-    val textHi: Color,       // 主文字
-    val textMid: Color,      // 次级文字
-    val textDim: Color,      // 弱化文字
-    // 强调色，每套主题单独调过，保证在各自背景上看得清。
+码上多语言编程学习软件 V1.0 第 31 页 [app/src/main/java/com/pyneon/academy/ui/theme/Color.kt 自第 19 行起]
     val primary: Color,      // 主色（青）
     val secondary: Color,    // 辅助色（品红）
     val accent: Color,       // 强调色（黄）
@@ -1661,8 +1590,6 @@ val DarkTokens = NeonTokens(
 
 // 白纸主题，颜色按白底重新调过。
 val LightTokens = NeonTokens(
-
-码上多语言编程学习软件 V1.0 第 33 页 [app/src/main/java/com/pyneon/academy/ui/theme/Color.kt 自第 50 行起]
     bg0 = Color(0xFFF5F7FB),
     bg1 = Color(0xFFE9EEF5),
     surfaceDark = Color(0xFFFFFFFF),
@@ -1682,6 +1609,8 @@ val LightTokens = NeonTokens(
 
 val LocalNeonTokens = staticCompositionLocalOf { DarkTokens }
 
+
+码上多语言编程学习软件 V1.0 第 32 页 [app/src/main/java/com/pyneon/academy/ui/theme/Color.kt 自第 69 行起]
 // 背景层级
 val Bg0: Color
     @Composable get() = LocalNeonTokens.current.bg0
@@ -1713,8 +1642,6 @@ val NeonPurple: Color
     @Composable get() = LocalNeonTokens.current.purple
 val DangerRed: Color
     @Composable get() = LocalNeonTokens.current.danger
-
-码上多语言编程学习软件 V1.0 第 34 页 [app/src/main/java/com/pyneon/academy/ui/theme/Shape.kt 自第 1 行起]
 package com.pyneon.academy.ui.theme
 
 import androidx.compose.foundation.shape.CutCornerShape
@@ -1734,6 +1661,8 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+
+码上多语言编程学习软件 V1.0 第 33 页 [app/src/main/java/com/pyneon/academy/ui/theme/Theme.kt 自第 7 行起]
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 
@@ -1765,8 +1694,6 @@ private fun createColorScheme(theme: AppTheme): ColorScheme {
 
 // 默认赛博霓虹配色。给预览和旧调用点用，直接取深色常量。
 private val PyNeonColorScheme = darkColorScheme(
-
-码上多语言编程学习软件 V1.0 第 35 页 [app/src/main/java/com/pyneon/academy/ui/theme/Theme.kt 自第 38 行起]
     primary = DarkTokens.primary,
     onPrimary = DarkTokens.bg0,
     primaryContainer = DarkTokens.surfaceHigh,
@@ -1786,6 +1713,8 @@ private val PyNeonColorScheme = darkColorScheme(
     outline = DarkTokens.textDim,
     error = DarkTokens.danger,
     onError = DarkTokens.bg0
+
+码上多语言编程学习软件 V1.0 第 34 页 [app/src/main/java/com/pyneon/academy/ui/theme/Theme.kt 自第 57 行起]
 )
 
 // 默认主题，不跟系统切换。
@@ -1817,8 +1746,6 @@ fun PyNeonTheme(
             typography = typographyFor(fontScale),
             shapes = AppShapes,
             content = content
-
-码上多语言编程学习软件 V1.0 第 36 页 [app/src/main/java/com/pyneon/academy/ui/theme/Theme.kt 自第 88 行起]
         )
     }
 }
@@ -1838,6 +1765,8 @@ val AppTypography = Typography(
     titleLarge = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 18.sp, lineHeight = 26.sp),
     titleMedium = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 15.sp, lineHeight = 22.sp),
     bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 25.sp),
+
+码上多语言编程学习软件 V1.0 第 35 页 [app/src/main/java/com/pyneon/academy/ui/theme/Type.kt 自第 17 行起]
     bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 22.sp),
     bodySmall = TextStyle(fontSize = 12.sp, lineHeight = 18.sp),
     labelLarge = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 13.sp, lineHeight = 20.sp),
@@ -1869,8 +1798,6 @@ enum class FontScale(val id: String, val label: String, val factor: Float) {
 // 按档位生成排版，只放大三档正文。标题和标签不动，
 // 不然中文标题在窄屏上会乱换行。
 fun typographyFor(scale: FontScale): Typography {
-
-码上多语言编程学习软件 V1.0 第 37 页 [app/src/main/java/com/pyneon/academy/ui/theme/Type.kt 自第 48 行起]
     if (scale == FontScale.NORMAL) return AppTypography
     val f = scale.factor
     fun TextStyle.scaled(): TextStyle = copy(
@@ -1890,6 +1817,8 @@ import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
+
+码上多语言编程学习软件 V1.0 第 36 页 [app/src/main/java/com/pyneon/academy/ui/theme/VisualStyle.kt 自第 7 行起]
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 
@@ -1921,8 +1850,6 @@ enum class VisualStyle(
 
     val neonBorderEnabled: Boolean get() = this == CYBER
 
-
-码上多语言编程学习软件 V1.0 第 38 页 [app/src/main/java/com/pyneon/academy/ui/theme/VisualStyle.kt 自第 38 行起]
     val pressAnimationEnabled: Boolean get() = this == CYBER
 
     // 赛博用切角，简洁用圆角。
@@ -1942,6 +1869,8 @@ val LocalVisualStyle = staticCompositionLocalOf { VisualStyle.DEFAULT }
 // 必须是 Composable 函数：CompositionLocal 的 current 只能在 Composable 里读。
 @Composable
 fun isCyberStyle(): Boolean = LocalVisualStyle.current == VisualStyle.CYBER
+
+码上多语言编程学习软件 V1.0 第 37 页 [app/src/main/java/com/pyneon/academy/utils/AppConstants.kt 自第 1 行起]
 package com.pyneon.academy.utils
 
 import com.pyneon.academy.BuildConfig
@@ -1973,8 +1902,6 @@ object AppConstants {
     const val PRIVACY_POLICY_URL = "$REPO_URL/blob/main/PRIVACY_POLICY.md"
     const val TERMS_URL = "$REPO_URL/blob/main/TERMS_OF_SERVICE.md"
 }
-
-码上多语言编程学习软件 V1.0 第 39 页 [app/src/main/java/com/pyneon/academy/utils/AppPrefs.kt 自第 1 行起]
 package com.pyneon.academy.utils
 
 import android.content.Context
@@ -1994,6 +1921,8 @@ object AppPrefs {
         prefs.edit().putBoolean(KEY_FIRST_LAUNCH, false).apply()
     }
 
+
+码上多语言编程学习软件 V1.0 第 38 页 [app/src/main/java/com/pyneon/academy/utils/AppPrefs.kt 自第 20 行起]
     /**
      * 是否已同意隐私政策。华为/工信部要求：在收集/处理任何数据前必须取得明示同意。
      */
@@ -2025,8 +1954,6 @@ object HttpText {
     private const val DEFAULT_MAX_BYTES = 5 * 1024 * 1024
 
     fun getText(
-
-码上多语言编程学习软件 V1.0 第 40 页 [app/src/main/java/com/pyneon/academy/utils/HttpText.kt 自第 19 行起]
         url: String,
         timeoutMs: Int = DEFAULT_TIMEOUT_MS,
         maxBytes: Int = DEFAULT_MAX_BYTES,
@@ -2046,6 +1973,8 @@ object HttpText {
             readTimeout = timeoutMs
             requestMethod = "GET"
             setRequestProperty("Accept", accept)
+
+码上多语言编程学习软件 V1.0 第 39 页 [app/src/main/java/com/pyneon/academy/utils/HttpText.kt 自第 38 行起]
             setRequestProperty("User-Agent", userAgent)
         }
         try {
@@ -2077,8 +2006,6 @@ object HttpText {
 package com.pyneon.academy.utils
 
 import android.content.Context
-
-码上多语言编程学习软件 V1.0 第 41 页 [app/src/main/java/com/pyneon/academy/utils/I18n.kt 自第 4 行起]
 import java.util.Locale
 
 // 简单文案表。中文为主，英文和日文有基础版本。
@@ -2098,6 +2025,8 @@ object I18n {
             "welcome.title" -> "欢迎使用 CodeLearning"
             "welcome.subtitle" -> "码上编程学院"
             "welcome.offline.title" -> "完全离线学习"
+
+码上多语言编程学习软件 V1.0 第 40 页 [app/src/main/java/com/pyneon/academy/utils/I18n.kt 自第 23 行起]
             "welcome.offline.desc" -> "内置语言运行时\n地铁、飞机、没网的地方都能学\n随时打开随时练"
             "welcome.gamification.title" -> "游戏化成长"
             "welcome.gamification.desc" -> "XP 和段位\n每日任务、成就徽章\n学一点就有一点反馈"
@@ -2129,8 +2058,6 @@ object I18n {
             "button.start" -> "Start Learning"
             else -> key
         }
-
-码上多语言编程学习软件 V1.0 第 42 页 [app/src/main/java/com/pyneon/academy/utils/I18n.kt 自第 54 行起]
     }
     
     private fun getJaString(key: String): String {
@@ -2150,6 +2077,8 @@ package com.pyneon.academy.utils
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+
+码上多语言编程学习软件 V1.0 第 41 页 [app/src/main/java/com/pyneon/academy/utils/ShareHelper.kt 自第 7 行起]
 
 object ShareHelper {
 
@@ -2181,8 +2110,6 @@ object ShareHelper {
             appendLine()
             appendLine("XP：$xp")
             appendLine("连击：$streak 天")
-
-码上多语言编程学习软件 V1.0 第 43 页 [app/src/main/java/com/pyneon/academy/utils/ShareHelper.kt 自第 38 行起]
             appendLine("段位：$rank")
             appendLine()
             appendLine("完全离线，随时能练。")
@@ -2202,6 +2129,8 @@ object ShareHelper {
         
         val chooser = Intent.createChooser(intent, "分享到")
         chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+码上多语言编程学习软件 V1.0 第 42 页 [app/src/main/java/com/pyneon/academy/utils/ShareHelper.kt 自第 57 行起]
         context.startActivity(chooser)
     }
 }
@@ -2233,8 +2162,6 @@ object ThemePreference {
     fun unregisterListener(context: Context, listener: SharedPreferences.OnSharedPreferenceChangeListener) {
         getPrefs(context).unregisterOnSharedPreferenceChangeListener(listener)
     }
-
-码上多语言编程学习软件 V1.0 第 44 页 [app/src/main/java/com/pyneon/academy/utils/ThemePreference.kt 自第 29 行起]
 
     // 自定义主题按用户给的主色现算，其余按 id 查表。
     fun getCurrentTheme(context: Context): AppTheme {
@@ -2254,6 +2181,8 @@ object ThemePreference {
     // 当前主题 id。默认白纸模式，看长文舒服；换过的用户保持自己的选择。
 
     fun getCurrentThemeId(context: Context): String {
+
+码上多语言编程学习软件 V1.0 第 43 页 [app/src/main/java/com/pyneon/academy/utils/ThemePreference.kt 自第 48 行起]
         return getPrefs(context).getString(KEY_THEME_ID, DEFAULT_THEME_ID) ?: DEFAULT_THEME_ID
     }
 
@@ -2285,8 +2214,6 @@ object ThemePreference {
 
     // 没设置过就用标准档。
     fun getFontScale(context: Context): FontScale =
-
-码上多语言编程学习软件 V1.0 第 45 页 [app/src/main/java/com/pyneon/academy/utils/ThemePreference.kt 自第 79 行起]
         FontScale.fromId(getPrefs(context).getString(KEY_FONT_SCALE, null))
 
     fun saveFontScale(context: Context, scale: FontScale) {
@@ -2306,6 +2233,8 @@ import org.json.JSONObject
  */
 object UpdateChecker {
 
+
+码上多语言编程学习软件 V1.0 第 44 页 [app/src/main/java/com/pyneon/academy/utils/UpdateChecker.kt 自第 14 行起]
     data class ReleaseInfo(
         val version: String,
         val url: String,
@@ -2337,8 +2266,6 @@ object UpdateChecker {
                     continue
                 }
                 return@withContext Result.success(
-
-码上多语言编程学习软件 V1.0 第 46 页 [app/src/main/java/com/pyneon/academy/utils/UpdateChecker.kt 自第 45 行起]
                     ReleaseInfo(tag, url, json.optString("published_at"))
                 )
             } catch (e: Exception) {
@@ -2358,6 +2285,8 @@ object UpdateChecker {
         for (i in 0 until n) {
             val x = a.getOrElse(i) { 0 }
             val y = b.getOrElse(i) { 0 }
+
+码上多语言编程学习软件 V1.0 第 45 页 [app/src/main/java/com/pyneon/academy/utils/UpdateChecker.kt 自第 64 行起]
             if (x != y) return x > y
         }
         return false
@@ -2370,7 +2299,7 @@ import sys
 import threading
 import time
 
-from runner import DEFAULT_TIMEOUT, EXEC_LOCK, SandboxTimeout, _Watchdog, _truncate
+from runner import DEFAULT_TIMEOUT, EXEC_LOCK, SandboxTimeout, _Watchdog, _truncate, sandbox_guard
 
 # 单条 REPL 语句最多跑多久，和 runner.DEFAULT_TIMEOUT 一样，
 # 桌面和 Android 行为保持一致。
@@ -2389,8 +2318,6 @@ class NeonConsole(code_module.InteractiveConsole):
         super().__init__(locals={"__name__": "__neon_console__", "__doc__": None})
         self.capture = io.StringIO()
         # 每条语句的预算，push 时更新。
-
-码上多语言编程学习软件 V1.0 第 47 页 [app/src/main/python/repl.py 自第 27 行起]
         self._timeout = REPL_TIMEOUT
 
     def write(self, data):
@@ -2410,8 +2337,14 @@ class NeonConsole(code_module.InteractiveConsole):
                 sys.stdout = capture
                 sys.stderr = capture
                 sys.settrace(_Watchdog(deadline))
+
+码上多语言编程学习软件 V1.0 第 46 页 [app/src/main/python/repl.py 自第 46 行起]
                 try:
-                    exec(code, self.locals)
+                    with sandbox_guard():
+                        try:
+                            exec(code, self.locals)
+                        finally:
+                            sys.settrace(None)
                 finally:
                     sys.settrace(None)
             except SystemExit:
@@ -2441,8 +2374,6 @@ def _active_console() -> NeonConsole:
         return _console
 
 
-
-码上多语言编程学习软件 V1.0 第 48 页 [app/src/main/python/repl.py 自第 77 行起]
 def start():
     global _console
     with _console_lock:
@@ -2458,6 +2389,8 @@ def reset():
 
 def push(line, timeout=None):
     console = _active_console()
+
+码上多语言编程学习软件 V1.0 第 47 页 [app/src/main/python/repl.py 自第 96 行起]
     with _console_lock:
         # 可以传单次预算，测试用；默认 REPL_TIMEOUT。
         console._timeout = REPL_TIMEOUT if timeout is None else float(timeout)
@@ -2475,6 +2408,7 @@ import threading
 import time
 import traceback
 import types
+from contextlib import contextmanager
 
 DEFAULT_TIMEOUT = 8.0
 EXERCISE_TEST_TIMEOUT = 2.0
@@ -2485,6 +2419,90 @@ MAX_OUTPUT = 1_048_576
 # 调 repr 之前先看对象多大，太大就跳过，免得 repr 本身把内存吃光。
 MAX_VAR_BYTES = 1_000_000
 
+# 运行台沙箱。只拦「执行用户代码」这一段，不拦 App 自己的课程包下载和启动。
+# 用审计钩子而不是封 import：课程里的 asyncio 会 import socket / subprocess,
+# 封 import 会把正常课程一起打断；这里允许 import，等真正建 socket、起进程时再拒绝。
+_BLOCKED_IMPORT_ROOTS = {"java", "jnius", "ctypes", "_ctypes", "chaquopy"}
+_BLOCKED_AUDIT_EVENTS = {
+    "os.system", "os.popen", "os.exec", "os.spawn", "os.posix_spawn",
+    "os.fork", "os.forkpty", "os.kill", "os.killpg",
+    "socket.connect", "socket.bind", "socket.getaddrinfo", "socket.gethostbyname",
+    "socket.gethostbyaddr", "socket.sendto", "socket.send_fds",
+}
+_BLOCKED_AUDIT_PREFIXES = ("subprocess.", "ctypes.")
+# 每个线程单独计数。超时线程卡在 C 调用里时，不能让整个 App 的联网也一起被锁死。
+_guard_depths = {}
+_SANDBOX_DENY = "运行台处于离线沙箱：不开放网络、系统命令、Java/ctypes 桥。"
+
+
+def _deny(what):
+    raise PermissionError("%s（%s）" % (_SANDBOX_DENY, what))
+
+
+def _audit(event, args):
+    if _guard_depths.get(threading.get_ident(), 0) <= 0:
+
+码上多语言编程学习软件 V1.0 第 48 页 [app/src/main/python/runner.py 自第 41 行起]
+        return
+    if event == "import":
+        root = str(args[0]).split(".", 1)[0] if args else ""
+        if root in _BLOCKED_IMPORT_ROOTS:
+            _deny("import %s" % root)
+        return
+    if event == "socket.__new__":
+        # 只封 INET/INET6。asyncio 的事件循环会用 AF_UNIX socketpair，
+        # 连这个也封，所有异步课程都会挂。
+        family = args[1] if len(args) > 1 else None
+        if family in (2, 10):
+            _deny("socket family=%s" % family)
+        return
+    if event in _BLOCKED_AUDIT_EVENTS or event.startswith(_BLOCKED_AUDIT_PREFIXES):
+        _deny(event)
+
+
+try:
+    sys.addaudithook(_audit)
+except Exception:
+    # 老解释器没有审计钩子时宁可少一层防护，也不能让 App 起不来。
+    pass
+
+
+@contextmanager
+def sandbox_guard():
+    """执行用户代码期间打开操作级沙箱；可重入，按线程隔离。"""
+    tid = threading.get_ident()
+    _guard_depths[tid] = _guard_depths.get(tid, 0) + 1
+    try:
+        yield
+    finally:
+        depth = _guard_depths.get(tid, 1) - 1
+        if depth <= 0:
+            _guard_depths.pop(tid, None)
+        else:
+            _guard_depths[tid] = depth
+
+
+# 用户代码 new 出来的线程默认不继承 guard。包一层 Thread.start，
+# 让 threading / ThreadPoolExecutor 的子线程也留在沙箱里。
+_original_thread_start = threading.Thread.start
+
+
+def _guarded_thread_start(self):
+    if _guard_depths.get(threading.get_ident(), 0) > 0:
+        original_run = self.run
+
+        def guarded_run():
+            with sandbox_guard():
+
+码上多语言编程学习软件 V1.0 第 49 页 [app/src/main/python/runner.py 自第 91 行起]
+                original_run()
+
+        self.run = guarded_run
+    return _original_thread_start(self)
+
+
+threading.Thread.start = _guarded_thread_start
+
 
 # 执行锁。一次运行会改 sys.stdout、sys.stderr 和 builtins.input 这些进程级对象，
 # 两个线程一起跑就会互相抢缓冲区，A 的输出跑进 B 里。
@@ -2493,8 +2511,6 @@ MAX_VAR_BYTES = 1_000_000
 EXEC_LOCK = threading.RLock()
 
 
-
-码上多语言编程学习软件 V1.0 第 49 页 [app/src/main/python/runner.py 自第 26 行起]
 class SandboxTimeout(Exception):
     pass
 
@@ -2529,6 +2545,8 @@ class _Watchdog:
         return self
 
 
+
+码上多语言编程学习软件 V1.0 第 50 页 [app/src/main/python/runner.py 自第 141 行起]
 def _error_payload(etype, evalue, tb):
     trimmed_tb = tb.tb_next if tb is not None else None
     text = "".join(traceback.format_exception(etype, evalue, trimmed_tb)).strip()
@@ -2545,8 +2563,6 @@ def _truncate(text):
         return "[输出过长已截断]\n" + text[-MAX_OUTPUT:]
     return text
 
-
-码上多语言编程学习软件 V1.0 第 50 页 [app/src/main/python/runner.py 自第 76 行起]
 
 class OutputTooLong(Exception):
     """输出超过硬上限，立即中断执行（防 OOM）。"""
@@ -2581,12 +2597,19 @@ def _run_protected(code, namespace, stdin_lines, timeout):
 
     def target():
         try:
+
+码上多语言编程学习软件 V1.0 第 51 页 [app/src/main/python/runner.py 自第 191 行起]
             sys.stdout = out_buf
             sys.stderr = err_buf
             builtins.input = _make_input(stdin_lines)
             sys.settrace(_Watchdog(time.perf_counter() + timeout))
             try:
-                exec(compile(code, "<pyneon>", "exec"), namespace)
+                with sandbox_guard():
+                    try:
+                        exec(compile(code, "<pyneon>", "exec"), namespace)
+                    finally:
+                        # 必须在 guard 内先关 trace，否则看门狗可能在清理过程中再抛一次。
+                        sys.settrace(None)
             finally:
                 sys.settrace(None)
         except SandboxTimeout:
@@ -2597,8 +2620,6 @@ def _run_protected(code, namespace, stdin_lines, timeout):
                 "traceback": "",
             }
         except OutputTooLong:
-
-码上多语言编程学习软件 V1.0 第 51 页 [app/src/main/python/runner.py 自第 126 行起]
             state["error"] = {
                 "type": "OutputTooLong",
                 "message": "输出超过 %d KB 上限，已中断（疑似死循环打印）"
@@ -2628,6 +2649,8 @@ def _run_protected(code, namespace, stdin_lines, timeout):
     except RuntimeError as exc:
         # 无多线程能力的环境（Pyodide 未启用 SharedArrayBuffer 时 start() 抛
         # RuntimeError: can't start new thread）：降级为主线程直接执行。
+
+码上多语言编程学习软件 V1.0 第 52 页 [app/src/main/python/runner.py 自第 241 行起]
         # settrace 看门狗仍能中断纯 Python 死循环；C 阻塞调用失去超时保护。
         if "can't start new thread" not in str(exc):
             raise
@@ -2649,8 +2672,6 @@ def _run_protected(code, namespace, stdin_lines, timeout):
         None
         if state["finished"] and state["error"] is None
         else (
-
-码上多语言编程学习软件 V1.0 第 52 页 [app/src/main/python/runner.py 自第 176 行起]
             state["error"]
             or {
                 "type": "Timeout",
@@ -2680,6 +2701,8 @@ def _snapshot(namespace):
         # 只展示“数据变量”：过滤内置函数/自定义函数/方法/类/模块等噪音，
         # 避免快照面板出现 random: module 这类与学习无关的条目。
         if isinstance(
+
+码上多语言编程学习软件 V1.0 第 53 页 [app/src/main/python/runner.py 自第 291 行起]
             value,
             (
                 type,
@@ -2701,8 +2724,6 @@ def _snapshot(namespace):
         except BaseException:
             # 自定义 __repr__ 抛异常或递归太深，也不能把整个快照带崩。
             rendered = "<无法显示>"
-
-码上多语言编程学习软件 V1.0 第 53 页 [app/src/main/python/runner.py 自第 226 行起]
         if len(rendered) > MAX_REPR:
             rendered = rendered[:MAX_REPR] + "…"
         items.append({"name": key, "type": type(value).__name__, "value": rendered})
@@ -2732,6 +2753,8 @@ def check_exercise(code, tests, stdin_lines=None):
 def _check_exercise_locked(code, tests, stdin_lines, namespace):
     core = _run_protected(code, namespace, stdin_lines or [], DEFAULT_TIMEOUT)
     if core["error"] is not None:
+
+码上多语言编程学习软件 V1.0 第 54 页 [app/src/main/python/runner.py 自第 341 行起]
         return {
             "ok": False,
             "passed": False,
@@ -2753,8 +2776,6 @@ def _check_exercise_locked(code, tests, stdin_lines, namespace):
     # 判题把用户 stdout 交给用例，允许 assert 输出内容。
     # 不然只赋值不打印也能过，l01 就出过这个漏洞。stderr 同样处理。
     test_ns["__stdout__"] = core["stdout"]
-
-码上多语言编程学习软件 V1.0 第 54 页 [app/src/main/python/runner.py 自第 276 行起]
     test_ns["__stderr__"] = core["stderr"]
     for index, test in enumerate(tests, start=1):
         test_state = {"finished": False, "error": None}
@@ -2784,6 +2805,8 @@ def _check_exercise_locked(code, tests, stdin_lines, namespace):
         test_thread_started = True
         try:
             worker.start()
+
+码上多语言编程学习软件 V1.0 第 55 页 [app/src/main/python/runner.py 自第 391 行起]
         except RuntimeError as exc:
             if "can't start new thread" not in str(exc):
                 raise
@@ -2805,8 +2828,6 @@ def _check_exercise_locked(code, tests, stdin_lines, namespace):
     message = (
         ""
         if passed
-
-码上多语言编程学习软件 V1.0 第 55 页 [app/src/main/python/runner.py 自第 326 行起]
         else "共 %d 个用例，%d 个未通过；首个失败：%s"
         % (len(tests), len(failures), failures[0]["reason"])
     )
@@ -2836,6 +2857,8 @@ def info_json():
 def run_code_json(payload_json):
     payload = json.loads(payload_json)
     result = run_code(
+
+码上多语言编程学习软件 V1.0 第 56 页 [app/src/main/python/runner.py 自第 441 行起]
         payload.get("code", ""),
         payload.get("stdin") or [],
         payload.get("timeout", DEFAULT_TIMEOUT),
@@ -2857,8 +2880,6 @@ SQLite 的 execute 是同步阻塞的，死循环 CTE（比如漏了终止条件
 会把线程占死，界面一直转。这里用 set_progress_handler 做指令级看门狗：
 每 1000 条虚拟机指令看一眼时间，超了返回非 0，SQLite 自己中断并抛错。
 """
-
-码上多语言编程学习软件 V1.0 第 56 页 [app/src/main/python/sql_runner.py 自第 7 行起]
 import json
 import sqlite3
 import time
@@ -2888,6 +2909,8 @@ def _split_statements(sql):
     statements = []
     buf = []
     quote = None
+
+码上多语言编程学习软件 V1.0 第 57 页 [app/src/main/python/sql_runner.py 自第 36 行起]
     i = 0
     while i < len(sql):
         ch = sql[i]
@@ -2909,8 +2932,6 @@ def _split_statements(sql):
         if ch == "-" and i + 1 < len(sql) and sql[i + 1] == "-":
             while i < len(sql) and sql[i] != "\n":
                 i += 1
-
-码上多语言编程学习软件 V1.0 第 57 页 [app/src/main/python/sql_runner.py 自第 57 行起]
             continue
         if ch == ";":
             text = "".join(buf).strip()
@@ -2940,6 +2961,8 @@ def _execute(sql, timeout=None):
     started = time.perf_counter()
     budget = DEFAULT_TIMEOUT if timeout is None else float(timeout)
     deadline = started + budget
+
+码上多语言编程学习软件 V1.0 第 58 页 [app/src/main/python/sql_runner.py 自第 86 行起]
     timed_out = {"hit": False}
 
     def _watchdog():
@@ -2961,8 +2984,6 @@ def _execute(sql, timeout=None):
     last = None
     try:
         for statement in _split_statements(sql):
-
-码上多语言编程学习软件 V1.0 第 58 页 [app/src/main/python/sql_runner.py 自第 107 行起]
             cursor = conn.execute(statement)
             if cursor.description:
                 columns, rows, text = _format_table(cursor)
@@ -2992,6 +3013,8 @@ def _execute(sql, timeout=None):
         else:
             error = {
                 "type": getattr(etype, "__name__", "Error"),
+
+码上多语言编程学习软件 V1.0 第 59 页 [app/src/main/python/sql_runner.py 自第 136 行起]
                 "message": str(evalue),
                 "traceback": "".join(traceback.format_exception(etype, evalue, trimmed)).strip(),
             }
@@ -3013,8 +3036,6 @@ def _execute(sql, timeout=None):
 def run_sql(sql, timeout=None):
     core = _execute(sql, timeout)
     return {
-
-码上多语言编程学习软件 V1.0 第 59 页 [app/src/main/python/sql_runner.py 自第 157 行起]
         "ok": core["ok"],
         "stdout": core["stdout"],
         "stderr": core["stderr"],
@@ -3044,6 +3065,8 @@ def check_sql(sql, tests, timeout=None):
         "columns": core["last"]["columns"] if core["last"] else [],
         "rows": core["last"]["rows"] if core["last"] else [],
     }
+
+码上多语言编程学习软件 V1.0 第 60 页 [app/src/main/python/sql_runner.py 自第 186 行起]
     failures = []
     for index, test in enumerate(tests, start=1):
         try:
@@ -3065,8 +3088,6 @@ def check_sql(sql, tests, timeout=None):
         "test_output": "",
         "error": None if passed else {"type": "TestFailed", "message": message, "traceback": ""},
         "duration_ms": core["duration_ms"],
-
-码上多语言编程学习软件 V1.0 第 60 页 [app/src/main/python/sql_runner.py 自第 207 行起]
         "variables": [],
     }
 

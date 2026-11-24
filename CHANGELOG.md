@@ -2,6 +2,32 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。完整发布说明见 [GitHub Releases](https://github.com/badhope/mashang/releases)。
 
+## [0.7.5] - 2026-11-24
+
+> 离线边界收口版本。补上 Python 运行时的网络/命令操作沙箱，把 24 个课程包全部预装，245 讲全新安装、断网也能学。
+> 版本 0.7.4 → **0.7.5**（versionCode 23 → 24）。
+
+### Added
+- Python 操作级审计沙箱：执行用户代码时拦截 INET/INET6 socket、`os.system`、`subprocess.Popen`、`os.exec`/`fork`/`kill`、`java` / `ctypes` 桥；放行 asyncio 事件循环所需的 AF_UNIX socketpair，课程里的 `asyncio`、`threading`、`os.path` 不被误伤。
+- 子线程继承沙箱：`threading.Thread.start` 在沙箱内创建线程时自动包一层 guard，用户代码新开的线程也不能绕过。
+- `tests/test_engine_sandbox.py` 11 项：网络、命令、Java/ctypes、子线程、asyncio、超时和 guard 释放。
+- 24 个课程包与离线 catalog 打进 APK assets；首启由 `ContentCenter.seedBundledPacks` 复制到 `filesDir/courses`，语言中心无网也能列出全部已装包。
+- `BundledContentTest` 5 项：首启预装 24 包/245 讲、离线目录、幂等、旧版本不覆盖新下载包、路线页直接可学。
+
+### Changed
+- 语言中心文案改为「已预装，可更新」，联网只检查新版本；离线目录来自 `assets/catalog.json`，不再依赖首屏联网。
+- 启动页在 IO 线程预装课程包，复制失败不阻断启动，Python 39 讲主线仍可兜底。
+- 帮助页、三语 README、官网、用户手册、离线演示统一为「245 讲全部预装」。
+- 软著源程序按 0.7.5 源码重算：85 个文件、17,443 行（Kotlin 82 + Python 3），总 349 页，交前 30 + 后 30 共 60 页。
+- 网页端版本串同步到 0.7.5。
+
+### Verification
+- `testDebugUnitTest`：311 项通过，0 失败，1 跳过。
+- `pytest`：260 项通过，551 subtests 通过。
+- `lintDebug`：0 Error，47 Warning，6 Hint。
+- APK 产物探针：24 个预装包、离线 catalog、245 讲课程 JSON、六套语法文件齐全。
+- 内容校验：245 讲、22 道挑战、267 个判题项、1,097 条用例，结构问题 0。
+
 ## [0.7.4] - 2026-11-24
 
 > 可用性与数据安全修补版本。不改课程结构，集中修真实使用中会丢草稿、误报语法、助教答偏和错题堆积的问题。

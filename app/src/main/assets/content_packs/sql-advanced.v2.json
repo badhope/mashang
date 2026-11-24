@@ -1,0 +1,1081 @@
+[
+  {
+    "id": "sql21",
+    "order": 520,
+    "chapter": 53,
+    "chapterName": "SQL · 进阶篇",
+    "lang": "sql",
+    "title": "给查询起名字",
+    "subtitle": "CTE（WITH）",
+    "xp": 100,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把中间结果写成一段"
+      },
+      {
+        "type": "text",
+        "text": "CTE（Common Table Expression，公共表表达式）用 WITH 开头，把一段查询命名后供后面的语句引用。写法是 WITH 名字 AS (SELECT ...) SELECT ... FROM 名字。它和派生表的作用类似，但结构更清晰：所有中间结果集中在开头定义，主查询读起来像在组合几个有名字的积木，而不是层层嵌套的括号。复杂报表用 CTE 重写后，可读性往往提升一个档次。CTE 可以是多个，用逗号分隔，后面的 CTE 能引用前面的 CTE。这让「分步计算」成为可能：第一步算出每人总额，第二步算出全局平均，第三步挑出高于平均的人。每一步只做一件事，出错时容易定位是哪一层算错。CTE 默认只在当前语句内有效，不会像视图那样长期存在于数据库中，所以特别适合一次性的复杂分析。它也不会物化，多数情况下会被优化器内联，性能与直接写子查询接近。递归 CTE 需要加 RECURSIVE 关键字，结构由「锚点查询」和「递归查询」用 UNION ALL 连接。"
+      },
+      {
+        "type": "text",
+        "text": "典型的例子是生成数字序列：WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 5) SELECT n FROM seq。锚点提供第一行 1，递归部分不断加 1 直到条件不成立。生成日期序列、展开组织架构树、计算层级 BOM 都用这个套路。写递归时一定要有终止条件，否则会无限循环直到触发资源限制。CTE 的命名要能表达业务含义，例如 paid_orders、player_totals、monthly_sales，不要用 t1、t2 这种名字，否则读代码的人还得回头对照。多个 CTE 之间保持单向依赖，避免互相引用造成循环。如果一段 CTE 被多条语句复用、且逻辑稳定，可以升级成视图；如果只在一个报表里用一次，留在 WITH 里更合适。判断标准是复用范围与稳定性，而不是「哪种写法更高级」。CTE 还有一个常被忽略的好处：可以打断「重复计算」。如果一条查询里多次用到同一个聚合结果，写成子查询会让数据库执行两遍，写成 CTE 至少语义上只定义一次，可读性和维护性都更好。"
+      },
+      {
+        "type": "text",
+        "text": "SQLite 目前不会主动物化 CTE，复杂场景下仍可能重复执行，但把逻辑集中在一处，依然让后续优化（例如改成临时表或视图）变得容易。先让结构清晰，再根据执行计划决定是否物化，是更稳妥的优化顺序。写多个 CTE 时，建议按依赖顺序从上到下排列，被引用的放前面，最终查询放最后。每个 CTE 只负责一个动作：过滤、聚合、排名、分层，不要在一个 CTE 里塞进三种逻辑。如果发现某个 CTE 超过二十行，通常说明它可以再拆。可读性不是玄学，而是让下一个人能在五分钟内看懂数据从哪来、经过了什么变换、最终输出了什么。这种结构化的写法，在排查数字对不上的问题时尤其有价值。递归 CTE 还有几个实际用途值得记住。生成连续日期可以用序列加 DATE 修饰符，补齐没有数据的空日；展开层级结构可以用 parent_id 自连接，配合 depth 字段标记层级，再加 WHERE depth < 5 防止无限递归；拆分逗号分隔的字符串可以用递归逐个截取。这些技巧的共同点是「用递归代替应用层循环」，把逻辑留在数据库里，减少数据传输。不过递归查询的性能随层数增长，深层级场景要评估是否该在应用层缓存结果。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE orders (id INTEGER PRIMARY KEY, player TEXT, amount INTEGER);\nINSERT INTO orders VALUES (1, 'V', 100), (2, 'V', 50), (3, 'Judy', 80), (4, 'Jackie', 120);\n\nWITH totals AS (\n  SELECT player, SUM(amount) AS total\n  FROM orders\n  GROUP BY player\n)\nSELECT player, total\nFROM totals\nWHERE total > 90\nORDER BY total DESC;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\ttotal\nV\t150\nJackie\t120"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "要素",
+          "作用",
+          "示例"
+        ],
+        "rows": [
+          [
+            "WITH 名字 AS",
+            "定义一个 CTE",
+            "WITH totals AS (...)"
+          ],
+          [
+            "多个 CTE",
+            "逗号分隔，后者可引用前者",
+            "WITH a AS (...), b AS (...)"
+          ],
+          [
+            "RECURSIVE",
+            "启用递归",
+            "WITH RECURSIVE seq(n) AS (...)"
+          ],
+          [
+            "引用",
+            "像表一样使用",
+            "SELECT * FROM totals"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "WITH RECURSIVE seq(n) AS (\n  SELECT 1\n  UNION ALL\n  SELECT n + 1 FROM seq WHERE n < 5\n)\nSELECT n FROM seq;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "n\n1\n2\n3\n4\n5"
+      },
+      {
+        "type": "tip",
+        "text": "CTE 只在当前语句内有效，作用域结束后名字就消失。需要长期复用时改写成视图，需要跨语句传递结果时用临时表。"
+      },
+      {
+        "type": "warn",
+        "text": "递归 CTE 必须有终止条件，否则会一直递归下去。调试时先把上限调小，确认逻辑正确后再放开，别一上来就生成一百万行。"
+      },
+      {
+        "type": "quiz",
+        "question": "WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 5) 会生成几行？",
+        "options": [
+          "4 行",
+          "5 行",
+          "6 行",
+          "无限行"
+        ],
+        "answer": 1,
+        "explain": "从 1 开始，每次加 1，直到 n < 5 不成立，最终得到 1 到 5 共 5 行。"
+      }
+    ],
+    "exercise": {
+      "title": "高于平均的玩家",
+      "brief": "用 CTE 先算出每位玩家的总额，再筛选出总额大于 90 的玩家，输出 player 与 total，按 total 降序。",
+      "starterCode": "CREATE TABLE orders (id INTEGER PRIMARY KEY, player TEXT, amount INTEGER);\nINSERT INTO orders VALUES (1, 'V', 100), (2, 'V', 50), (3, 'Judy', 80), (4, 'Jackie', 120);\n\n-- 在这里写 WITH 查询\n",
+      "hint": "WITH totals AS (SELECT player, SUM(amount) AS total FROM orders GROUP BY player) SELECT player, total FROM totals WHERE total > 90 ORDER BY total DESC;",
+      "tests": [
+        "assert columns == ['player', 'total'], columns",
+        "assert rows == [['V', 150], ['Jackie', 120]], rows",
+        "assert len(rows) == 2, rows"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE orders (id INTEGER PRIMARY KEY, player TEXT, amount INTEGER);\nINSERT INTO orders VALUES (1, 'V', 100), (2, 'V', 50), (3, 'Judy', 80), (4, 'Jackie', 120);\n\nWITH totals AS (\n  SELECT player, SUM(amount) AS total\n  FROM orders\n  GROUP BY player\n)\nSELECT player, total\nFROM totals\nWHERE total > 90\nORDER BY total DESC;\n"
+    }
+  },
+  {
+    "id": "sql22",
+    "order": 521,
+    "chapter": 53,
+    "chapterName": "SQL · 进阶篇",
+    "lang": "sql",
+    "title": "给行编号",
+    "subtitle": "窗口函数 ROW_NUMBER / RANK",
+    "xp": 110,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "不折叠行的聚合"
+      },
+      {
+        "type": "text",
+        "text": "窗口函数在保留原行的同时计算聚合或排名，语法是 函数() OVER (PARTITION BY 分组列 ORDER BY 排序列)。它和 GROUP BY 的区别很关键：GROUP BY 把多行压成一行，窗口函数则给每一行附加一个计算结果，行数不变。所以「给每位玩家的比赛按分数排名」这种需求，用窗口函数一行就能完成，用 GROUP BY 反而要绕一大圈。ROW_NUMBER、RANK、DENSE_RANK 都用来排名，差别在并列时怎么处理。ROW_NUMBER 严格按顺序编号，即使分数相同也编成 1、2、3，不会有并列；RANK 遇到并列会给相同名次，但跳过后续序号，例如 1、1、3；DENSE_RANK 同样并列同名次，但不跳号，例如 1、1、2。排行榜用 RANK 更符合直觉，取每组第一名用 ROW_NUMBER 更方便，选哪个取决于业务对并列的定义。PARTITION BY 决定分组范围，省略时整张表是一个窗口。窗口函数执行在 WHERE 和 GROUP BY 之后、ORDER BY 之前，所以不能写在 WHERE 里，必须套一层子查询或 CTE，在外层筛选排名。常见写法是 WITH ranked AS (SELECT ..., ROW_NUMBER() OVER (...) AS rn FROM ...) SELECT * FROM ranked WHERE rn = 1。这个模式几乎能解决所有「每组取前 N 条」的问题，是窗口函数最实用的套路。"
+      },
+      {
+        "type": "text",
+        "text": "窗口函数还可以不写 ORDER BY，此时 OVER (PARTITION BY player) 表示在整个分组上算聚合，每一行都得到相同的组内合计或平均值。用它算占比特别方便：score * 100.0 / SUM(score) OVER (PARTITION BY player) 得到每场比赛在该玩家总分中的百分比。注意没有 ORDER BY 时默认窗口是整组，加了 ORDER BY 默认变成「从第一行到当前行」，结果会变成累计值，这个差异一定要分清，否则占比会算成累进比例。窗口函数还能和 CASE 组合做「组内分档」。例如 OVER (PARTITION BY player ORDER BY score DESC) 配合 ROW_NUMBER，再在外层用 CASE 把前三名标成主力、其余标成替补。这种写法比多次自连接清晰得多，也不容易漏行。要注意窗口函数的别名同样不能在同层 WHERE 里引用，必须套一层。理解「窗口在 SELECT 阶段计算」，就能明白为什么过滤排名要放到外层，而不是写在窗口定义旁边。最后对比一下 ROW_NUMBER 和 GROUP BY 的适用边界。"
+      },
+      {
+        "type": "text",
+        "text": "要「每组一行汇总」用 GROUP BY；要「每行附加组内信息」用窗口函数；要「每组取前 N 行」用 ROW_NUMBER 加外层过滤。三者不是替代关系，而是三种不同的输出形态。判断标准是结果需要多少行：行数变少用分组，行数不变用窗口，需要截取部分行用排名加过滤。把这个判断练成条件反射，遇到「每组第一名」「每人类内占比」这类问题时，就能立刻选对工具。排名还有一个常见需求是「取前百分之十」。SQLite 没有 PERCENT_RANK 之外的直接写法，但可以用 NTILE(10) OVER (ORDER BY score DESC) 把结果分成十桶，再取第一桶，近似得到前百分之十。NTILE 在行数不能整除时会尽量均分，桶大小可能相差一，业务上通常可以接受。如果要严格按分数阈值取，就先用子查询算出分位数，再筛选 score >= 阈值，两种做法各有适用场景。还要提醒一个常见误解：窗口函数不会改变行数，但会影响排序结果。多个窗口函数写在同一条 SELECT 里时，每个 OVER 子句可以有自己的 PARTITION BY 和 ORDER BY，互不干扰。例如同时按全局分数排名和按玩家内排名，就写两个不同的 OVER，然后在 ORDER BY 里决定最终展示顺序。理解了这一点，就能在一行里同时输出「总榜名次」和「组内名次」两类指标，而不必写两条查询再拼接。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES (1, 'V', 90), (2, 'Judy', 90), (3, 'Jackie', 80), (4, 'Rogue', 70);\n\nSELECT player, score,\n       ROW_NUMBER() OVER (ORDER BY score DESC) AS rn,\n       RANK() OVER (ORDER BY score DESC) AS rnk,\n       DENSE_RANK() OVER (ORDER BY score DESC) AS dense\nFROM matches;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\tscore\trn\trnk\tdense\nV\t90\t1\t1\t1\nJudy\t90\t2\t1\t1\nJackie\t80\t3\t3\t2\nRogue\t70\t4\t4\t3"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "函数",
+          "并列时",
+          "示例结果"
+        ],
+        "rows": [
+          [
+            "ROW_NUMBER",
+            "不并列，强制编号",
+            "1, 2, 3, 4"
+          ],
+          [
+            "RANK",
+            "并列同名次，跳号",
+            "1, 1, 3, 4"
+          ],
+          [
+            "DENSE_RANK",
+            "并列同名次，不跳号",
+            "1, 1, 2, 3"
+          ],
+          [
+            "NTILE(n)",
+            "分成 n 桶",
+            "按顺序均分"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES (1, 'V', 90), (2, 'V', 80), (3, 'Judy', 90),\n  (4, 'Judy', 70), (5, 'Jackie', 60);\n\nSELECT player, score,\n       ROW_NUMBER() OVER (PARTITION BY player ORDER BY score DESC) AS rn\nFROM matches\nORDER BY player, rn;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\tscore\trn\nJackie\t60\t1\nJudy\t90\t1\nJudy\t70\t2\nV\t90\t1\nV\t80\t2"
+      },
+      {
+        "type": "tip",
+        "text": "需要「每组第一名」时用 ROW_NUMBER 加外层 rn = 1，比 GROUP BY 加 MAX 更通用，因为它能带回整行的其他列。"
+      },
+      {
+        "type": "warn",
+        "text": "窗口函数不能直接写在 WHERE 里，会报 misuse of window function。必须先用 CTE 或子查询算出排名列，再在外层过滤。"
+      },
+      {
+        "type": "quiz",
+        "question": "分数为 90、90、80 时，RANK() 给出的名次是？",
+        "options": [
+          "1, 2, 3",
+          "1, 1, 2",
+          "1, 1, 3",
+          "2, 2, 3"
+        ],
+        "answer": 2,
+        "explain": "RANK 遇到并列给相同名次，但会跳过被占用的序号，所以是 1、1、3。"
+      }
+    ],
+    "exercise": {
+      "title": "玩家内排名",
+      "brief": "对 matches 表按 player 分区、score 降序编号，输出 player、score、rn，按 player 升序、rn 升序。",
+      "starterCode": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES (1, 'V', 90), (2, 'V', 80), (3, 'Judy', 90),\n  (4, 'Judy', 70), (5, 'Jackie', 60);\n\n-- 在这里写查询\n",
+      "hint": "SELECT player, score, ROW_NUMBER() OVER (PARTITION BY player ORDER BY score DESC) AS rn FROM matches ORDER BY player, rn;",
+      "tests": [
+        "assert columns == ['player', 'score', 'rn'], columns",
+        "assert rows == [['Jackie', 60, 1], ['Judy', 90, 1], ['Judy', 70, 2], ['V', 90, 1], ['V', 80, 2]], rows",
+        "assert len(rows) == 5, rows"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES (1, 'V', 90), (2, 'V', 80), (3, 'Judy', 90),\n  (4, 'Judy', 70), (5, 'Jackie', 60);\n\nSELECT player, score,\n       ROW_NUMBER() OVER (PARTITION BY player ORDER BY score DESC) AS rn\nFROM matches\nORDER BY player, rn;\n"
+    }
+  },
+  {
+    "id": "sql23",
+    "order": 522,
+    "chapter": 53,
+    "chapterName": "SQL · 进阶篇",
+    "lang": "sql",
+    "title": "累计与滑动",
+    "subtitle": "窗口聚合与滑动窗口",
+    "xp": 110,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "让每一行看到一段区间"
+      },
+      {
+        "type": "text",
+        "text": "窗口聚合把 SUM、AVG、COUNT、MIN、MAX 等函数作用在一个「窗口」上，而不是整张表。OVER (PARTITION BY player) 表示按玩家分组，每组内所有行共享同一个合计值；再加上 ORDER BY 后，窗口默认变成「从组内第一行到当前行」，得到的是累计值。这两种形态用途不同：前者用来算占比，后者用来算累计增长，写之前先想清楚要哪一种。滑动窗口用 ROWS BETWEEN 起始 AND 结束 精确指定范围。常见写法有 ROWS BETWEEN 1 PRECEDING AND CURRENT ROW 表示「前一行到当前行」，用来算两日移动平均；ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW 表示从头累计；ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING 表示前后各两行的居中窗口。边界可以组合 PRECEDING、FOLLOWING、CURRENT ROW、UNBOUNDED，灵活度很高。LAG 和 LEAD 用来取前一行或后一行的值，做环比、同比、差值非常方便。LAG(v) OVER (ORDER BY d) 取上一行的 v，v - LAG(v) OVER (ORDER BY d) 得到与上一行的差，第一天没有上一行所以结果是 NULL，这符合业务直觉。"
+      },
+      {
+        "type": "text",
+        "text": "LEAD 方向相反，取下一行。两者都可以带偏移量和默认值，例如 LAG(v, 7, 0) 取七天前的值，缺失时用 0 代替，避免结果里出现 NULL 影响后续计算。窗口函数的性能取决于排序与分区。PARTITION BY 和 ORDER BY 的列如果有索引，数据库可以避免额外排序；没有索引时会在内存或磁盘上建临时 B 树，数据量大时开销明显。另外，窗口函数在 WHERE 之后执行，想先过滤再开窗，就把过滤条件写进子查询，而不是指望窗口自己跳过不需要的行。理解执行顺序，才能写出既正确又高效的窗口查询。滑动窗口的典型业务场景是指标平滑。原始日活数据波动大，直接看曲线很难判断趋势，用 ROWS BETWEEN 6 PRECEDING AND CURRENT ROW 算七日均值，曲线会平滑很多，异常点也更容易识别。另一类是留存分析：对每个注册日，统计之后第 1 天、第 7 天仍有行为的用户数，需要按用户分组、按日期排序，再用 LEAD 取后续日期的状态。这些问题用普通聚合很难表达，窗口函数几乎是唯一清晰的解法。使用滑动窗口要特别注意分区与排序的组合。PARTITION BY 缺失时，窗口会跨越整个结果集，不同玩家的数据混在一起，累计值就失去意义。ORDER BY 缺失时，窗口是整组而非累计，滑动范围也无从谈起。两者都写清楚，再用 ROWS BETWEEN 精确限定，结果才可控。"
+      },
+      {
+        "type": "text",
+        "text": "写完先用小数据集手算前两三行，和查询结果对照，比直接上大表调试快得多，也更容易发现边界值（第一行、最后一行）处理是否符合业务预期。窗口帧还有 RANGE 和 GROUPS 两种模式。ROWS 按物理行数计算，RANGE 按排序值的范围计算，例如 RANGE BETWEEN 7 PRECEDING AND CURRENT ROW 表示「当前值减 7 到当前值」的区间，遇到日期时更符合「最近七天」的业务语义。GROUPS 按并列值的组数计算，用得较少。默认帧在有无 ORDER BY 时不同，写复杂分析时建议总是显式写出 ROWS 或 RANGE，避免因为默认值变化导致结果悄悄改变。最后把几种窗口函数按用途归个类，方便日后查阅。排名类：ROW_NUMBER、RANK、DENSE_RANK、NTILE；偏移类：LAG、LEAD、FIRST_VALUE、LAST_VALUE、NTH_VALUE；聚合类：SUM、AVG、COUNT、MIN、MAX 加 OVER。这三类的共同点是都保留原始行，区别只在于返回什么。写分析查询时先想清楚要「名次」「前后值」还是「区间汇总」，再挑对应函数，比在文档里从头翻要快得多。还有一点要注意：窗口函数的 ORDER BY 只决定窗口内的顺序，不决定最终结果的顺序，想看排名还得在外层再写一次 ORDER BY。这个细节在调试排行报表时经常被忽略，结果数字对但顺序乱，容易误判成计算错误。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE daily (d TEXT, v INTEGER);\nINSERT INTO daily VALUES ('d1', 10), ('d2', 20), ('d3', 30), ('d4', 40), ('d5', 50);\n\nSELECT d, v,\n       SUM(v) OVER (ORDER BY d ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS rolling2,\n       SUM(v) OVER (ORDER BY d ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running\nFROM daily;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "d\tv\trolling2\trunning\nd1\t10\t10\t10\nd2\t20\t30\t30\nd3\t30\t50\t60\nd4\t40\t70\t100\nd5\t50\t90\t150"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "窗口写法",
+          "范围",
+          "典型用途"
+        ],
+        "rows": [
+          [
+            "PARTITION BY player",
+            "整个分组",
+            "算占比、组内合计"
+          ],
+          [
+            "ORDER BY d",
+            "从头到当前行",
+            "累计值"
+          ],
+          [
+            "1 PRECEDING AND CURRENT ROW",
+            "前一行到当前行",
+            "移动平均"
+          ],
+          [
+            "UNBOUNDED PRECEDING",
+            "从第一行开始",
+            "累计求和"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE daily (d TEXT, v INTEGER);\nINSERT INTO daily VALUES ('d1', 10), ('d2', 20), ('d3', 30), ('d4', 40), ('d5', 50);\n\nSELECT d, v,\n       LAG(v) OVER (ORDER BY d) AS prev_v,\n       v - LAG(v) OVER (ORDER BY d) AS diff,\n       LEAD(v) OVER (ORDER BY d) AS next_v\nFROM daily;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "d\tv\tprev_v\tdiff\tnext_v\nd1\t10\tNULL\tNULL\t20\nd2\t20\t10\t10\t30\nd3\t30\t20\t10\t40\nd4\t40\t30\t10\t50\nd5\t50\t40\t10\tNULL"
+      },
+      {
+        "type": "tip",
+        "text": "算占比时用 OVER (PARTITION BY ...) 不带 ORDER BY，窗口是整组；一旦加了 ORDER BY，默认就变成累计窗口，占比会算错。"
+      },
+      {
+        "type": "warn",
+        "text": "窗口函数的结果不能直接用于同一层的 WHERE。需要筛选累计值或排名时，必须套一层子查询或 CTE，在外层加条件。"
+      },
+      {
+        "type": "quiz",
+        "question": "SUM(v) OVER (ORDER BY d ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) 计算的是？",
+        "options": [
+          "从头到当前行的累计和",
+          "当前行与前一行的和",
+          "当前行与后一行的和",
+          "整组的总和"
+        ],
+        "answer": 1,
+        "explain": "窗口范围是前一行到当前行，共两行，因此得到两行滑动合计。"
+      }
+    ],
+    "exercise": {
+      "title": "两日累计",
+      "brief": "对 daily 表按 d 升序计算两行滑动合计，输出 d、v、rolling2。",
+      "starterCode": "CREATE TABLE daily (d TEXT, v INTEGER);\nINSERT INTO daily VALUES ('d1', 10), ('d2', 20), ('d3', 30), ('d4', 40), ('d5', 50);\n\n-- 在这里写查询\n",
+      "hint": "SELECT d, v, SUM(v) OVER (ORDER BY d ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS rolling2 FROM daily;",
+      "tests": [
+        "assert columns == ['d', 'v', 'rolling2'], columns",
+        "assert rows == [['d1', 10, 10], ['d2', 20, 30], ['d3', 30, 50], ['d4', 40, 70], ['d5', 50, 90]], rows",
+        "assert len(rows) == 5, rows"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE daily (d TEXT, v INTEGER);\nINSERT INTO daily VALUES ('d1', 10), ('d2', 20), ('d3', 30), ('d4', 40), ('d5', 50);\n\nSELECT d, v,\n       SUM(v) OVER (ORDER BY d ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS rolling2\nFROM daily;\n"
+    }
+  },
+  {
+    "id": "sql24",
+    "order": 523,
+    "chapter": 53,
+    "chapterName": "SQL · 进阶篇",
+    "lang": "sql",
+    "title": "要么全成，要么全退",
+    "subtitle": "事务 BEGIN / COMMIT / ROLLBACK",
+    "xp": 110,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "事务保证一组操作的整体性"
+      },
+      {
+        "type": "text",
+        "text": "事务把多条写操作打包成一个原子单元：要么全部生效，要么全部不生效。最经典的例子是转账，从 A 扣钱和给 B 加钱必须一起成功，否则钱会凭空消失或凭空出现。SQLite 的写法是BEGIN 开启事务，COMMIT 提交，ROLLBACK 回滚。事务内的语句执行后并不立即对其他人可见，提交之后才真正落盘。事务满足 ACID 四个特性：原子性保证全成或全退；一致性保证约束不被破坏；隔离性保证并发事务互不干扰；持久性保证提交后的数据不会因为断电丢失。SQLite 默认是自动提交模式，每条语句自成一个事务，所以平时写单条 INSERT 不需要显式 BEGIN。一旦有多条写操作存在依赖关系，就必须手动开启事务，否则中途失败会留下半成品数据。ROLLBACK 会撤销事务内所有未提交的改动，包括 INSERT、UPDATE、DELETE 和建表。SAVEPOINT 可以在事务内部打一个标记，ROLLBACK TO 只回滚到标记处，之前的部分保留，适合做「部分失败不影响整体」的分段操作。RELEASE 释放标记。"
+      },
+      {
+        "type": "text",
+        "text": "嵌套事务在 SQLite 里没有原生支持，但可以用多层 SAVEPOINT 模拟。事务越短越好，长时间持有写锁会阻塞其他连接，尤其在并发场景下要尽快提交。课程运行器基于 Python 的 sqlite3 模块，它会在 INSERT、UPDATE、DELETE 之前自动开启一个隐式事务。所以如果脚本先写了数据、再写 BEGIN，就会报「cannot start a transaction within a transaction」，因为此时已经有一个未结束的事务。解决办法有两个：把 BEGIN 放到所有写操作之前，或者在 BEGIN 之前补一条 COMMIT 提交掉隐式事务。示例采用前者，先开事务再插入，逻辑最清楚。理解这个行为，能避免在练习时被看似莫名其妙的报错卡住。隔离级别也值得了解。SQLite 默认使用串行化隔离，写事务之间互斥，读操作不会被阻塞，但同一时间只允许一个写者。这对移动端和单机应用足够，但在高并发服务端就显得不够用，通常要换成 PostgreSQL 或 MySQL。其他数据库提供读已提交、可重复读等不同级别，级别越高一致性越强、并发度越低。"
+      },
+      {
+        "type": "text",
+        "text": "选择时要结合业务：转账要求强一致，统计报表可以接受稍旧的快照。理解隔离级别的代价，才能做出合理的取舍。最后提醒：事务不是万能的。它保证数据库内部的一致性，却管不了外部系统。如果事务里还要发消息、调支付接口，可能出现「数据库提交成功但消息发送失败」的情况，这类跨系统一致性问题需要补偿机制或最终一致性方案。先把数据库事务用对，再考虑分布式场景，是新手上路最稳妥的顺序。别在一开始就追求完美的分布式事务，把单库的原子性写扎实，已经能解决绝大多数问题。再补充一个语句级与行级触发器的区别。默认 FOR EACH ROW，每一行触发一次；SQLite 实际上只支持行级触发器，语句级触发器在其他数据库里才有。行级触发器的性能与受影响行数成正比，批量更新十万行就会触发十万次，写批量导入时要估算这个开销。如果只是记录「某张表被改过」，用应用层统一记录往往比触发器更轻量。工具没有绝对好坏，关键是知道它的成本落在哪里。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE accounts (id INTEGER PRIMARY KEY, name TEXT, balance INTEGER);\nBEGIN;\nINSERT INTO accounts VALUES (1, 'V', 100), (2, 'Judy', 100);\nUPDATE accounts SET balance = balance - 30 WHERE id = 1;\nUPDATE accounts SET balance = balance + 30 WHERE id = 2;\nCOMMIT;\nSELECT id, name, balance FROM accounts ORDER BY id;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "id\tname\tbalance\n1\tV\t70\n2\tJudy\t130"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "语句",
+          "作用",
+          "结果"
+        ],
+        "rows": [
+          [
+            "BEGIN",
+            "开启事务",
+            "后续语句进入同一事务"
+          ],
+          [
+            "COMMIT",
+            "提交",
+            "改动生效并落盘"
+          ],
+          [
+            "ROLLBACK",
+            "回滚",
+            "撤销事务内所有改动"
+          ],
+          [
+            "SAVEPOINT",
+            "设置保存点",
+            "可部分回滚"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE log (id INTEGER PRIMARY KEY, msg TEXT);\nBEGIN;\nINSERT INTO log VALUES (1, 'start');\nSAVEPOINT step1;\nINSERT INTO log VALUES (2, 'step1');\nROLLBACK TO step1;\nRELEASE step1;\nCOMMIT;\nSELECT id, msg FROM log ORDER BY id;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "id\tmsg\n1\tstart"
+      },
+      {
+        "type": "tip",
+        "text": "事务要尽量短。把网络请求、文件读写等耗时操作放在事务外面，只把必须原子完成的数据库写操作包进来。"
+      },
+      {
+        "type": "warn",
+        "text": "忘记 COMMIT 会导致改动没有真正生效；忘记 ROLLBACK 会让失败的事务一直持有锁。写脚本时成对出现，BEGIN 之后一定要有 COMMIT 或 ROLLBACK。"
+      },
+      {
+        "type": "quiz",
+        "question": "BEGIN 之后执行了 INSERT，然后执行 ROLLBACK，数据会怎样？",
+        "options": [
+          "保留",
+          "被撤销",
+          "部分保留",
+          "自动提交"
+        ],
+        "answer": 1,
+        "explain": "ROLLBACK 撤销事务内所有未提交的改动，INSERT 插入的行不会留在表中。"
+      }
+    ],
+    "exercise": {
+      "title": "原子转账",
+      "brief": "创建 accounts 表并插入 (1, 'V', 100)、(2, 'Judy', 100)，在事务中把 30 从 1 号转到 2 号，提交后返回 id、name、balance，按 id 升序。",
+      "starterCode": "CREATE TABLE accounts (id INTEGER PRIMARY KEY, name TEXT, balance INTEGER);\n\n-- 在这里写 BEGIN ... COMMIT 与查询\n",
+      "hint": "BEGIN; INSERT INTO accounts VALUES (1, 'V', 100), (2, 'Judy', 100); UPDATE accounts SET balance = balance - 30 WHERE id = 1; UPDATE accounts SET balance = balance + 30 WHERE id = 2; COMMIT; SELECT id, name, balance FROM accounts ORDER BY id;",
+      "tests": [
+        "assert columns == ['id', 'name', 'balance'], columns",
+        "assert rows == [[1, 'V', 70], [2, 'Judy', 130]], rows",
+        "assert len(rows) == 2, rows"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE accounts (id INTEGER PRIMARY KEY, name TEXT, balance INTEGER);\n\nBEGIN;\nINSERT INTO accounts VALUES (1, 'V', 100), (2, 'Judy', 100);\nUPDATE accounts SET balance = balance - 30 WHERE id = 1;\nUPDATE accounts SET balance = balance + 30 WHERE id = 2;\nCOMMIT;\nSELECT id, name, balance FROM accounts ORDER BY id;\n"
+    }
+  },
+  {
+    "id": "sql25",
+    "order": 524,
+    "chapter": 53,
+    "chapterName": "SQL · 进阶篇",
+    "lang": "sql",
+    "title": "让查询跑得更快",
+    "subtitle": "索引与 EXPLAIN QUERY PLAN",
+    "xp": 110,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "索引是数据的目录"
+      },
+      {
+        "type": "text",
+        "text": "索引是数据库为某一列（或几列）单独维护的有序结构，作用是快速定位行，避免全表扫描。没有索引时，查 WHERE level = 42 要从第一行读到第 N 行；有了索引，数据库可以在有序结构里直接跳到目标位置。代价是索引本身占空间，并且每次 INSERT、UPDATE、DELETE 都要同步维护索引，所以索引不是越多越好，而是按查询模式有选择地建。建索引的语法是 CREATE INDEX 索引名 ON 表名(列名)，复合索引用 CREATE INDEX ... ON 表名(列一, 列二)。复合索引遵循最左前缀原则：索引 (a, b) 能加速 WHERE a = ? 和 WHERE a = ? AND b = ?，但不能单独加速 WHERE b = ?。所以把选择性高、最常用的列放在最左边。主键 INTEGER PRIMARY KEY 自带索引，不需要重复创建；UNIQUE 约束也会自动建索引。索引名建议带表名和列名，例如 idx_orders_status，方便排查和删除。EXPLAIN QUERY PLAN 是 SQLite 提供的执行计划查看命令，输出一行行 detail，关键看两种词：SCAN 表示全表扫描，SEARCH 表示使用了索引定位。"
+      },
+      {
+        "type": "text",
+        "text": "例如 SEARCH players USING INDEX idx_players_level (level=?) 说明查询命中了索引；如果看到 SCAN players，说明没有可用索引或优化器认为全表扫描更划算。小表上全表扫描可能反而更快，因为索引查找也有开销，所以不要看到 SCAN 就盲目加索引，要结合数据量和实际耗时判断。索引失效的常见原因有几种：对列套了函数，例如 WHERE UPPER(name) = 'V'；使用了前导通配符 LIKE '%son'；列类型与比较值类型不一致导致隐式转换；复合索引没有遵循最左前缀。另外，ORDER BY 的列如果有索引，可以避免额外排序；GROUP BY 同理。写查询时保持列「裸用」，把函数作用在常量上而不是列上，是保护索引最简单的一条纪律。还有几个实用细节。索引的区分度越高越有效：给性别这种只有两三个取值的列建索引，查询仍可能返回一半的行，优化器往往宁可直接全表扫描。索引名要唯一，同一张表上重复建相同定义的索引只会浪费空间。删除索引用 DROP INDEX 索引名，改表结构前先确认哪些索引会失效。"
+      },
+      {
+        "type": "text",
+        "text": "SQLite 还支持部分索引，例如 CREATE INDEX ... WHERE status = 'paid'，只为满足条件的行建索引，体积更小，适合数据分布极不均匀的场景。最后用一个实验收尾：同一张表、同一条查询，分别在无索引和有索引时执行 EXPLAIN QUERY PLAN，对比 SCAN 与 SEARCH 的差别。如果条件允许，再插入几万行数据比较实际耗时，你会直观看到索引的价值。但也要记住，索引不是免费的午餐，它让读变快的同时让写变慢。真正的优化永远是在读写之间找平衡，而不是无脑堆索引。理解这个权衡，比记住任何一条优化技巧都重要。顺便说说索引的维护成本如何估算。每次 INSERT 要往每个索引里插一条记录，UPDATE 如果改了索引列，等于删一条再插一条，DELETE 同理。一张表有五个索引，写入开销大约是不建索引时的数倍。写多读少的日志表、流水表，索引要精简；读多写少的配置表、维度表，可以适当多建。上线后通过慢查询日志持续观察，比一次性设计更可靠。索引是长期演进的东西，不是建表时拍脑袋决定的。补充一个诊断技巧：把 EXPLAIN QUERY PLAN 的输出贴进代码评审，让审查者一起看是 SCAN 还是 SEARCH，比口头说「我加了索引」有说服力。执行计划是客观证据，也是团队讨论性能时最省时间的共同语言。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT, level INTEGER);\nINSERT INTO players VALUES (1, 'V', 66), (2, 'Judy', 42), (3, 'Jackie', 30);\n\nEXPLAIN QUERY PLAN\nSELECT * FROM players WHERE level = 42;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "id\tparent\tnotused\tdetail\n2\t0\t216\tSCAN players"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "命令 / 现象",
+          "含义",
+          "说明"
+        ],
+        "rows": [
+          [
+            "CREATE INDEX",
+            "创建索引",
+            "CREATE INDEX idx ON t(col)"
+          ],
+          [
+            "SCAN",
+            "全表扫描",
+            "没有命中索引"
+          ],
+          [
+            "SEARCH ... USING INDEX",
+            "索引定位",
+            "命中索引"
+          ],
+          [
+            "USING TEMP B-TREE",
+            "临时排序结构",
+            "GROUP BY / ORDER BY 需要"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT, level INTEGER);\nINSERT INTO players VALUES (1, 'V', 66), (2, 'Judy', 42), (3, 'Jackie', 30);\nCREATE INDEX idx_players_level ON players(level);\n\nEXPLAIN QUERY PLAN\nSELECT * FROM players WHERE level = 42;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "id\tparent\tnotused\tdetail\n3\t0\t61\tSEARCH players USING INDEX idx_players_level (level=?)"
+      },
+      {
+        "type": "tip",
+        "text": "看完执行计划再决定加不加索引。SCAN 不等于慢，SEARCH 也不等于快，要结合表的大小和返回行数判断。"
+      },
+      {
+        "type": "warn",
+        "text": "对列使用函数会让索引失效，例如 WHERE UPPER(name) = 'V'。把函数移到常量侧，或建表达式索引，才能继续利用索引。"
+      },
+      {
+        "type": "quiz",
+        "question": "复合索引 (a, b) 能加速下面哪个查询？",
+        "options": [
+          "WHERE b = 1",
+          "WHERE a = 1",
+          "WHERE a = 1 AND b = 2",
+          "WHERE a + 1 = 2"
+        ],
+        "answer": 1,
+        "explain": "复合索引遵循最左前缀，单独查 a 可以用，单独查 b 不行；a + 1 这种表达式也不行。"
+      }
+    ],
+    "exercise": {
+      "title": "给等级建索引",
+      "brief": "在 players 表的 level 列上创建索引 idx_players_level，然后用 EXPLAIN QUERY PLAN 查看 WHERE level = 42 的执行计划，输出 detail 列。",
+      "starterCode": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT, level INTEGER);\nINSERT INTO players VALUES (1, 'V', 66), (2, 'Judy', 42), (3, 'Jackie', 30);\n\n-- 在这里写 CREATE INDEX 与 EXPLAIN QUERY PLAN\n",
+      "hint": "CREATE INDEX idx_players_level ON players(level); EXPLAIN QUERY PLAN SELECT * FROM players WHERE level = 42;",
+      "tests": [
+        "assert columns == ['id', 'parent', 'notused', 'detail'], columns",
+        "assert len(rows) == 1, rows",
+        "assert 'idx_players_level' in rows[0][3], rows"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT, level INTEGER);\nINSERT INTO players VALUES (1, 'V', 66), (2, 'Judy', 42), (3, 'Jackie', 30);\n\nCREATE INDEX idx_players_level ON players(level);\nEXPLAIN QUERY PLAN SELECT * FROM players WHERE level = 42;\n"
+    }
+  },
+  {
+    "id": "sql26",
+    "order": 525,
+    "chapter": 53,
+    "chapterName": "SQL · 进阶篇",
+    "lang": "sql",
+    "title": "让数据库自动记账",
+    "subtitle": "触发器 TRIGGER",
+    "xp": 120,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "在写入发生时自动执行"
+      },
+      {
+        "type": "text",
+        "text": "触发器（TRIGGER）是一段绑定在表上的逻辑，当指定的事件发生时由数据库自动执行。事件可以是 INSERT、UPDATE 或 DELETE，时机可以是 BEFORE 或 AFTER，粒度可以是每一行（FOR EACH ROW）或每条语句。典型用途包括：写审计日志、维护汇总表、自动填充时间戳、在删除前做校验。触发器把「必须一起发生」的副作用交给数据库，应用层即使漏写也不会留下不一致的数据。创建语法是 CREATE TRIGGER 名字 AFTER INSERT ON 表名 BEGIN 若干语句 END。触发器体内可以用 NEW 引用新行、OLD 引用旧行：INSERT 触发器只有 NEW，DELETE 只有 OLD，UPDATE 两者都有。例如 AFTER UPDATE ON players 时，NEW.level 是修改后的等级，OLD.level 是修改前的等级，把两者的差值写进流水表，就得到了完整的变更历史。WHEN 子句可以加额外条件，例如只在等级真的变化时才记录。"
+      },
+      {
+        "type": "text",
+        "text": "触发器也有明确的代价。它隐式执行，调试时不容易发现逻辑从哪里来；一个表上的多个触发器可能互相影响，甚至形成递归；触发器里的错误会让外层语句整体失败。因此触发器适合做「简单、确定、与业务强绑定」的副作用，不适合承载复杂业务流程。团队里应该有触发器清单，记录每个触发器的用途和影响范围，避免多年后没人敢删也不敢改。本课程的判题运行器按分号切分语句，而触发器体内的语句也必须用分号分隔，切分后无法还原成一条完整的 CREATE TRIGGER。所以下面把触发器定义作为只读参考展示，再用等价的手写语句演示它产生的结果。真实项目里用 sqlite3 命令行或驱动执行整段脚本不受这个限制。理解触发器的语义比记住某一种执行方式更重要，本例的审计表结构和效果，就是触发器最典型的应用场景。触发器按触发时机分为 BEFORE 和 AFTER 两类。BEFORE 在写入真正发生前执行，可以修改 NEW 里的值，常用于自动补全字段，例如统一把 name 转成大写；AFTER 在写入完成后执行，用于记录日志、更新汇总表。"
+      },
+      {
+        "type": "text",
+        "text": "想在写入前拦下非法数据，可以写 BEFORE INSERT 加 SELECT RAISE(ABORT, '原因')，这比只依赖 CHECK 约束灵活，能给出更具体的错误信息。不过约束能做到的事优先用约束，触发器是补充手段。还有一个常被用来做「软删除」的套路：给表加 deleted_at 列，写 AFTER UPDATE 触发器，当 deleted_at 从 NULL 变为非 NULL 时，把这一行复制进归档表。这样主表只保留活跃数据，查询更快，历史记录又完整保留。实现时要注意触发器自身不能再次触发表上的其他触发器，避免递归。设计触发器前先画出「哪些操作会触发、触发后改哪张表、会不会再触发」，这张图能帮你避开绝大多数隐式递归问题。如果必须使用触发器，建议配套三件事：给触发器写注释说明用途；在测试里覆盖触发与不触发两种路径；部署前用真实数据量估算性能影响。触发器最大的风险不是写错，而是被遗忘——半年后有人改表结构，不知道它还在默默执行，问题往往在上线后才暴露。把它当成代码而不是配置，纳入版本管理和评审，才能长期安全地使用。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT, level INTEGER);\nCREATE TABLE level_audit (id INTEGER PRIMARY KEY, player_id INTEGER, old_level INTEGER, new_level INTEGER);\nINSERT INTO players VALUES (1, 'V', 60), (2, 'Judy', 40);\nUPDATE players SET level = 66 WHERE id = 1;\nINSERT INTO level_audit (player_id, old_level, new_level) VALUES (1, 60, 66);\nSELECT player_id, old_level, new_level FROM level_audit;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player_id\told_level\tnew_level\n1\t60\t66"
+      },
+      {
+        "type": "diagram",
+        "text": "AFTER UPDATE ON players\n        │\n        ├─ OLD：修改前的行（level = 60）\n        └─ NEW：修改后的行（level = 66）\n                │\n                └─ WHEN OLD.level <> NEW.level 成立\n                        │\n                        └─ 写入 level_audit(player_id, old_level, new_level)"
+      },
+      {
+        "type": "code",
+        "code": "-- 参考写法：真实环境中由数据库自动执行\nCREATE TRIGGER trg_level_audit\nAFTER UPDATE OF level ON players\nFOR EACH ROW\nWHEN OLD.level <> NEW.level\nBEGIN\n  INSERT INTO level_audit (player_id, old_level, new_level)\n  VALUES (OLD.id, OLD.level, NEW.level);\nEND;",
+        "runnable": false
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT, level INTEGER);\nCREATE TABLE level_audit (id INTEGER PRIMARY KEY, player_id INTEGER, old_level INTEGER, new_level INTEGER);\nINSERT INTO players VALUES (1, 'V', 60);\nUPDATE players SET level = 66 WHERE id = 1;\nINSERT INTO level_audit (player_id, old_level, new_level)\n  SELECT id, 60, level FROM players WHERE id = 1;\nSELECT p.name, a.old_level, a.new_level\nFROM level_audit a JOIN players p ON p.id = a.player_id;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "name\told_level\tnew_level\nV\t60\t66"
+      },
+      {
+        "type": "tip",
+        "text": "触发器名建议带表名和事件，例如 trg_players_after_update，排查问题时能从名字直接看出它挂在哪张表、什么时候触发。"
+      },
+      {
+        "type": "warn",
+        "text": "触发器是隐式执行的，应用层看不到调用点。表结构变更、批量导入、数据修复都会触发它，上线前要确认这些路径不会产生意外的审计记录或汇总偏差。"
+      },
+      {
+        "type": "quiz",
+        "question": "在 AFTER UPDATE 触发器中，OLD.level 表示？",
+        "options": [
+          "修改后的等级",
+          "修改前的等级",
+          "NULL",
+          "平均值"
+        ],
+        "answer": 1,
+        "explain": "UPDATE 触发器同时拥有 OLD 与 NEW，OLD 是修改前的行，NEW 是修改后的行。"
+      }
+    ],
+    "exercise": {
+      "title": "记录等级变更",
+      "brief": "players 表已有 (1, 'V', 60)。先把 V 的 level 改为 66，再向 level_audit 插入一条变更记录（player_id、old_level、new_level），最后联表返回 name、old_level、new_level。",
+      "starterCode": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT, level INTEGER);\nCREATE TABLE level_audit (id INTEGER PRIMARY KEY, player_id INTEGER, old_level INTEGER, new_level INTEGER);\nINSERT INTO players VALUES (1, 'V', 60);\n\n-- 在这里写 UPDATE、INSERT 与查询\n",
+      "hint": "UPDATE players SET level = 66 WHERE id = 1; INSERT INTO level_audit (player_id, old_level, new_level) VALUES (1, 60, 66); SELECT p.name, a.old_level, a.new_level FROM level_audit a JOIN players p ON p.id = a.player_id;",
+      "tests": [
+        "assert columns == ['name', 'old_level', 'new_level'], columns",
+        "assert rows == [['V', 60, 66]], rows",
+        "assert len(rows) == 1, rows"
+      ],
+      "stdin": [],
+      "xp": 130,
+      "solution": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT, level INTEGER);\nCREATE TABLE level_audit (id INTEGER PRIMARY KEY, player_id INTEGER, old_level INTEGER, new_level INTEGER);\nINSERT INTO players VALUES (1, 'V', 60);\n\nUPDATE players SET level = 66 WHERE id = 1;\nINSERT INTO level_audit (player_id, old_level, new_level) VALUES (1, 60, 66);\nSELECT p.name, a.old_level, a.new_level\nFROM level_audit a\nJOIN players p ON p.id = a.player_id;\n"
+    }
+  },
+  {
+    "id": "sql27",
+    "order": 526,
+    "chapter": 53,
+    "chapterName": "SQL · 进阶篇",
+    "lang": "sql",
+    "title": "父子表的约定",
+    "subtitle": "外键与级联",
+    "xp": 110,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "让数据库检查引用完整性"
+      },
+      {
+        "type": "text",
+        "text": "外键（FOREIGN KEY）声明「这一列的值必须存在于另一张表的主键里」，用来维护父子表之间的引用完整性。例如 members.team_id REFERENCES teams(id) 表示队员所属的战队必须真实存在。外键拦住两类脏数据：插入一个不存在的 team_id，以及删除仍被引用的战队。没有外键时，这些错误只能靠应用层自觉，时间一长必然出现孤儿记录。SQLite 的外键默认不启用，必须在每个连接上执行 PRAGMA foreign_keys = ON 才会检查。这一点和大多数数据库不同，也是最容易踩的坑：建表时写了 REFERENCES，以为已经生效，实际插入非法数据却毫无反应。生产环境的连接池要在初始化语句里统一打开这个开关，并在监控里确认它确实为开。否则外键只是写在建表语句里的注释，没有任何约束力。级联行为用 ON DELETE 和 ON UPDATE 指定。"
+      },
+      {
+        "type": "text",
+        "text": "ON DELETE CASCADE 表示父行删除时子行自动删除，适合「订单删除则订单明细一起删除」这种强归属关系；ON DELETE SET NULL 表示子行的外键置空，适合「战队解散但队员保留」；ON DELETE RESTRICT 直接拒绝删除，适合必须手工处理的场景；NO ACTION 是默认值，效果类似 RESTRICT 但检查时机略有不同。选哪种取决于业务语义，尤其是删除操作，必须先想清楚子数据该跟着走还是该保留。外键列建议建索引。SQLite 不会自动为外键列创建索引，而级联删除、按父键查子表都需要快速定位子行，没有索引时每次都要全表扫描。复合外键的顺序要与被引用列的顺序一致。另外，外键约束会增加写入开销，批量导入大量数据时可以临时关闭检查，导入完成后再打开并跑一次完整性检查，但这是一把双刃剑，必须确保导入的数据本身是干净的。建表时还可以用 DEFERRABLE 控制外键检查时机，默认是立即检查，每条语句结束就验证；设为 DEFERRABLE INITIALLY DEFERRED 后，检查推迟到事务提交时，适合「先插父行再插子行但顺序交叉」的复杂迁移。SQLite 支持这个语法，不过日常业务里很少需要，了解即可。更重要的是养成习惯：只要表之间有引用关系，就把外键和索引一起写上，并在连接初始化时打开 PRAGMA foreign_keys，三件事缺一不可。"
+      },
+      {
+        "type": "text",
+        "text": "上线前建议跑一次完整性检查：PRAGMA foreign_key_check 会列出所有违反外键的存量数据。老系统往往在没有外键的年代积累了孤儿记录，直接加约束会失败，必须先把脏数据清洗掉。清洗时先备份，再逐条确认是删除还是补父行，不要图快用一条 DELETE 全清。数据完整性是长期工程，靠的是约束、索引、巡检三件套一起到位，而不是某一次运动式的清理。外键在 SQLite 里还有一些行为细节。PRAGMA foreign_keys 是连接级设置，断开重连后需要重新打开，所以不能只在初始化脚本里写一次就以为万事大吉，连接池的每条新连接都要执行。另外，修改表结构时（例如重建表）外键检查可能短暂失效，迁移脚本要在事务里完成，并在结束后跑 foreign_key_check 验证。把这些边界写进运维手册，比事后救火省心得多。还有一种常见误区：以为加外键就自动有了索引。实际上外键只约束取值，不创建索引，级联删除时若子表没有索引，每一行父记录删除都要全表扫描子表，数据量大时会慢得离谱。外键与索引要成对设计。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE teams (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE members (id INTEGER PRIMARY KEY, name TEXT,\n  team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE);\nPRAGMA foreign_keys = ON;\nINSERT INTO teams VALUES (1, 'Neon');\nINSERT INTO members VALUES (1, 'V', 1), (2, 'Judy', 1), (3, 'Jackie', NULL);\nDELETE FROM teams WHERE id = 1;\nSELECT COUNT(*) AS members_left FROM members;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "members_left\n1"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "级联选项",
+          "父行删除时",
+          "适用场景"
+        ],
+        "rows": [
+          [
+            "CASCADE",
+            "子行一起删除",
+            "强归属，如订单与明细"
+          ],
+          [
+            "SET NULL",
+            "子行外键置空",
+            "弱归属，如战队与队员"
+          ],
+          [
+            "RESTRICT",
+            "拒绝删除",
+            "必须人工处理"
+          ],
+          [
+            "NO ACTION",
+            "默认，拒绝删除",
+            "同 RESTRICT"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE teams (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE members (id INTEGER PRIMARY KEY, name TEXT,\n  team_id INTEGER REFERENCES teams(id));\nPRAGMA foreign_keys = ON;\nINSERT INTO teams VALUES (1, 'Neon');\nINSERT INTO members VALUES (1, 'V', 1);\nSELECT m.name AS member, t.name AS team\nFROM members m\nJOIN teams t ON t.id = m.team_id;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "member\tteam\nV\tNeon"
+      },
+      {
+        "type": "tip",
+        "text": "外键列一定要手动建索引。SQLite 不会自动为 REFERENCES 列创建索引，级联删除时没有索引会退化成全表扫描。"
+      },
+      {
+        "type": "warn",
+        "text": "SQLite 的外键默认关闭，必须执行 PRAGMA foreign_keys = ON。不打开时 REFERENCES 只是文档，不会拦截任何非法写入。"
+      },
+      {
+        "type": "quiz",
+        "question": "ON DELETE CASCADE 的作用是？",
+        "options": [
+          "禁止删除父行",
+          "删除父行时子行外键置空",
+          "删除父行时子行一起删除",
+          "删除子行时父行一起删除"
+        ],
+        "answer": 2,
+        "explain": "CASCADE 表示级联删除，父行被删时引用它的子行会自动删除。"
+      }
+    ],
+    "exercise": {
+      "title": "解散战队",
+      "brief": "创建 teams 与 members（team_id 带 ON DELETE CASCADE），开启外键，插入战队 Neon 与两名队员，删除战队后统计 remaining 队员数。",
+      "starterCode": "CREATE TABLE teams (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE members (id INTEGER PRIMARY KEY, name TEXT,\n  team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE);\nPRAGMA foreign_keys = ON;\n\n-- 在这里写插入、删除与统计\n",
+      "hint": "INSERT INTO teams VALUES (1, 'Neon'); INSERT INTO members VALUES (1, 'V', 1), (2, 'Judy', 1); DELETE FROM teams WHERE id = 1; SELECT COUNT(*) AS remaining FROM members;",
+      "tests": [
+        "assert columns == ['remaining'], columns",
+        "assert rows == [[0]], rows",
+        "assert len(rows) == 1, rows"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE teams (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE members (id INTEGER PRIMARY KEY, name TEXT,\n  team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE);\nPRAGMA foreign_keys = ON;\n\nINSERT INTO teams VALUES (1, 'Neon');\nINSERT INTO members VALUES (1, 'V', 1), (2, 'Judy', 1);\nDELETE FROM teams WHERE id = 1;\nSELECT COUNT(*) AS remaining FROM members;\n"
+    }
+  },
+  {
+    "id": "sql28",
+    "order": 527,
+    "chapter": 53,
+    "chapterName": "SQL · 进阶篇",
+    "lang": "sql",
+    "title": "拆表的分寸",
+    "subtitle": "数据库范式",
+    "xp": 110,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "为什么要把数据拆开"
+      },
+      {
+        "type": "text",
+        "text": "范式是拆表时要遵守的一组规则，目的是消除冗余与更新异常。第一范式要求每个字段都是原子值，不能再拆，例如不能把「V, Judy」塞进一个 players 字段；第二范式要求非主键字段完全依赖整个主键，不能只依赖复合主键的一部分；第三范式要求非主键字段之间不能互相依赖，例如订单表里存了 player_region，而 region 其实只依赖 player，就违反了第三范式。违反范式会带来三类问题。插入异常：想新增一个还没有订单的玩家，却因为订单表必须有订单号而插不进去。更新异常：同一个玩家的地区在十条订单里重复存储，改地址要改十行，漏一行就出现矛盾。删除异常：删掉最后一条订单，顺带把这个玩家的信息也弄丢了。把数据拆成 players、orders、products 三张表，各存各的事实，上述问题自然消失。范式不是越严格越好。分析型场景里，报表需要频繁连接多张表，每次查询都 JOIN 五六张表会很慢，这时会故意做反范式：把常用的汇总值冗余到一张宽表里，或者把维度字段直接复制进事实表。"
+      },
+      {
+        "type": "text",
+        "text": "反范式用空间和一致性维护成本，换取查询速度。取舍标准是读写比例、数据量和一致性要求，而不是「范式高就更专业」。OLTP 系统倾向规范化，OLAP 系统可以接受适度冗余。落地时的经验是：先按第三范式设计，把实体和关系拆清楚，保证单一事实只存一处；出现明确的性能瓶颈后，再有针对性地引入冗余，并为冗余字段写清楚同步机制，例如触发器、定时任务或应用层双写。没有同步机制的冗余就是定时炸弹，短期看起来没问题，长期一定出现对不上的数据。范式是设计的起点，不是终点，能解释每一次冗余的理由，才算真正掌握了它。一个具体的拆表示例：把 orders_bad 里的 player 和 player_region 抽到 players 表，把 product 和 price 抽到 products 表，orders 只保留 player_id、product_id、qty。这样玩家改名只改一行，商品调价只改一行，订单表体积也明显变小。"
+      },
+      {
+        "type": "text",
+        "text": "查询时用两次 JOIN 还原明细，虽然多写了几行 SQL，但换来了数据的一致性和可维护性。拆表的收益通常在数据量增长、需求变化时才会显现，短期看像是「多此一举」，长期看却是最省事的做法。范式理论里还有第四、第五范式，处理多值依赖和连接依赖，日常业务几乎用不到。对大多数应用来说，把第三范式理解透、用扎实，已经足够设计出健康的表结构。真正需要警惕的是「一张表包打天下」的诱惑：字段越加越多，含义越来越杂，最后没人说得清哪一列代表什么。看到这种表，就是该拆的信号。拆表不是为了让图好看，而是为了让每个字段只有一个来源、一个含义、一个负责人。最后给一个判断是否该拆表的实用测试：想象要修改某个事实，需要更新几行？如果答案是「一行」，说明这个事实只存了一处，符合规范化；如果是「多行」或者「不知道有几行」，就说明存在冗余，需要拆表或建立同步机制。这个测试不需要背范式定义，任何业务人员都能理解，也适合在需求评审时快速识别模型问题。设计的本质是让每个事实只有一个家，剩下的规则都是这句话的推论。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE orders_bad (\n  id INTEGER PRIMARY KEY,\n  player TEXT,\n  player_region TEXT,\n  product TEXT,\n  price INTEGER\n);\nINSERT INTO orders_bad VALUES (1, 'V', 'Neon', 'skin', 80);\nINSERT INTO orders_bad VALUES (2, 'V', 'Neon', 'mount', 120);\nSELECT player, player_region, COUNT(*) AS orders\nFROM orders_bad\nGROUP BY player, player_region;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\tplayer_region\torders\nV\tNeon\t2"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "范式",
+          "要求",
+          "反例"
+        ],
+        "rows": [
+          [
+            "1NF",
+            "字段原子、不可再分",
+            "把多个玩家塞进一列"
+          ],
+          [
+            "2NF",
+            "非主键完全依赖整个主键",
+            "复合主键只依赖其中一部分"
+          ],
+          [
+            "3NF",
+            "非主键之间不互相依赖",
+            "订单表存玩家地区"
+          ],
+          [
+            "反范式",
+            "有意冗余换性能",
+            "宽表预存汇总值"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT, region TEXT);\nCREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, price INTEGER);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, product_id INTEGER, qty INTEGER);\nINSERT INTO players VALUES (1, 'V', 'Neon');\nINSERT INTO products VALUES (10, 'skin', 80);\nINSERT INTO orders VALUES (1, 1, 10, 2);\nSELECT o.id, p.name AS player, p.region, pr.name AS product, o.qty * pr.price AS amount\nFROM orders o\nJOIN players p ON p.id = o.player_id\nJOIN products pr ON pr.id = o.product_id;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "id\tplayer\tregion\tproduct\tamount\n1\tV\tNeon\tskin\t160"
+      },
+      {
+        "type": "tip",
+        "text": "第三范式的判断口诀：每个非主键字段都必须直接依赖主键，依赖主键之外的字段就说明拆得不够。"
+      },
+      {
+        "type": "warn",
+        "text": "反范式不是随意复制字段。每一处冗余都必须有明确的同步机制，否则迟早出现两份数据对不上的情况。"
+      },
+      {
+        "type": "quiz",
+        "question": "订单表里存了玩家地区，而地区只依赖玩家，这违反了第几范式？",
+        "options": [
+          "第一范式",
+          "第二范式",
+          "第三范式",
+          "不属于范式问题"
+        ],
+        "answer": 2,
+        "explain": "非主键字段之间互相依赖（地区依赖玩家而非订单），属于第三范式要消除的传递依赖。"
+      }
+    ],
+    "exercise": {
+      "title": "规范化的订单明细",
+      "brief": "用 players、products、orders 三张表还原订单明细，输出订单 id、玩家 name、商品 name、金额 amount（qty * price），按订单 id 升序。",
+      "starterCode": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, price INTEGER);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, product_id INTEGER, qty INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy');\nINSERT INTO products VALUES (10, 'skin', 80), (20, 'mount', 120);\nINSERT INTO orders VALUES (1, 1, 10, 2), (2, 2, 20, 1);\n\n-- 在这里写查询\n",
+      "hint": "SELECT o.id, p.name AS name, pr.name AS product, o.qty * pr.price AS amount FROM orders o JOIN players p ON p.id = o.player_id JOIN products pr ON pr.id = o.product_id ORDER BY o.id;",
+      "tests": [
+        "assert columns == ['id', 'name', 'product', 'amount'], columns",
+        "assert rows == [[1, 'V', 'skin', 160], [2, 'Judy', 'mount', 120]], rows",
+        "assert len(rows) == 2, rows"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, price INTEGER);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, product_id INTEGER, qty INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy');\nINSERT INTO products VALUES (10, 'skin', 80), (20, 'mount', 120);\nINSERT INTO orders VALUES (1, 1, 10, 2), (2, 2, 20, 1);\n\nSELECT o.id, p.name AS name, pr.name AS product, o.qty * pr.price AS amount\nFROM orders o\nJOIN players p ON p.id = o.player_id\nJOIN products pr ON pr.id = o.product_id\nORDER BY o.id;\n"
+    }
+  },
+  {
+    "id": "sql29",
+    "order": 528,
+    "chapter": 53,
+    "chapterName": "SQL · 进阶篇",
+    "lang": "sql",
+    "title": "慢查询怎么救",
+    "subtitle": "查询优化",
+    "xp": 120,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "先看执行计划，再动手改"
+      },
+      {
+        "type": "text",
+        "text": "优化查询的第一步不是改 SQL，而是搞清楚它慢在哪里。SQLite 提供 EXPLAIN QUERY PLAN，输出每个步骤的扫描方式：SCAN 表示全表扫描，SEARCH 表示用索引定位，USE TEMP B-TREE 表示为了排序或分组建了临时结构。看到 SCAN 一张十万行的表，基本可以确定瓶颈；看到 USE TEMP B-TREE FOR ORDER BY，说明排序没有索引支撑，数据量大时会落磁盘。最常见的优化手段是补索引。WHERE 里等值过滤的列、JOIN 的连接键、ORDER BY 的排序列，都是候选。复合索引要按「等值在前、范围在后、排序列最后」的顺序设计，例如 WHERE status = ? AND paid_on >= ? ORDER BY amount 更适合 (status, paid_on, amount)。还要注意覆盖索引：如果查询需要的列都在索引里，数据库可以只读索引不读表，执行计划会显示 USING COVERING INDEX，速度通常快很多。第二类手段是改写查询。"
+      },
+      {
+        "type": "text",
+        "text": "把 SELECT * 改成只取需要的列，能减少读取与传输；把 WHERE 里的函数移到常量侧，让列保持裸用；把 OR 条件改写成 UNION ALL；用 EXISTS 替代 IN 处理可能含 NULL 的子查询；大 OFFSET 分页改成游标。这些改动的共同点是减少参与计算的数据量，而不是单纯「写得更高深」。改写前先备份原始 SQL 与执行计划，改完用同样的数据对比耗时，否则无法证明优化有效。第三类手段是调整数据组织方式：把频繁计算的汇总结果物化成表并定时刷新；把大表按时间分区；把冷数据归档到历史表。这些属于架构层面的优化，成本更高，通常在单条 SQL 已经优化到头之后才考虑。优化的优先级应该是：先确认瓶颈，再看索引，再看 SQL 写法，最后才动结构。跳过头两步直接上架构改造，往往花了大力气却没解决真正的问题。除了索引，SQLite 还有一些参数会影响查询速度。PRAGMA cache_size 控制页缓存大小，内存充足时可以适当调大，减少磁盘读取；PRAGMA journal_mode = WAL 改善并发读写；PRAGMA synchronous = NORMAL 在持久性与写入速度之间折中。移动端应用通常保持默认即可，服务端需要根据负载调优。"
+      },
+      {
+        "type": "text",
+        "text": "调参前一定要有基准测试，记录调整前后的耗时，否则很容易凭感觉改出一堆参数，最后说不清哪一项真正起了作用。最后强调一个反直觉的事实：性能优化中最常见的收益来自「减少数据量」，而不是「换更快的写法」。加一个 WHERE 条件把扫描行数从百万降到千，比任何索引技巧都有效；只 SELECT 需要的列，比 SELECT * 再丢弃快得多；先把过滤做完再连接，比连接完再过滤省下大量中间结果。写查询时养成「先缩小范围、再做计算」的顺序，很多性能问题在写的那一刻就避免了。最后给一份可执行的优化清单：一，确认慢的是哪条 SQL，用真实数据量复现；二，看 EXPLAIN QUERY PLAN，定位 SCAN 还是 TEMP B-TREE；三，检查过滤列与连接列是否有合适索引；四，检查是否有函数包裹列、前导通配符、隐式类型转换；五，尝试改写并对比耗时；六，记录优化前后的数据，写进变更说明。这六步不需要高深技巧，但能覆盖绝大多数常见问题。优化最怕的是凭感觉改，改完不知道有没有变快，也不知道为什么变快。记录时至少写清三样：原始 SQL、执行计划摘要、优化前后耗时，这样下次遇到同类问题可以直接复用结论，而不是从头再猜一遍。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE orders (id INTEGER PRIMARY KEY, player TEXT, amount INTEGER, status TEXT);\nINSERT INTO orders VALUES (1, 'V', 100, 'paid'), (2, 'Judy', 80, 'paid'), (3, 'V', 50, 'refund');\n\nEXPLAIN QUERY PLAN\nSELECT player, SUM(amount)\nFROM orders\nWHERE status = 'paid'\nGROUP BY player;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "id\tparent\tnotused\tdetail\n6\t0\t216\tSCAN orders\n10\t0\t0\tUSE TEMP B-TREE FOR GROUP BY"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "现象",
+          "含义",
+          "对策"
+        ],
+        "rows": [
+          [
+            "SCAN 大表",
+            "全表扫描",
+            "在过滤列上建索引"
+          ],
+          [
+            "USE TEMP B-TREE",
+            "排序/分组无索引",
+            "给 ORDER BY / GROUP BY 列建索引"
+          ],
+          [
+            "SEARCH ... INDEX",
+            "命中索引",
+            "保持，注意是否覆盖"
+          ],
+          [
+            "COVERING INDEX",
+            "覆盖索引",
+            "只读索引，通常更快"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE orders (id INTEGER PRIMARY KEY, player TEXT, amount INTEGER, status TEXT);\nINSERT INTO orders VALUES (1, 'V', 100, 'paid'), (2, 'Judy', 80, 'paid'), (3, 'V', 50, 'refund');\nCREATE INDEX idx_orders_status_player ON orders(status, player, amount);\n\nEXPLAIN QUERY PLAN\nSELECT player, SUM(amount)\nFROM orders\nWHERE status = 'paid'\nGROUP BY player;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "id\tparent\tnotused\tdetail\n6\t0\t56\tSEARCH orders USING COVERING INDEX idx_orders_status_player (status=?)"
+      },
+      {
+        "type": "tip",
+        "text": "复合索引顺序按「等值列、范围列、排序列」排列，并且让查询需要的列尽量都落在索引里，才有机会用到覆盖索引。"
+      },
+      {
+        "type": "warn",
+        "text": "不要看到 SCAN 就立刻加索引。小表全表扫描往往比走索引更快，索引还会拖慢写入。先看数据量，再看执行计划，最后做对比测试。"
+      },
+      {
+        "type": "quiz",
+        "question": "执行计划里出现 USING COVERING INDEX 说明？",
+        "options": [
+          "查询失败",
+          "只读索引就能得到结果",
+          "使用了临时表",
+          "没有使用索引"
+        ],
+        "answer": 1,
+        "explain": "覆盖索引表示查询需要的列都在索引里，数据库无需回表读取原始数据。"
+      }
+    ],
+    "exercise": {
+      "title": "给状态建复合索引",
+      "brief": "在 orders 表上创建复合索引 idx_orders_status_player，覆盖 status、player、amount，然后查看 WHERE status = 'paid' GROUP BY player 的执行计划，输出 detail 列。",
+      "starterCode": "CREATE TABLE orders (id INTEGER PRIMARY KEY, player TEXT, amount INTEGER, status TEXT);\nINSERT INTO orders VALUES (1, 'V', 100, 'paid'), (2, 'Judy', 80, 'paid'), (3, 'V', 50, 'refund');\n\n-- 在这里写 CREATE INDEX 与 EXPLAIN QUERY PLAN\n",
+      "hint": "CREATE INDEX idx_orders_status_player ON orders(status, player, amount); EXPLAIN QUERY PLAN SELECT player, SUM(amount) FROM orders WHERE status = 'paid' GROUP BY player;",
+      "tests": [
+        "assert columns == ['id', 'parent', 'notused', 'detail'], columns",
+        "assert len(rows) == 1, rows",
+        "assert 'COVERING INDEX' in rows[0][3], rows"
+      ],
+      "stdin": [],
+      "xp": 130,
+      "solution": "CREATE TABLE orders (id INTEGER PRIMARY KEY, player TEXT, amount INTEGER, status TEXT);\nINSERT INTO orders VALUES (1, 'V', 100, 'paid'), (2, 'Judy', 80, 'paid'), (3, 'V', 50, 'refund');\n\nCREATE INDEX idx_orders_status_player ON orders(status, player, amount);\nEXPLAIN QUERY PLAN\nSELECT player, SUM(amount)\nFROM orders\nWHERE status = 'paid'\nGROUP BY player;\n"
+    }
+  },
+  {
+    "id": "sql30",
+    "order": 529,
+    "chapter": 53,
+    "chapterName": "SQL · 进阶篇",
+    "lang": "sql",
+    "title": "综合项目：运营分析",
+    "subtitle": "电商与游戏运营指标",
+    "xp": 140,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把前面学的拼成一份报表"
+      },
+      {
+        "type": "text",
+        "text": "这一讲不再引入新语法，而是把 30 讲的内容组合成一份真实报表。场景是游戏内商城：orders 表记录每笔订单的玩家、商品、数量、单价与支付日期。运营想知道三件事：每月收入与订单量、每位玩家的消费排名、以及高价值玩家的特征。三个问题分别对应分组聚合、窗口排名与条件统计，正好覆盖 core 与 advanced 两篇的核心技能。第一步按月汇总。用 STRFTIME('%Y-%m', paid_on) 把日期截成月份作为分组键，COUNT(*) 算订单数，SUM(qty * price) 算收入，ROUND 控制小数位，最后按月份排序。这一步的关键是明确「一行代表什么」：一行是一个自然月，所以 GROUP BY 只能用月份，不能把玩家也放进去，否则就变成每月每人的粒度。粒度想清楚了，后面的指标才不会重复计数。第二步给玩家排名。用 SUM(qty * price) 按玩家聚合出总额，再用 RANK() OVER (ORDER BY SUM(qty * price) DESC) 给排名。"
+      },
+      {
+        "type": "text",
+        "text": "SQLite 允许在窗口函数的 ORDER BY 里直接写聚合表达式，因为窗口计算发生在分组之后。如果想同时保留每位玩家的订单数，加一个 COUNT(*) 即可。排名用 RANK 而不是 ROW_NUMBER，是为了让消费相同的玩家并列，这更符合运营榜单的直觉。第三步做用户分层。用 CASE WHEN 把消费额分成高价值、中价值、普通三档，再用 GROUP BY 档位统计人数与总收入。这样一张表就能回答「高价值用户贡献了多少收入」。真实项目里还会把这些查询固化成视图或定时任务，配上日期参数，形成日报、周报。写报表时始终记住两条：口径要写清楚，边界要验证。用 SUM 核对总数、用 COUNT 核对行数，让每一个数字都能被追溯，这份报表才值得信任。如果继续扩展，这份报表还能加入留存与复购指标。留存要看「注册后第 N 天是否活跃」，需要用户表和每日活跃表按日期差连接；复购要看「同一玩家是否有两次以上购买」，用 GROUP BY player HAVING COUNT(*) >= 2。这些指标的计算逻辑各异，但底层技能仍是本课程反复练习的几件事：连接、分组、条件统计、窗口排名。"
+      },
+      {
+        "type": "text",
+        "text": "把基础打牢，新指标只是换一种组合方式，不需要从头学起。如果要把这份报表产品化，下一步通常是加日期参数与缓存。给查询加上起止日期，让运营能选月份；把结果写进汇总表，每天凌晨刷新一次，避免每次打开页面都重算。这些工程手段不改变 SQL 的语义，却决定了报表能不能在真实业务里用起来。写 SQL 只是数据工作的第一半，另一半是让结果稳定、可追溯、可交付。把这两半都做好，才算真正掌握了这门课。课程到这里就结束了。回看 30 讲，从最基础的 SELECT 到综合报表，核心概念其实不多：行与列的筛选、聚合与分组、表与表的连接、子查询与 CTE、窗口与事务。真正难的不是记住语法，而是把业务问题翻译成这些操作，并且能验证结果是否正确。建议你找一份自己熟悉的数据，从「每月汇总」开始写起，逐步加维度、加排名、加对比，每写一条就用 COUNT 和 SUM 交叉核对。练到能独立完成一份运营报表，这门课的目标就达到了。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE orders (id INTEGER PRIMARY KEY, player TEXT, product TEXT,\n  qty INTEGER, price REAL, paid_on TEXT);\nINSERT INTO orders VALUES\n  (1, 'V', 'skin', 2, 80, '2024-01-05'),\n  (2, 'V', 'mount', 1, 120, '2024-01-18'),\n  (3, 'Judy', 'skin', 1, 80, '2024-02-02'),\n  (4, 'Judy', 'emote', 5, 20, '2024-02-20'),\n  (5, 'Jackie', 'mount', 1, 120, '2024-03-01');\n\nSELECT STRFTIME('%Y-%m', paid_on) AS month,\n       COUNT(*) AS orders,\n       ROUND(SUM(qty * price), 2) AS revenue\nFROM orders\nGROUP BY month\nORDER BY month;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "month\torders\trevenue\n2024-01\t2\t280.0\n2024-02\t2\t180.0\n2024-03\t1\t120.0"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "指标",
+          "写法",
+          "说明"
+        ],
+        "rows": [
+          [
+            "月收入",
+            "SUM(qty * price)",
+            "按 STRFTIME 月份分组"
+          ],
+          [
+            "订单数",
+            "COUNT(*)",
+            "一行一单"
+          ],
+          [
+            "玩家排名",
+            "RANK() OVER (ORDER BY SUM(...) DESC)",
+            "并列同名次"
+          ],
+          [
+            "用户分层",
+            "CASE WHEN 总额 >= 阈值",
+            "高/中/普通三档"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE orders (id INTEGER PRIMARY KEY, player TEXT, product TEXT,\n  qty INTEGER, price REAL, paid_on TEXT);\nINSERT INTO orders VALUES\n  (1, 'V', 'skin', 2, 80, '2024-01-05'),\n  (2, 'V', 'mount', 1, 120, '2024-01-18'),\n  (3, 'Judy', 'skin', 1, 80, '2024-02-02'),\n  (4, 'Judy', 'emote', 5, 20, '2024-02-20'),\n  (5, 'Jackie', 'mount', 1, 120, '2024-03-01');\n\nSELECT player,\n       ROUND(SUM(qty * price), 2) AS total,\n       RANK() OVER (ORDER BY SUM(qty * price) DESC) AS rnk\nFROM orders\nGROUP BY player\nORDER BY rnk;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\ttotal\trnk\nV\t280.0\t1\nJudy\t180.0\t2\nJackie\t120.0\t3"
+      },
+      {
+        "type": "tip",
+        "text": "报表里的每个数字都要能被另一条查询验证。总收入用 SELECT SUM(qty*price) 单独核对，总订单数用 COUNT(*) 核对，两个口径对得上，报表才可信。"
+      },
+      {
+        "type": "warn",
+        "text": "分组粒度决定指标含义。按月汇总时不要再按玩家分组，否则「月收入」会变成「每人每月收入」，加总后可能重复计算，汇报时口径就错了。"
+      },
+      {
+        "type": "quiz",
+        "question": "要按自然月统计收入，正确的分组键是？",
+        "options": [
+          "GROUP BY paid_on",
+          "GROUP BY STRFTIME('%Y-%m', paid_on)",
+          "GROUP BY player",
+          "GROUP BY qty"
+        ],
+        "answer": 1,
+        "explain": "STRFTIME('%Y-%m', paid_on) 把日期截成年月，同一月的订单会归入同一组。"
+      }
+    ],
+    "exercise": {
+      "title": "月度运营报表",
+      "brief": "从 orders 表按自然月统计 month、orders（订单数）、revenue（收入，保留两位小数），按 month 升序输出。",
+      "starterCode": "CREATE TABLE orders (id INTEGER PRIMARY KEY, player TEXT, product TEXT,\n  qty INTEGER, price REAL, paid_on TEXT);\nINSERT INTO orders VALUES\n  (1, 'V', 'skin', 2, 80, '2024-01-05'),\n  (2, 'V', 'mount', 1, 120, '2024-01-18'),\n  (3, 'Judy', 'skin', 1, 80, '2024-02-02'),\n  (4, 'Judy', 'emote', 5, 20, '2024-02-20'),\n  (5, 'Jackie', 'mount', 1, 120, '2024-03-01');\n\n-- 在这里写查询\n",
+      "hint": "SELECT STRFTIME('%Y-%m', paid_on) AS month, COUNT(*) AS orders, ROUND(SUM(qty * price), 2) AS revenue FROM orders GROUP BY month ORDER BY month;",
+      "tests": [
+        "assert columns == ['month', 'orders', 'revenue'], columns",
+        "assert rows == [['2024-01', 2, 280.0], ['2024-02', 2, 180.0], ['2024-03', 1, 120.0]], rows",
+        "assert len(rows) == 3, rows"
+      ],
+      "stdin": [],
+      "xp": 140,
+      "solution": "CREATE TABLE orders (id INTEGER PRIMARY KEY, player TEXT, product TEXT,\n  qty INTEGER, price REAL, paid_on TEXT);\nINSERT INTO orders VALUES\n  (1, 'V', 'skin', 2, 80, '2024-01-05'),\n  (2, 'V', 'mount', 1, 120, '2024-01-18'),\n  (3, 'Judy', 'skin', 1, 80, '2024-02-02'),\n  (4, 'Judy', 'emote', 5, 20, '2024-02-20'),\n  (5, 'Jackie', 'mount', 1, 120, '2024-03-01');\n\nSELECT STRFTIME('%Y-%m', paid_on) AS month,\n       COUNT(*) AS orders,\n       ROUND(SUM(qty * price), 2) AS revenue\nFROM orders\nGROUP BY month\nORDER BY month;\n"
+    }
+  }
+]

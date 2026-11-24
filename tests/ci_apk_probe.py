@@ -12,6 +12,7 @@
   R4 assets 内课程与挑战 JSON 存在且可解析（lessons_*.json / challenges.json）
   R5 assets/syntaxes/javascript.tmLanguage.json 存在（多语言高亮）
   R6 AndroidManifest（二进制 AXML，UTF-16LE）含包名 com.pyneon.academy
+  R7 APK 预装 24 个课程包与离线 catalog（assets/content_packs/*.json、assets/catalog.json）
 """
 import importlib.util
 import io
@@ -112,6 +113,25 @@ def main():
             fail(f"APK 缺少 assets/{want}")
         json.loads(z.read(hit[0]).decode("utf-8"))
     print(f"[PASS] 课程与挑战 JSON 完整且可解析（{len(required_assets)} 个）")
+
+    pack_names = [
+        n for n in names
+        if n.startswith("assets/content_packs/") and n.endswith(".json")
+    ]
+    if len(pack_names) < 24:
+        fail(f"APK 预装课程包不足：{len(pack_names)} 个（至少 24）")
+    for n in pack_names:
+        try:
+            json.loads(z.read(n).decode("utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            fail(f"预装课程包不可解析：{n}（{exc}）")
+    catalog_hits = [n for n in names if n == "assets/catalog.json"]
+    if not catalog_hits:
+        fail("APK 缺少 assets/catalog.json（语言中心离线目录）")
+    catalog = json.loads(z.read(catalog_hits[0]).decode("utf-8"))
+    if len(catalog.get("packs") or []) < 24:
+        fail("assets/catalog.json 的包数量不足 24")
+    print(f"[PASS] 预装课程包 {len(pack_names)} 个，离线 catalog 含 {len(catalog.get('packs') or [])} 包")
 
     # 每门内置语言都必须有语法文件，否则该语言编辑器静默降级成白底
     for lang in ("python", "javascript", "typescript", "c", "lua", "sql"):

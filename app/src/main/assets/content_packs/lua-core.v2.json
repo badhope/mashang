@@ -1,0 +1,1211 @@
+[
+  {
+    "id": "lua11",
+    "order": 410,
+    "chapter": 42,
+    "chapterName": "Lua · 核心篇",
+    "lang": "lua",
+    "title": "多返回值",
+    "subtitle": "一次返回，多个接收",
+    "xp": 70,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "函数可以一次交回多个结果"
+      },
+      {
+        "type": "text",
+        "text": "Lua 的函数天然支持多返回值，不需要打包成数组或对象。写法就是在 return 后面用逗号列出多个表达式，调用方也用逗号接收。最经典的例子是 divmod：一次返回商和余数，调用方写 local q, r = divmod(7, 2)，两个变量各拿一个值。这个特性在需要同时给出「结果和状态」「值和错误」时特别自然，省掉了很多临时结构体。比起其他语言里返回一个元组或对象再拆开，Lua 的写法更直接，运行时也不需要额外分配容器，尤其适合底层工具函数。\n\n多返回值在表达式里的展开规则有一条容易被忽略的边界：只有放在列表末尾的函数调用才会展开成多个值，放在中间或在括号里都会被截断成一个值。print(f(), 3) 只拿到 f 的第一个返回值，print((f())) 因为加了括号也只拿一个。表构造式 {f()} 是例外，它会把 f 的所有返回值依次填进去，但 {f(), 3} 又只保留第一个。记住「末尾才展开」这条规则，能避免大量诡异的调试时间，因为错误不会报，只是值悄悄少了一个。"
+      },
+      {
+        "type": "text",
+        "text": "接收端也有细节：local a, b = f() 会按位置分配，多余的返回值被丢弃，不够的补 nil。如果只关心第二个返回值，可以写 local _, second = f()，下划线是约定俗成的占位符，不是特殊语法。函数作为实参传递时，前面的实参如果也是函数调用，只有最后一个会展开，其余都只取首值。这些规则不需要背，写几段小实验跑一遍，看到输出就理解了，而且比读文档记得牢。\n\nselect 是配合多返回值使用的工具：select('#', ...) 返回参数个数，select(n, ...) 返回从第 n 个开始的所有参数，n 为负数时从末尾倒数。它在写可变参数函数时几乎是必备的，因为 # 对参数列表不适用。很多初学者会用 {...} 把参数打包成表再取长度，这在参数含 nil 时会丢信息，select('#', ...) 才是准确的口径。下一讲讲可变参数时会详细展开，这里先知道它和返回值计数有关即可。\n\n还有一类场景是「主结果 + 附加信息」。比如一个统计函数既返回总和，也返回最大值和最小值；一个解析函数既返回解析出的表，也返回剩余未消费的字符串。这种设计让调用方按需取用，不需要为了拿某个附带信息而重新遍历一遍。写这类函数时，把最重要的值放第一位，附加信息按重要性往后排，调用方只接第一个也不会出错。"
+      },
+      {
+        "type": "code",
+        "code": "local function divmod(a, b)\n  return math.floor(a / b), a % b\nend\nlocal q, r = divmod(7, 2)\nprint(q, r)\n\nlocal function two()\n  return 'A', 'B'\nend\nprint(two(), 'C')\nprint((two()))\nprint(select('#', two()))",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "3\t1\nA\tC\nA\n2"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "结果",
+          "说明"
+        ],
+        "rows": [
+          [
+            "local a, b = f()",
+            "按位置接收",
+            "多余的丢弃，不够补 nil"
+          ],
+          [
+            "print(f(), 3)",
+            "只取第一个返回值",
+            "非末尾调用被截断"
+          ],
+          [
+            "print((f()))",
+            "只取第一个返回值",
+            "括号强制单值"
+          ],
+          [
+            "local t = {f()}",
+            "全部填入表",
+            "末尾调用会展开"
+          ],
+          [
+            "local t = {f(), 3}",
+            "只填第一个",
+            "后面还有元素"
+          ],
+          [
+            "select('#', f())",
+            "返回值个数",
+            "不受 nil 影响"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "多返回值最实用的场景之一是「值 + 错误信息」。一个 parse 函数可以成功时返回结果和 nil，失败时返回 nil 和错误说明，调用方写 local value, err = parse(s)，先判断 value 是否为 nil 再决定后续流程。这和 pcall 的返回约定一致，也和很多 Lua 标准库的风格一致。比起抛异常，这种写法把错误处理放到调用方显式处理，不容易漏；比起返回一个带 ok 字段的表，它又更轻量，不需要额外的约定和字段命名。\n\n多返回值还可以配合 table.unpack 做「参数转发」。一个函数收到多个值后，如果想原样传给另一个函数，直接写 g(f()) 只会在末尾展开一次；更稳妥的是 local a, b, c = f() 再 g(a, b, c)，或者用 table.pack 打包后 unpack。转发时要注意 nil 会截断数组，所以参数里可能有空洞时，用 select 逐个取比打包更可靠。这些细节在写装饰器、代理函数时特别重要。"
+      },
+      {
+        "type": "code",
+        "code": "local function parse_int(s)\n  local n = tonumber(s)\n  if n == nil then\n    return nil, '不是合法数字: ' .. s\n  end\n  return n, nil\nend\n\nlocal v, err = parse_int('42')\nprint(v, err)\nlocal bad, msg = parse_int('abc')\nprint(bad, msg)",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "42\tnil\nnil\t不是合法数字: abc"
+      },
+      {
+        "type": "tip",
+        "text": "只想要第一个返回值时给调用加一层括号：(f())。这是 Lua 里强制「单值化」的标准写法，读别人代码时经常见到。"
+      },
+      {
+        "type": "quiz",
+        "question": "local function f() return 1, 2 end，print(f(), 3) 输出什么？",
+        "options": [
+          "1 + tab + 2 + tab + 3",
+          "1 + tab + 3",
+          "1 + tab + 2",
+          "报错"
+        ],
+        "answer": 1,
+        "explain": "只有列表末尾的函数调用才展开多返回值，f() 在中间只贡献第一个值 1，所以输出是 1、制表符、3；选项里的 + tab + 表示制表符。"
+      }
+    ],
+    "exercise": {
+      "title": "商与余数",
+      "brief": "实现 divmod(a, b)：返回商和余数两个值，商用 math.floor(a / b)。b 为 0 时返回 nil 和错误信息 'division by zero'。",
+      "starterCode": "function divmod(a, b)\n  \nend\n\nlocal q, r = divmod(7, 2)\nprint(q, r)",
+      "hint": "先用 if b == 0 then return nil, 'division by zero' end 挡住除零，再 return math.floor(a / b), a % b。",
+      "tests": [
+        "local q, r = divmod(7, 2); assert(q == 3, '7 / 2 的商应为 3')",
+        "local q, r = divmod(7, 2); assert(r == 1, '7 % 2 的余数应为 1')",
+        "local q, r = divmod(9, 3); assert(q == 3 and r == 0, '整除时余数应为 0')",
+        "local q, e = divmod(1, 0); assert(q == nil, '除零应返回 nil')",
+        "local q, e = divmod(1, 0); assert(e == 'division by zero', '除零应带错误信息')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function divmod(a, b)\n  if b == 0 then return nil, 'division by zero' end\n  return math.floor(a / b), a % b\nend\n"
+    }
+  },
+  {
+    "id": "lua12",
+    "order": 411,
+    "chapter": 42,
+    "chapterName": "Lua · 核心篇",
+    "lang": "lua",
+    "title": "可变参数",
+    "subtitle": "... 与 select",
+    "xp": 80,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "接收未知数量的参数"
+      },
+      {
+        "type": "text",
+        "text": "在参数列表最后写三个点 ...，函数就变成可变参数函数，调用时可以传任意多个实参。函数体里 ... 代表整个参数列表，可以整体转交给另一个函数，也可以用 select 按位置取。最典型的例子是包装 print：local function log(...) print('[LOG]', ...) end，所有实参原样传给内部的 print，不需要知道有几个。这种「透传」是 ... 最常见的用法，写日志、调试、代理函数时都会用到。\n\n要在函数体里逐个处理参数，有两种方式。第一种是 for i = 1, select('#', ...) do local v = select(i, ...) end，它不创建表，也不会因为 nil 丢信息；第二种是 local args = {...}，然后遍历数组，写法更顺手，但遇到 nil 时长度会提前截断，参数个数信息就丢了。选择哪一种取决于你是否需要保留 nil。如果参数是「可选的若干配置值」，nil 有意义，就用 select；如果只是数量不定的同类数据，用表更直观。"
+      },
+      {
+        "type": "text",
+        "text": "可变参数和固定参数可以混用：function f(a, b, ...) 里前两个按位置绑定，剩下的都进 ...。这在写「必填项 + 可选扩展」的接口时很好用，比如 function query(sql, ...) 让调用方传任意多个绑定值。注意 ... 只能出现在参数列表的最后，函数体里也不能把它赋给变量后当普通值用，它不是一个真正的表，只是一个语法占位。需要保存时，必须显式打包成表。\n\nselect 的负数下标也很实用：select(-1, ...) 取最后一个参数，select(-2, ...) 取倒数第二个。写「取最后一个元素」的辅助函数时，这样比先算长度再取更直接。select('#', ...) 返回的是参数总个数，包括 nil 占位，这一点和 # 完全不同，# 遇到 nil 会停止计数。理解这两个口径的差异，是写可变参数函数不踩坑的关键，也是很多标准库行为看起来「奇怪」的原因。\n\n把可变参数和表结合，可以写出很灵活的接口。比如一个批量插入函数 insert_all(t, ...)，内部用 select 遍历参数逐个插入，调用方就不用自己组装数组；反过来，一个展开函数 spread(t) 用 table.unpack 把数组还原成参数列表。这两个方向合起来，就是 Lua 里「数组」和「参数列表」互相转换的标准手法。需要注意 unpack 一次展开的元素个数受参数上限约束，几十万个元素的大数组不要直接展开，改成传表更安全。"
+      },
+      {
+        "type": "code",
+        "code": "local function sum(...)\n  local total = 0\n  for i = 1, select('#', ...) do\n    total = total + select(i, ...)\n  end\n  return total\nend\nprint(sum(1, 2, 3))\nprint(sum(10))\n\nlocal function log(...)\n  print('[LOG]', ...)\nend\nlog('start', 1, true)",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "6\n10\n[LOG]\tstart\t1\ttrue"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "含义",
+          "注意"
+        ],
+        "rows": [
+          [
+            "function f(...)",
+            "声明可变参数",
+            "必须是最后一个形参"
+          ],
+          [
+            "select('#', ...)",
+            "参数个数",
+            "包含 nil 占位"
+          ],
+          [
+            "select(n, ...)",
+            "从第 n 个开始的参数",
+            "n 可为负数"
+          ],
+          [
+            "{...}",
+            "打包成数组",
+            "遇到 nil 会截断"
+          ],
+          [
+            "f(...)",
+            "原样透传给另一个函数",
+            "保留全部参数"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "一个常见误区是以为 {...} 和参数列表完全等价。实际上 {...} 创建了一张新表，遍历它得到的是拷贝后的值，修改表不会影响原参数；而且当参数里有 nil 时，表构造会在第一个 nil 处留下空洞，# 的结果不可靠。所以库函数在需要「参数个数」时几乎都用 select('#', ...)，而不是 #{...}。这个细节在写通用工具函数时尤其重要，因为调用方可能传 nil 表示「这一项不设置」。\n\n可变参数还有一个容易忽略的限制：不能在函数体里对 ... 做算术或比较，它不是一个值，只是参数列表的占位。要处理参数，必须先取出来赋给局部变量，或者用 select 逐个访问。另一个限制是 ... 不能出现在嵌套函数里直接引用外层函数的参数列表，必须先用 local args = {...} 或 select 打包，再在闭包里使用。理解这两条，能避免很多「为什么这里语法错误」的困惑。最后提醒一个命名问题：可变参数函数的参数名通常写成 ...，但内部处理时需要一个有名字的数组或计数变量。把计数叫 n、把数组叫 args，比叫 t 或 x 更清楚。函数文档里写清楚「参数可以是 0 到多个」「nil 会被跳过还是保留」，调用方就不用去读实现。Lua 没有类型标注，这类约定只能靠文字和测试表达，写的时候多花一分钟，后面能省很多沟通成本。"
+      },
+      {
+        "type": "code",
+        "code": "local function count(...)\n  return select('#', ...)\nend\nprint(count(1, nil, 3))\nprint(#{1, nil, 3})\n\nlocal function last(...)\n  return select(-1, ...)\nend\nprint(last('a', 'b', 'c'))",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "3\n1\nc"
+      },
+      {
+        "type": "warn",
+        "text": "不要把 ... 当成表来用：不能写 #...、不能 ... [1]、不能 pairs(...)。需要表就先写 local args = {...}，需要精确个数就用 select('#', ...)。"
+      },
+      {
+        "type": "quiz",
+        "question": "函数 f(...) 中，select('#', ...) 与 #{...} 的区别是？",
+        "options": [
+          "完全等价",
+          "select 计入 nil，{} 遇到 nil 截断",
+          "select 更慢",
+          "{} 计入 nil，select 截断"
+        ],
+        "answer": 1,
+        "explain": "select('#', ...) 返回真实参数个数，包括 nil；{...} 构造表时遇到 nil 会形成空洞，# 的结果不可靠。"
+      }
+    ],
+    "exercise": {
+      "title": "可变参数求和",
+      "brief": "实现 sum_all(...)：返回所有数字参数的和；没有参数时返回 0。必须用 select('#', ...) 遍历，保证 nil 不会被静默跳过。",
+      "starterCode": "function sum_all(...)\n  \nend\n\nprint(sum_all(1, 2, 3))",
+      "hint": "for i = 1, select('#', ...) do local v = select(i, ...) ... end，遇到 nil 时按 0 处理。",
+      "tests": [
+        "assert(sum_all(1, 2, 3) == 6, '1+2+3 应为 6')",
+        "assert(sum_all() == 0, '没有参数应返回 0')",
+        "assert(sum_all(5) == 5, '单个参数应为 5')",
+        "assert(sum_all(1, 2, nil, 3) == 6, 'nil 应被跳过而不是提前截断')",
+        "assert(sum_all(-1, 1) == 0, '正负相抵应为 0')"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "function sum_all(...)\n  local total = 0\n  for i = 1, select('#', ...) do\n    local v = select(i, ...)\n    if v ~= nil then total = total + v end\n  end\n  return total\nend\n"
+    }
+  },
+  {
+    "id": "lua13",
+    "order": 412,
+    "chapter": 42,
+    "chapterName": "Lua · 核心篇",
+    "lang": "lua",
+    "title": "string 库",
+    "subtitle": "查找、替换与格式化",
+    "xp": 80,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "字符串工具全集"
+      },
+      {
+        "type": "text",
+        "text": "string 库是 Lua 最常用的标准库，核心函数可以分成四组。长度与截取：len、sub。大小写与重复：upper、lower、rep。查找与替换：find、match、gsub、gmatch。格式化与字节：format、byte、char。日常九成的工作都能用这几组解决。所有函数都可以用冒号语法调用，s:upper() 等价于 string.upper(s)，冒号把 s 作为第一个参数传进去，写起来更紧凑。\n\nfind 返回匹配的起止下标，找不到返回 nil；第四个参数为 true 时按纯文本查找，不做模式匹配。match 只返回匹配到的内容，如果有捕获组就依次返回各组。gsub 做全局替换，返回替换后的字符串和替换次数，第二个返回值经常被忽略，但它在做统计时很有用。gmatch 返回一个迭代器，配合 for 循环可以逐个取出所有匹配，这是解析文本最顺手的工具。\n\nformat 的常用占位符：%s 字符串、%d 整数、%f 浮点、%x 十六进制、%c 字符、%% 百分号。宽度可以组合，比如 %03d 补前导零、%5s 右对齐。要注意 LuaJ 对精度修饰的支持不完整：%.2f 不会把 3.14159 截成 3.14，而是原样输出，所以「保留两位小数」必须自己用 math.floor(x * 100 + 0.5) / 100 算好再交给 %s 或 %f。这是一处和标准 Lua 文档不一致的运行时差异，写代码时按实测行为来，不要照抄文档。"
+      },
+      {
+        "type": "text",
+        "text": "字符串在 Lua 里不可变，所以 gsub 不会修改原串，而是返回新串。批量拼接时不要写成 s = s .. x 的循环，每次都会创建新串，长度一大就明显变慢；正确做法是用 table 收集片段，最后 table.concat 一次拼完。这个优化在生成报告、拼装 JSON 时很关键。同理，反复用 sub 切字符串也要注意下标计算，负数下标表示从末尾倒数，越界会被裁剪而不是报错，这让代码不容易崩，但也容易掩盖逻辑错误。\n\n这里只做能力概览，模式匹配的语法（%a、%d、%s、捕获组、%b 等）留到进阶篇专门讲。现在你需要建立的是「什么时候用哪个函数」的判断：要位置就用 find，要内容就用 match，要批量改写就用 gsub，要逐个处理就用 gmatch。选错函数不会报错，但会让你多写很多无谓的循环和临时变量。写完之后对照一下标准库文档，通常能删掉三分之一的行数。\n\nstring.rep 的第三个参数是分隔符，写 string.rep('ab', 3, '-') 会得到 ab-ab-ab。生成分隔线、重复填充、构造测试数据时都很好用。它第二个参数是次数，不是总长度，所以想要得到长度为 20 的横线，要写 string.rep('-', 20)。这两个参数的类型都是数字，传字符串不会自动转换，会直接报错，正好帮你早发现错误。"
+      },
+      {
+        "type": "code",
+        "code": "local s = 'Night City 2077'\nprint(s:len(), s:sub(1, 5))\nprint(s:upper())\nprint(s:find('City'))\nprint((s:gsub(' ', '-')))\nprint(string.format('%s|%03d', 'id', 7))",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "15\tNight\nNIGHT CITY 2077\n7\t10\nNight-City-2077\nid|007"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "函数",
+          "作用",
+          "返回值"
+        ],
+        "rows": [
+          [
+            "len(s)",
+            "字节长度",
+            "数字"
+          ],
+          [
+            "sub(s, i, j)",
+            "截取，闭区间",
+            "新字符串"
+          ],
+          [
+            "find(s, p [, init, plain])",
+            "查找位置",
+            "起止下标或 nil"
+          ],
+          [
+            "match(s, p)",
+            "提取匹配内容",
+            "匹配串或捕获组"
+          ],
+          [
+            "gsub(s, p, r [, n])",
+            "全局替换",
+            "新串, 替换次数"
+          ],
+          [
+            "gmatch(s, p)",
+            "逐个匹配的迭代器",
+            "函数"
+          ],
+          [
+            "format(fmt, ...)",
+            "格式化",
+            "新字符串"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "还有一个实用技巧是「先用 find 判断，再用 sub 切」：因为 find 返回的是下标，配合 sub 可以精确取出匹配前后的内容。比如要取出用户名 @ 前面的部分，可以 local i = s:find('@', 1, true)，然后判断 i 是否为 nil，再用 s:sub(1, i - 1)。这种写法比模式匹配更直白，也不受特殊字符影响。简单任务用简单工具，不必一上来就写正则，可读性和调试成本都要考虑。\n\nstring 库还有几个不常用但很实用的函数：string.rep 生成重复串，string.byte 和 string.char 做字节与字符的互转，string.reverse 反转字符串。byte 和 char 在处理二进制协议、编码转换时是基础工具，比如把整数拆成字节再拼回去。它们都按字节操作，对 ASCII 完全够用，对多字节字符则要自己处理边界。先把 ASCII 场景练熟，遇到 UTF-8 再引入专门的库。"
+      },
+      {
+        "type": "code",
+        "code": "local text = 'lua,js,sql'\nfor part in text:gmatch('[^,]+') do\n  print(part)\nend\n\nprint(('  trim  '):match('^%s*(.-)%s*$'))\nprint(string.byte('ABC', 1, 3))\nprint(string.char(72, 105))",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "lua\njs\nsql\ntrim\n65\t66\t67\nHi"
+      },
+      {
+        "type": "tip",
+        "text": "gsub 返回两个值。只想要替换结果时用括号包起来：(s:gsub('a', 'b'))，否则它会污染多值上下文，比如直接塞进 print 会多打印一个替换次数。"
+      },
+      {
+        "type": "quiz",
+        "question": "表达式 ('a-b-c'):gsub('-', '/') 的返回值是？",
+        "options": [
+          "'a/b/c'",
+          "'a/b/c', 2",
+          "2",
+          "nil"
+        ],
+        "answer": 1,
+        "explain": "gsub 返回两个值：替换后的字符串和替换次数。单独打印时会看到 a/b/c 和 2，用括号包住才只取第一个。"
+      }
+    ],
+    "exercise": {
+      "title": "路径改成点号",
+      "brief": "实现 to_dotted(name)：把字符串里所有的 - 和 / 都替换成 .，返回替换后的字符串。",
+      "starterCode": "function to_dotted(name)\n  \nend\n\nprint(to_dotted('a-b/c'))",
+      "hint": "连续调用两次 gsub，记得用括号包住第一次的结果，避免多返回值影响第二次调用。",
+      "tests": [
+        "assert(to_dotted('a-b/c') == 'a.b.c', '横线和斜杠都应替换')",
+        "assert(to_dotted('abc') == 'abc', '没有分隔符应原样返回')",
+        "assert(to_dotted('') == '', '空串应返回空串')",
+        "assert(to_dotted('a--b') == 'a..b', '连续分隔符应各自替换')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function to_dotted(name)\n  local s = name:gsub('-', '.')\n  s = s:gsub('/', '.')\n  return s\nend\n"
+    }
+  },
+  {
+    "id": "lua14",
+    "order": 413,
+    "chapter": 42,
+    "chapterName": "Lua · 核心篇",
+    "lang": "lua",
+    "title": "table 库",
+    "subtitle": "insert、remove、sort、concat",
+    "xp": 80,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "数组操作的官方工具箱"
+      },
+      {
+        "type": "text",
+        "text": "table 库提供的函数覆盖了数组的增删改查和排序。insert(t, v) 在末尾追加，insert(t, i, v) 在位置 i 插入并把后面整体后移；remove(t) 删除末尾并返回它，remove(t, i) 删除指定位置。这两个函数的返回值经常被忽略，但删除时返回被删元素很有用，比如实现「抽一张牌」时直接拿到抽走的那张。注意插入位置必须在 1 到 #t+1 之间，越界会报错。\n\nconcat 把数组元素用分隔符连成字符串，可以指定起止下标。它要求元素是字符串或数字，遇到表或 nil 会报错，所以拼接前要先确认数据干净。sort 默认升序，传第二个参数可以自定义比较函数，比较函数返回 true 表示第一个参数应排在前面。排序是原地进行的，会修改原表；不想破坏原始顺序就先复制一份。排序元素类型必须一致，数字和字符串混排会直接抛错。\n\ntable 库没有提供 map、filter、reduce 这类函数式工具，需要自己写。这不是缺陷，而是 Lua 的取舍：核心库保持最小，扩展交给用户或第三方。写这些工具时注意它们应该返回新表还是原地修改，两种风格各有用途。原地修改省内存但会改变调用方的数据，返回新表更安全但要多分配。团队里最好统一一种约定，否则同一份代码里两种风格混用，读起来会很累。"
+      },
+      {
+        "type": "text",
+        "text": "concat 的起止下标参数经常被低估。做分页展示时可以用 table.concat(items, ', ', from, to) 只拼当前页，不需要先切出一个子数组；生成带序号的列表时，可以先拼出主体，再在前后补上标题和尾注。注意 concat 不会自动跳过 nil，遇到空洞会报「invalid value (nil) at index N」，所以拼接前要么确保数据连续，要么先过滤一遍。这个错误信息很明确，看到它就去检查数组里哪一项是 nil。\n\n排序的自定义比较函数有一个硬性要求：必须是严格弱序，也就是「a < b」为真时「b < a」必须为假，相等时两者都为假。写成 return a.x <= b.x 就会违反这个条件，某些输入下 table.sort 可能报「invalid order function for sorting」，或者排出难以解释的结果。正确写法是用 <，需要降序就写 a.x > b.x。这个坑在按对象字段排序时非常常见，遇到莫名其妙的排序报错，先检查比较函数里的等号。"
+      },
+      {
+        "type": "code",
+        "code": "local t = {3, 1, 2}\ntable.sort(t)\nprint(table.concat(t, ','))\ntable.insert(t, 4)\nprint(#t, t[4])\nprint(table.remove(t, 1))\nprint(table.concat(t, ','))",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "1,2,3\n4\t4\n1\n2,3,4"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "函数",
+          "作用",
+          "是否原地修改"
+        ],
+        "rows": [
+          [
+            "insert(t, v)",
+            "末尾追加",
+            "是"
+          ],
+          [
+            "insert(t, i, v)",
+            "指定位置插入",
+            "是"
+          ],
+          [
+            "remove(t [, i])",
+            "删除并返回元素",
+            "是"
+          ],
+          [
+            "sort(t [, cmp])",
+            "排序",
+            "是"
+          ],
+          [
+            "concat(t, sep)",
+            "拼接成字符串",
+            "否"
+          ],
+          [
+            "unpack(t, i, j)",
+            "展开成多个值",
+            "否"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "实际项目里最常用的是 sort 加 concat 的组合：先把数据整理成数组，排序，再拼接输出。这个流程几乎出现在所有报表、排行榜、日志汇总里。写的时候注意 sort 会改原表，如果原始顺序后面还要用，就先复制。复制也有讲究，浅拷贝只复制第一层，元素还是同一批引用；如果元素是表，要逐个复制才安全。想清楚拷贝的深度，比多写十行代码更重要。\n\ntable 库的另一个常见需求是「深拷贝」。浅拷贝只复制第一层，嵌套的表仍然共享；深拷贝要递归处理每一层，并且用一张 seen 表记录已经复制过的表，防止循环引用导致无限递归。写深拷贝时先判断类型，不是表就直接返回，是表就查 seen，没有再创建新表并递归填充。这段代码不长，但它是理解「引用 vs 值」的最好练习，也是很多配置合并、状态快照功能的基础。"
+      },
+      {
+        "type": "code",
+        "code": "local heroes = {\n  {name = 'V', level = 66},\n  {name = 'Judy', level = 42},\n  {name = 'Jackie', level = 30}\n}\ntable.sort(heroes, function(a, b) return a.level > b.level end)\nfor _, h in ipairs(heroes) do\n  print(h.name, h.level)\nend",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "V\t66\nJudy\t42\nJackie\t30"
+      },
+      {
+        "type": "practice",
+        "title": "按分数排序",
+        "code": "local rows = {{name='B', score=5}, {name='A', score=9}}\ntable.sort(rows, function(x, y) return x.score > y.score end)\nprint(rows[1].name, rows[2].name)",
+        "output": "A\tB",
+        "hint": "比较函数返回 x.score > y.score 就是降序；不要写 >=，会破坏严格弱序。"
+      },
+      {
+        "type": "tip",
+        "text": "table.unpack 把数组展开成多个返回值：print(table.unpack({1,2,3})) 输出 1、2、3。它在需要把数组当参数列表传给函数时非常方便。"
+      },
+      {
+        "type": "quiz",
+        "question": "table.sort 的比较函数写成 return a <= b 可能出什么问题？",
+        "options": [
+          "没有影响",
+          "违反严格弱序，可能报 invalid order function",
+          "总是降序",
+          "自动去重"
+        ],
+        "answer": 1,
+        "explain": "比较函数必须满足严格弱序：相等时 a<b 与 b<a 都应为假。用 <= 会让相等元素互相「小于」，排序算法可能检测到非法顺序并报错。"
+      }
+    ],
+    "exercise": {
+      "title": "排行榜前三",
+      "brief": "实现 top_names(players, n)：players 是 {name=..., score=...} 的数组，按 score 从高到低排序后返回前 n 个名字组成的数组；不足 n 个时返回全部。不要修改传入的数组。",
+      "starterCode": "function top_names(players, n)\n  \nend\n\nprint(table.concat(top_names({{name='A',score=3},{name='B',score=9}}, 1), ','))",
+      "hint": "先复制一份数组，再 table.sort 按 score 降序，最后循环取前 math.min(n, #copy) 个。",
+      "tests": [
+        "local r = top_names({{name='A',score=3},{name='B',score=9},{name='C',score=6}}, 2); assert(table.concat(r, ',') == 'B,C', '应按分数降序取前两名')",
+        "local r = top_names({{name='A',score=1}}, 5); assert(#r == 1, '不足 n 个时返回全部')",
+        "local p = {{name='A',score=1},{name='B',score=2}}; top_names(p, 1); assert(p[1].name == 'A', '不应修改原数组')",
+        "local r = top_names({}, 3); assert(#r == 0, '空数组应返回空数组')"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "function top_names(players, n)\n  local copy = {}\n  for i, v in ipairs(players) do copy[i] = v end\n  table.sort(copy, function(a, b) return a.score > b.score end)\n  local out = {}\n  local limit = math.min(n, #copy)\n  for i = 1, limit do out[i] = copy[i].name end\n  return out\nend\n"
+    }
+  },
+  {
+    "id": "lua15",
+    "order": 414,
+    "chapter": 42,
+    "chapterName": "Lua · 核心篇",
+    "lang": "lua",
+    "title": "math 库",
+    "subtitle": "取整、极值与随机数",
+    "xp": 70,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "数学函数与数值边界"
+      },
+      {
+        "type": "text",
+        "text": "math 库提供常用的数学函数。取整有 floor、ceil 两个方向，floor 向负无穷取整，ceil 向正无穷取整，所以 math.floor(-3.5) 是 -4，math.ceil(-3.5) 是 -3。绝对值 abs、平方根 sqrt、幂运算可以用 ^ 也可以 pow。三角函数 sin、cos、tan 以弧度为单位，deg 和 rad 负责角度与弧度的互转。常数 math.pi 和 math.huge 也在这个库里。\n\nmax 和 min 可以接收任意多个参数，返回最大或最小值；只传一个参数时返回它自己，传零个参数会报错。需要从数组里取极值时，用 table.unpack 把数组展开：math.max(table.unpack(t))。数组很大时 unpack 可能触及参数个数上限，几万个元素以内通常没问题，再大就应该手写循环，边遍历边比较，既安全又省内存。\n\n随机数用 math.random。不传参数返回 [0,1) 的浮点数，传一个整数 n 返回 1 到 n 的整数，传两个整数返回闭区间内的整数。math.randomseed 用来设置种子，让序列可复现。注意本沙箱不保证跨平台的随机序列一致，所以课程练习不会依赖具体随机结果，需要确定性时请用固定数据或自己写一个简单的线性同余生成器。"
+      },
+      {
+        "type": "code",
+        "code": "print(math.floor(3.7), math.ceil(3.2))\nprint(math.floor(-3.5), math.ceil(-3.5))\nprint(math.abs(-9), math.sqrt(16))\nprint(math.max(3, 9, 2), math.min(3, 9, 2))\nprint(math.floor(math.pi * 100) / 100)",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "3\t4\n-4\t-3\n9\t4\n9\t2\n3.14"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "函数",
+          "作用",
+          "示例"
+        ],
+        "rows": [
+          [
+            "floor(x)",
+            "向下取整",
+            "3.7 → 3，-3.5 → -4"
+          ],
+          [
+            "ceil(x)",
+            "向上取整",
+            "3.2 → 4，-3.5 → -3"
+          ],
+          [
+            "abs(x)",
+            "绝对值",
+            "-9 → 9"
+          ],
+          [
+            "sqrt(x)",
+            "平方根",
+            "16 → 4"
+          ],
+          [
+            "max(...) / min(...)",
+            "极值",
+            "max(3,9,2) → 9"
+          ],
+          [
+            "random([m [, n]])",
+            "随机数",
+            "random(1, 6) → 1..6"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "浮点数有一个必须接受的现实：0.1 + 0.2 不一定等于 0.3。判断两个浮点数是否相等，应该看它们的差是否小于一个容差，比如 math.abs(a - b) < 1e-9。做金额计算时更稳妥的做法是全部换成整数分，算完再除以 100 展示，这样能彻底避开二进制小数的误差。这一讲练习里的四舍五入到两位小数，就是这种思路的简化版。\n\n整数和浮点在 Lua 5.2 里是同一个类型，所以 4 / 2 得到 2，看起来像整数，实际是浮点值 2.0 的显示形式。做下标、做循环次数时通常没问题，但涉及取模、位运算模拟、哈希计算时就要小心精度。需要明确整数时，用 math.floor 包一层，或者用 math.floor(x + 0.5) 做四舍五入。这些转换看起来琐碎，但它们是数值代码正确性的基础，写财务、统计、游戏数值时绕不开。\n\n取整函数的选择会直接影响业务结果。做分页时总页数要用 ceil(total / size)，因为最后一页不满也要算一页；做数组下标时要用 floor，因为下标不能超出实际长度。同样是「除法后取整」，方向选反了就会出现「少一页」或「多出一个越界下标」。拿不准的时候，代入两个极端的例子：总数正好整除，以及总数比除数多一，看哪个方向符合预期。"
+      },
+      {
+        "type": "text",
+        "text": "randomseed 的作用是让随机序列可复现：同一个种子跑两次，得到同样的序列。测试随机相关逻辑时，先设种子再断言，就能写出稳定的用例；上线时用默认种子或时间种子，避免每次都一样。本沙箱不保证不同平台上的序列一致，所以课程示例只验证范围，不验证具体值。真实项目里如果需要跨平台一致，应该自己实现一个确定的伪随机算法。\n\nmath.huge 代表正无穷，-math.huge 代表负无穷，0/0 会得到 nan。判断 nan 不能用 ==，因为 nan 与自己都不相等，标准做法是检查 x ~= x 是否为真。这些边界值在正常业务里很少遇到，但一旦出现往往意味着上游数据有问题，比如除零、溢出、解析失败。与其让 nan 一路传播到界面显示「nan」，不如在计算入口就检查除数、检查输入范围，把问题挡在源头。"
+      },
+      {
+        "type": "code",
+        "code": "local function round2(x)\n  return math.floor(x * 100 + 0.5) / 100\nend\nprint(round2(3.14159), round2(2.005), round2(-1.234))\nprint(7 % 3, math.fmod(7, 3), math.fmod(-7, 3))",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "3.14\t2.01\t-1.23\n1\t1\t-1"
+      },
+      {
+        "type": "tip",
+        "text": "math.fmod 和 % 在负数上结果不同：% 的结果与除数同号，fmod 的结果与被除数同号。做周期性索引时通常用 %，做 C 风格取余时用 fmod。"
+      },
+      {
+        "type": "quiz",
+        "question": "math.floor(-3.5) 的值是？",
+        "options": [
+          "-3",
+          "-4",
+          "3",
+          "4"
+        ],
+        "answer": 1,
+        "explain": "floor 是向负无穷方向取整，-3.5 更小的整数是 -4。要朝零取整用其他方式，ceil(-3.5) 才是 -3。"
+      }
+    ],
+    "exercise": {
+      "title": "距离与取整",
+      "brief": "实现 distance(x1, y1, x2, y2)：返回两点欧氏距离，保留两位小数（用 math.floor(d * 100 + 0.5) / 100）。",
+      "starterCode": "function distance(x1, y1, x2, y2)\n  \nend\n\nprint(distance(0, 0, 3, 4))",
+      "hint": "先算 dx 和 dy，再用 math.sqrt(dx * dx + dy * dy)，最后四舍五入到两位。",
+      "tests": [
+        "assert(distance(0, 0, 3, 4) == 5, '3-4-5 直角三角形距离应为 5')",
+        "assert(distance(0, 0, 0, 0) == 0, '同一点距离应为 0')",
+        "assert(distance(0, 0, 1, 1) == 1.41, '对角线应四舍五入到 1.41')",
+        "assert(distance(1, 1, 1, 4) == 3, '竖直距离应为 3')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function distance(x1, y1, x2, y2)\n  local dx = x2 - x1\n  local dy = y2 - y1\n  local d = math.sqrt(dx * dx + dy * dy)\n  return math.floor(d * 100 + 0.5) / 100\nend\n"
+    }
+  },
+  {
+    "id": "lua16",
+    "order": 415,
+    "chapter": 42,
+    "chapterName": "Lua · 核心篇",
+    "lang": "lua",
+    "title": "迭代器 pairs/ipairs",
+    "subtitle": "泛型 for 的两种遍历",
+    "xp": 80,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "两种遍历，两种语义"
+      },
+      {
+        "type": "text",
+        "text": "泛型 for 写作 for k, v in 迭代器 do ... end，每次循环从迭代器取一组值。最常用的是 ipairs 和 pairs。ipairs 从下标 1 开始，按顺序返回下标和值，遇到第一个 nil 就停止；pairs 遍历所有键值对，包括字符串键和数字键，顺序由哈希实现决定。选哪一个取决于你的数据结构是数组还是字典，而不是个人喜好。\n\nipairs 的「遇到 nil 就停」是它的定义，不是 bug。如果数组中间有空洞，后面的元素不会被遍历到，所以删除元素后不要指望 ipairs 还能走完全部。pairs 则会跳过空洞继续遍历其他键，但顺序不确定。需要稳定顺序时先收集键再排序，这个套路在基础篇已经用过。判断一个表是数组还是字典，看它的键是不是从 1 开始的连续整数，而不是看它「看起来像」。\n\n迭代器的本质是一个函数，每次调用返回下一个值，返回 nil 表示结束。pairs 返回的是 next 函数、表本身和 nil 三个值，所以 for k, v in pairs(t) 等价于 for k, v in next, t, nil。理解这一点，你就能自己写迭代器：只要返回一个符合「调用一次给一组值、结束时给 nil」约定的函数即可。写自定义迭代器时，把状态存在闭包里，比用全局变量安全得多。"
+      },
+      {
+        "type": "text",
+        "text": "遍历过程中修改表是危险操作。新增键可能导致遍历不到、也可能报错；删除当前键在某些实现下可行，但依赖具体版本。稳妥的做法是先收集要删除的键，遍历结束后统一处理，或者用 while 加 next 手动控制。这个建议看起来保守，但能避免那种「本地跑得好、线上偶发错误」的问题，而后者往往要花几倍时间定位。\n\nfor 循环还能直接接多个返回值：for k, v in pairs(t) 就是每次拿两个。如果迭代器只返回一个值，写 for v in it do 即可，多的变量自然是 nil。自定义迭代器时，返回 nil 就表示结束，所以迭代器不能把 nil 当作有效值返回，否则循环会提前停止。需要表达「有效值是 nil」时，通常要多返回一个状态位，或者在协议层约定用别的哨兵值，这是设计迭代器时要提前想清楚的边界。\n\n遍历的顺序在测试里经常成为隐患。同一份字典，pairs 这次输出 A、B、C，下次可能是 C、A、B，所以断言不能写成比较整段输出，而应该把结果排序后再比较，或者逐项检查而不依赖次序。写课程示例时也要注意这一点：凡是涉及字典遍历的输出，示例里都先排序，保证每次运行结果一致。这个习惯能省掉很多「本地过、CI 挂」的排查时间。"
+      },
+      {
+        "type": "code",
+        "code": "local arr = {'a', 'b', 'c'}\nfor i, v in ipairs(arr) do\n  print(i, v)\nend\n\nlocal map = {name = 'V', level = 66}\nfor k, v in pairs(map) do\n  print(k, v)\nend",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "1\ta\n2\tb\n3\tc\nname\tV\nlevel\t66"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "迭代器",
+          "遍历范围",
+          "顺序",
+          "遇到 nil"
+        ],
+        "rows": [
+          [
+            "ipairs(t)",
+            "下标 1 开始的连续整数键",
+            "固定升序",
+            "停止"
+          ],
+          [
+            "pairs(t)",
+            "所有键值对",
+            "不保证",
+            "跳过并继续"
+          ],
+          [
+            "next(t, k)",
+            "底层单步遍历",
+            "不保证",
+            "跳过"
+          ],
+          [
+            "自定义迭代器",
+            "由函数决定",
+            "由函数决定",
+            "由函数决定"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "除了 ipairs 和 pairs，标准库还能直接产出迭代器：string.gmatch 返回按模式逐个匹配的迭代器，io.lines 返回逐行读取的迭代器（本沙箱没有 io）。它们都是同一种协议的不同实现，学会看「这个函数返回的是值还是迭代器」，比记住函数名更有用。判断方法很简单：如果它出现在 for ... in 的 in 后面，或者需要先赋给变量再循环，那就是迭代器；如果直接给出结果，那就是普通函数。\n\n迭代器还可以带「过滤」能力。写一个 filter_iter(t, pred)，返回的迭代器每次跳过不满足条件的元素，直到找到下一个符合条件的值。这类迭代器把筛选逻辑封装起来，调用方写 for v in filter_iter(t, is_even) do 就能只处理偶数，循环体里不需要再写 if。它的实现要点是内部用 while 循环推进，找到就 return，遍历完就 return nil 结束。组合多个这样的迭代器，就能搭出很像流式处理的管道。"
+      },
+      {
+        "type": "code",
+        "code": "local function range(n)\n  local i = 0\n  return function()\n    i = i + 1\n    if i <= n then return i end\n  end\nend\n\nfor v in range(4) do\n  print(v)\nend",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "1\n2\n3\n4"
+      },
+      {
+        "type": "visualize",
+        "title": "ipairs 的三次迭代",
+        "caption": "t = {'a', 'b', 'c'}，i 从 1 递增到 4 时循环结束",
+        "frames": [
+          {
+            "label": "i=1，取到 t[1]",
+            "items": [
+              {
+                "name": "i",
+                "value": "1"
+              },
+              {
+                "name": "v",
+                "value": "a"
+              }
+            ],
+            "highlight": [
+              "i",
+              "v"
+            ]
+          },
+          {
+            "label": "i=2，取到 t[2]",
+            "items": [
+              {
+                "name": "i",
+                "value": "2"
+              },
+              {
+                "name": "v",
+                "value": "b"
+              }
+            ],
+            "highlight": [
+              "i",
+              "v"
+            ]
+          },
+          {
+            "label": "i=3，取到 t[3]",
+            "items": [
+              {
+                "name": "i",
+                "value": "3"
+              },
+              {
+                "name": "v",
+                "value": "c"
+              }
+            ],
+            "highlight": [
+              "i",
+              "v"
+            ]
+          },
+          {
+            "label": "i=4，t[4] 为 nil，循环结束",
+            "items": [
+              {
+                "name": "i",
+                "value": "4"
+              },
+              {
+                "name": "v",
+                "value": "nil"
+              }
+            ],
+            "highlight": [
+              "i"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "warn",
+        "text": "不要在 ipairs 循环里删除元素，后面的元素会前移导致漏遍历。需要过滤时从后往前遍历，或者先把要保留的元素收集到新表。"
+      },
+      {
+        "type": "quiz",
+        "question": "local t = {1, nil, 3}，ipairs(t) 会遍历到几个元素？",
+        "options": [
+          "3 个",
+          "2 个",
+          "1 个",
+          "不确定"
+        ],
+        "answer": 2,
+        "explain": "ipairs 从 1 开始，遇到第一个 nil（下标 2）就停止，所以只会遍历到下标 1 的元素。"
+      }
+    ],
+    "exercise": {
+      "title": "统计非空键",
+      "brief": "实现 count_entries(t)：返回表 t 中所有值不为 nil 的键的数量。用 pairs 遍历，这样字符串键和数字键都能统计到。",
+      "starterCode": "function count_entries(t)\n  \nend\n\nprint(count_entries({a = 1, b = 2}))",
+      "hint": "local n = 0，for k, v in pairs(t) do n = n + 1 end；pairs 本身不会返回 nil 值，所以直接计数即可。",
+      "tests": [
+        "assert(count_entries({a = 1, b = 2}) == 2, '两个字符串键应计为 2')",
+        "assert(count_entries({}) == 0, '空表应为 0')",
+        "assert(count_entries({1, 2, 3}) == 3, '三个数组元素应计为 3')",
+        "assert(count_entries({x = 1, 2, 3}) == 3, '混合键应全部计入')"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "function count_entries(t)\n  local n = 0\n  for _ in pairs(t) do n = n + 1 end\n  return n\nend\n"
+    }
+  },
+  {
+    "id": "lua17",
+    "order": 416,
+    "chapter": 42,
+    "chapterName": "Lua · 核心篇",
+    "lang": "lua",
+    "title": "闭包",
+    "subtitle": "upvalue 与状态封装",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "函数记住了它的出生地"
+      },
+      {
+        "type": "text",
+        "text": "闭包是「函数 + 它引用的外部局部变量」的组合。当一个内部函数引用了外层的 local 变量，并且这个内部函数被返回或传出外层作用域，那个变量就不会被释放，而是跟着函数一起活下去。这个被捕获的变量叫 upvalue。闭包让函数有了记忆，也让「私有状态」成为可能，是 Lua 里实现对象、模块、计数器的核心机制。\n\n闭包捕获的是变量本身，不是创建时的值。所以两个函数如果引用同一个 upvalue，它们看到的是同一份数据，一个改另一个立刻能看到；反之，每次调用外层函数都会创建一组全新的 upvalue，彼此互不影响。这个区别是理解闭包的关键：make_counter() 每次调用都返回一个独立的计数器，而同一个工厂里返回的两个函数共享同一个计数。写之前先想清楚你要的是「共享」还是「独立」。"
+      },
+      {
+        "type": "text",
+        "text": "用闭包封装状态比用全局变量安全得多。外部拿不到那个 local 变量，只能通过你暴露的函数去读写，相当于天然的私有字段。很多 Lua 模块就是这么写的：文件顶部 local state = {}，下面定义若干操作 state 的函数，最后 return 一个表把这些函数暴露出去。调用方看不到 state，也无法绕过你的校验逻辑，这与面向对象的封装效果一致，但不需要 class 语法。\n\n闭包还有一个常见用途是延迟执行和回调。比如把「要做什么」和「做的时候用的参数」一起打包成函数，稍后再调用。这种写法在事件处理、任务队列里非常普遍。要注意的是，如果在循环里创建闭包并捕获循环变量，Lua 的数值 for 每轮都会创建新的变量，所以每个闭包拿到的是当轮的值，这通常正是你想要的；如果捕获的是循环外声明的变量，那所有闭包看到的都是同一个值。"
+      },
+      {
+        "type": "code",
+        "code": "local function make_counter()\n  local n = 0\n  return function()\n    n = n + 1\n    return n\n  end\nend\n\nlocal a = make_counter()\nlocal b = make_counter()\nprint(a(), a(), b(), a())",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "1\t2\t1\t3"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "概念",
+          "含义",
+          "影响"
+        ],
+        "rows": [
+          [
+            "upvalue",
+            "被闭包捕获的外层局部变量",
+            "函数返回后仍然存活"
+          ],
+          [
+            "共享",
+            "多个闭包引用同一个变量",
+            "一处修改处处可见"
+          ],
+          [
+            "独立",
+            "每次调用外层函数新建变量",
+            "互不干扰"
+          ],
+          [
+            "私有状态",
+            "外部无法直接访问的 local",
+            "只能通过暴露的函数操作"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "把闭包和表结合，就能写出「带状态的对象」：每个对象是一张表，方法定义在表外并通过闭包访问私有字段，或者用元表把方法共享给所有实例。前者每次创建对象都会新建一批函数，内存开销大但隔离彻底；后者只创建一份函数，实例只存数据，更省内存。进阶篇讲元表时会给出后者的完整写法，现在先理解两种方案的取舍，遇到具体问题时就知道该选哪一种。\n\n闭包和模块结合还能实现「单例」。把创建逻辑放在闭包里，用一个 local instance 缓存，第一次调用时创建，之后直接返回缓存的实例。这个模式适合配置对象、连接池这类「全局只应该有一份」的东西。要注意单例会让测试之间互相影响，测试里必须提供重置入口，否则前一个用例改过的状态会带到后一个。能用参数传递解决的依赖，尽量不要做成单例，显式依赖永远比隐式全局状态好维护。闭包还能用来做「轻量级的对象方法缓存」。如果一个方法需要反复创建内部函数，可以把内部函数在闭包里创建一次，返回多个引用它的方法，避免每次调用都新建函数对象。代价是这些方法共享同一份 upvalue，状态会互相影响，适合无状态的工具函数，不适合需要独立状态的场景。判断标准是：这些方法之间是否需要隔离数据，需要就各自建闭包，不需要就共享。"
+      },
+      {
+        "type": "code",
+        "code": "local function make_adder(base)\n  return function(x)\n    return base + x\n  end\nend\nlocal add10 = make_adder(10)\nprint(add10(5), add10(-3))\n\nlocal fns = {}\nfor i = 1, 3 do\n  fns[i] = function() return i * i end\nend\nprint(fns[1](), fns[2](), fns[3]())",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "15\t7\n1\t4\t9"
+      },
+      {
+        "type": "warn",
+        "text": "闭包会延长 upvalue 的生命周期。如果捕获了一个很大的表却只用其中一项，整张表都无法被回收——这是 Lua 里常见的内存泄漏原因之一。"
+      },
+      {
+        "type": "quiz",
+        "question": "两次调用 make_counter() 得到的计数器为什么互不影响？",
+        "options": [
+          "因为函数是值",
+          "因为每次调用都创建了新的 local n",
+          "因为 n 是全局变量",
+          "因为闭包不能共享"
+        ],
+        "answer": 1,
+        "explain": "local n = 0 在每次调用 make_counter 时都会重新创建，返回的闭包各自捕获自己的那一份，所以互不干扰。"
+      }
+    ],
+    "exercise": {
+      "title": "累加器工厂",
+      "brief": "实现 make_accumulator(start)：返回一个函数，每次调用传入一个数字并返回累加后的总和，初始值为 start。",
+      "starterCode": "function make_accumulator(start)\n  \nend\n\nlocal acc = make_accumulator(10)\nprint(acc(5))",
+      "hint": "在 make_accumulator 里声明 local total = start，返回的函数接收 x 并执行 total = total + x。",
+      "tests": [
+        "local a = make_accumulator(10); assert(a(5) == 15, '10 + 5 应为 15')",
+        "local a = make_accumulator(0); a(3); assert(a(4) == 7, '连续累加应为 7')",
+        "local a, b = make_accumulator(1), make_accumulator(100); a(1); assert(b(1) == 101, '两个累加器应互相独立')",
+        "local a = make_accumulator(5); assert(a(-5) == 0, '负数应能抵消')"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "function make_accumulator(start)\n  local total = start\n  return function(x)\n    total = total + x\n    return total\n  end\nend\n"
+    }
+  },
+  {
+    "id": "lua18",
+    "order": 417,
+    "chapter": 42,
+    "chapterName": "Lua · 核心篇",
+    "lang": "lua",
+    "title": "递归",
+    "subtitle": "自我调用与记忆化",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把问题缩小一号"
+      },
+      {
+        "type": "text",
+        "text": "递归是函数调用自己来解决问题。写递归只需要想清楚两件事：什么时候停（基准情形），以及如何把问题缩小成同类的小问题（递归情形）。阶乘的基准是 n <= 1 时返回 1，递归是 n * fact(n - 1)；斐波那契的基准是 n < 2 时返回 n，递归是 fib(n-1) + fib(n-2)。把这两件事写对，剩下的交给调用栈。\n\n递归函数必须保证每次调用都向基准靠近，否则会无限递归直到栈溢出。LuaJ 的调用栈深度有限，几千层就可能报错，所以处理大规模数据时要评估深度。另外，朴素递归会重复计算大量子问题，斐波那契的朴素版本时间复杂度是指数级的，n 到 35 就明显卡顿。解决办法是记忆化：用一个表缓存已经算过的结果，进入函数先查缓存。"
+      },
+      {
+        "type": "text",
+        "text": "尾递归是一种特殊的递归形式：递归调用是函数返回前的最后一个动作，没有后续计算。某些语言会把它优化成循环，避免栈增长；Lua 5.2 的标准实现确实支持尾调用优化，但不要依赖它来写无限递归。更稳妥的做法是能改成迭代就改成迭代，尤其是深度可能上千的场景。递归适合表达「树形结构」和「分治」，不适合单纯计数。\n\n记忆化的写法是在外层创建一个缓存表，函数内部先查 cache[n]，有就直接返回，没有就计算并写回。缓存表应该放在闭包里，而不是全局，否则不同调用之间会互相污染，也无法针对不同参数集重置。斐波那契加上记忆化之后，复杂度从指数级降到线性，n 到几百都能瞬间算完。这个优化思路可以套用到任何「同样的输入会被重复计算」的递归上。\n\n写递归时还要注意参数的设计。把「累计结果」作为参数往下传，可以让递归函数变成尾调用形式，也避免了在返回时再做合并；把「缓存」作为参数传，可以控制作用域，不必依赖全局表。参数多的递归函数读起来累，可以包一层对外接口，把内部递归函数藏在里面，对外只暴露最简签名。这种「外壳 + 内部实现」的结构，在树遍历、解析器里非常常见。"
+      },
+      {
+        "type": "code",
+        "code": "local function fact(n)\n  if n <= 1 then return 1 end\n  return n * fact(n - 1)\nend\nprint(fact(5), fact(10))\n\nlocal function fib(n)\n  if n < 2 then return n end\n  return fib(n - 1) + fib(n - 2)\nend\nprint(fib(10))",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "120\t3628800\n55"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "问题",
+          "基准情形",
+          "递归情形"
+        ],
+        "rows": [
+          [
+            "阶乘",
+            "n <= 1 返回 1",
+            "n * fact(n - 1)"
+          ],
+          [
+            "斐波那契",
+            "n < 2 返回 n",
+            "fib(n-1) + fib(n-2)"
+          ],
+          [
+            "求和",
+            "n == 1 返回 1",
+            "n + sum(n - 1)"
+          ],
+          [
+            "目录遍历",
+            "没有子项就返回",
+            "对每个子项递归"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "递归和迭代不是对立的，很多问题两种写法都行。经验法则是：数据结构本身是递归的（树、链表、嵌套表）就用递归，因为代码结构和数据形状一致，最不容易写错；如果只是计数、累加、遍历数组，用迭代更直接，也没有栈深度的顾虑。真要用递归处理大数据，先把深度算清楚，必要时加一个深度参数做保护，超过阈值就报错，而不是让程序崩在栈溢出上。\n\n递归还有一个常见陷阱是「重复计算参数」。比如递归函数每次调用都重新计算 #t 或重新查表，深度一大就明显变慢。把不变的值算一次作为参数传下去，或者放在闭包外层缓存，能显著减少开销。另一个陷阱是递归里修改共享表，导致不同分支互相干扰，排查时非常困难。写递归前先确认：哪些数据是只读的，哪些是每个分支独立的，把这两类分清楚，代码结构自然就清晰了。"
+      },
+      {
+        "type": "code",
+        "code": "local function fib_memo(n)\n  local cache = {}\n  local function go(k)\n    if k < 2 then return k end\n    if cache[k] then return cache[k] end\n    local v = go(k - 1) + go(k - 2)\n    cache[k] = v\n    return v\n  end\n  return go(n)\nend\nprint(fib_memo(10), fib_memo(30))",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "55\t832040"
+      },
+      {
+        "type": "warn",
+        "text": "递归深度受调用栈限制。处理上万个节点时优先用显式栈（一个表当栈）改写，别指望尾调用优化在所有环境都生效。"
+      },
+      {
+        "type": "quiz",
+        "question": "朴素递归求斐波那契为什么慢？",
+        "options": [
+          "函数调用开销大",
+          "大量子问题被重复计算",
+          "数字太大",
+          "没有返回值"
+        ],
+        "answer": 1,
+        "explain": "fib(n-1) 和 fib(n-2) 会展开出大量重叠的子问题，复杂度接近指数级。用缓存记住算过的值可以降到线性。"
+      }
+    ],
+    "exercise": {
+      "title": "递归求和",
+      "brief": "实现 sum_to(n)：用递归返回 1 到 n 的和，n < 1 时返回 0。",
+      "starterCode": "function sum_to(n)\n  \nend\n\nprint(sum_to(5))",
+      "hint": "基准情形是 n < 1 返回 0，递归情形是 n + sum_to(n - 1)。",
+      "tests": [
+        "assert(sum_to(5) == 15, '1 到 5 的和应为 15')",
+        "assert(sum_to(1) == 1, 'n 为 1 应返回 1')",
+        "assert(sum_to(0) == 0, 'n 为 0 应返回 0')",
+        "assert(sum_to(-3) == 0, '负数应返回 0')",
+        "assert(sum_to(100) == 5050, '1 到 100 应为 5050')"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "function sum_to(n)\n  if n < 1 then return 0 end\n  return n + sum_to(n - 1)\nend\n"
+    }
+  },
+  {
+    "id": "lua19",
+    "order": 418,
+    "chapter": 42,
+    "chapterName": "Lua · 核心篇",
+    "lang": "lua",
+    "title": "错误处理",
+    "subtitle": "pcall / error / xpcall",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "让错误可控"
+      },
+      {
+        "type": "text",
+        "text": "Lua 没有 try/catch 语法，错误处理靠函数。error(msg) 主动抛出错误，pcall(f, ...) 以保护模式调用 f：成功时返回 true 加上 f 的所有返回值，失败时返回 false 加错误信息。错误信息可以是字符串，也可以是任意值，比如一张带 code 和 message 的表。用表作为错误对象，能携带结构化信息，比纯字符串更适合分层处理。\n\npcall 只捕获运行时错误，语法错误在加载阶段就会被发现，轮不到 pcall。它也不区分错误类型，所有失败都返回 false，所以要靠错误信息或错误对象的字段来判断是哪一类问题。xpcall 比 pcall 多一个消息处理器，可以在错误传播出去之前做转换，比如统一加上时间戳或调用链。第三个参数必须是一个函数，不能直接传字符串。\n\n错误处理的原则是：能恢复的就恢复，不能恢复的就让它尽快失败。给用户看的错误信息要具体，比如「第 3 行：字段 name 不能为空」，而不是「出错了」；给日志看的错误要带上下文，比如输入值、函数名、阶段。不要用 pcall 把所有代码包起来然后什么都不做，那等于把 bug 藏起来，等到数据错乱时更难查。"
+      },
+      {
+        "type": "text",
+        "text": "assert 是最常用的轻量校验：assert(cond, 'msg') 在条件为假时抛出 msg，为真时返回所有参数。它适合放在函数入口检查前置条件，比如 assert(type(n) == 'number', 'n must be a number')。注意 assert 只在条件为 nil 或 false 时触发，0 和空串都算通过，所以别用 assert(n) 来检查数字是否为 0 以外的值，要写明确的比较。\n\n调试错误时，先看错误信息的第一个冒号前面是什么。如果有文件名和行号，说明是源码里的错误；如果只有一段字符串，说明是 error 里手写的消息，可能已经被中间层包装过。再往下看调用栈（LuaJ 的报错一般会附带层级），找到第一处属于你自己代码的位置，那里往往才是真正的问题所在，而不是最深的那一层。这个定位习惯能让你少走很多弯路。\n\npcall 也可以用来保护「可能不存在」的库函数。比如某些环境没有某个函数，直接调用会报错，可以先判断 type(f) == 'function'，再用 pcall 包一层兜底。这种防御式写法在跨平台脚本里很常见，但不要滥用：如果错误是程序 bug，让它崩掉反而更容易定位；只有外部输入、可选依赖这类「预期内可能失败」的场景，才值得用 pcall 包住。"
+      },
+      {
+        "type": "code",
+        "code": "local ok, err = pcall(function()\n  error('something went wrong')\nend)\nprint(ok, type(err))\n\nlocal ok2, value = pcall(function()\n  return 1 + 1\nend)\nprint(ok2, value)",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "false\tstring\ntrue\t2"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "函数",
+          "用法",
+          "返回"
+        ],
+        "rows": [
+          [
+            "error(msg)",
+            "抛出错误",
+            "不返回，向上传播"
+          ],
+          [
+            "pcall(f, ...)",
+            "保护模式调用",
+            "true + 返回值 / false + 错误"
+          ],
+          [
+            "xpcall(f, handler)",
+            "带处理器的保护调用",
+            "同上，错误先经 handler"
+          ],
+          [
+            "assert(cond, msg)",
+            "条件为假时抛错",
+            "条件为真时原样返回参数"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "错误处理还分层次：底层函数负责检测和抛出，中层负责转换和补充上下文，最外层负责展示或记录。如果一个函数既做业务又打印错误，它就没法被复用，因为你无法在测试里静默调用它。更好的做法是函数只返回错误对象，由调用方决定是打印、重试还是向上抛。这种「谁决策谁处理」的原则，能让错误路径和正常路径一样可测试。\n\npcall 之外，Lua 还提供 xpcall 和 assert 的组合用法。xpcall 的消息处理器可以返回任意值，最终作为第二个返回值给调用方，所以它适合做「错误转换」：把底层库的原始错误统一包装成带 code 的业务错误。assert 则适合做「前置条件」，在函数入口把非法参数挡掉。两者配合的常见模式是：入口用 assert 校验参数，可能失败的外部调用用 pcall 包住，最外层用 xpcall 统一格式。"
+      },
+      {
+        "type": "code",
+        "code": "local function divide(a, b)\n  if b == 0 then\n    error({code = 'DIV_ZERO', message = '除数不能为 0'})\n  end\n  return a / b\nend\n\nlocal ok, err = pcall(divide, 6, 0)\nprint(ok, type(err), err.code, err.message)\nprint(pcall(divide, 6, 3))",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "false\ttable\tDIV_ZERO\t除数不能为 0\ntrue\t2"
+      },
+      {
+        "type": "tip",
+        "text": "错误对象用表时可以带 code 字段，调用方按 code 分支处理，比字符串匹配稳定得多。字符串里的行号会随代码改动变化，code 不会。"
+      },
+      {
+        "type": "quiz",
+        "question": "pcall(f) 在 f 成功执行时返回什么？",
+        "options": [
+          "只有 true",
+          "true 加上 f 的返回值",
+          "f 的返回值",
+          "nil"
+        ],
+        "answer": 1,
+        "explain": "pcall 成功时返回 true，后面依次是 f 的所有返回值；失败时返回 false 加错误信息。"
+      }
+    ],
+    "exercise": {
+      "title": "安全除法",
+      "brief": "实现 safe_div(a, b)：b 为 0 时返回 nil 和错误信息 'division by zero'（不要用 error 抛出，直接用多返回值），否则返回 a / b 和 nil。",
+      "starterCode": "function safe_div(a, b)\n  \nend\n\nprint(safe_div(6, 3))",
+      "hint": "if b == 0 then return nil, 'division by zero' end，否则 return a / b, nil。",
+      "tests": [
+        "local v, e = safe_div(6, 3); assert(v == 2 and e == nil, '6/3 应为 2')",
+        "local v, e = safe_div(1, 0); assert(v == nil, '除零应返回 nil')",
+        "local v, e = safe_div(1, 0); assert(e == 'division by zero', '应带错误信息')",
+        "local v, e = safe_div(0, 5); assert(v == 0, '0 除以非零应为 0')"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "function safe_div(a, b)\n  if b == 0 then return nil, 'division by zero' end\n  return a / b, nil\nend\n"
+    }
+  },
+  {
+    "id": "lua20",
+    "order": 419,
+    "chapter": 42,
+    "chapterName": "Lua · 核心篇",
+    "lang": "lua",
+    "title": "模块与 require 概念",
+    "subtitle": "用表组织代码",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "模块就是一个表"
+      },
+      {
+        "type": "text",
+        "text": "Lua 没有内置的 class 和 namespace，模块的概念非常简单：一个文件返回一张表，表里放你希望暴露的函数和常量，其他人拿到这张表就能用。这种「返回表」的约定被社区广泛接受，几乎所有第三方库都这么写。文件顶层的辅助函数和状态都用 local 声明，外部完全看不到，天然实现了私有性。\n\nrequire 是加载模块的标准函数，它按 package.path 里的模式去文件系统找对应的 .lua 文件，加载后缓存结果，重复 require 返回同一张表。本课程的沙箱刻意关闭了文件查找器，所以 require 找不到任何外部文件，调用会失败。这不是让你绕过，而是让你理解：require 的价值在于「定位文件 + 执行一次 + 缓存结果」，语言层面并没有魔法。\n\n没有 require 时，模块模式依然可以手写：定义一个 local M = {}，把函数挂到 M 上，最后 return M。需要多个模块协作时，可以在主文件里按顺序定义，把前一个的返回值赋给一个 local 变量，再传给后一个。这模拟了 require 的核心语义，也让你看清模块之间真正的依赖关系。理解这一点，换到任何支持 require 的环境都能无缝迁移。"
+      },
+      {
+        "type": "text",
+        "text": "模块设计有几条经验：只暴露必要的接口，内部实现细节一律 local；不要在模块加载时做重活，加载应该快速且无副作用；模块之间的依赖尽量单向，避免 A 依赖 B、B 又依赖 A 的循环引用，那种情况在 Lua 里会拿到半初始化的表。需要共享状态时，用一个显式的 init 函数，而不是靠加载顺序碰运气。\n\n组织多文件项目时，可以把「数据」和「逻辑」分开：数据模块只返回配置表，逻辑模块接收配置表作为参数。这样测试逻辑时可以直接构造一份假配置，不需要真的加载文件；改配置也不会碰到代码，降低了误改的风险。Lua 没有编译期的模块检查，这种「显式传入依赖」的风格能让错误更早暴露，在启动阶段就发现缺字段，而不是运行到某个分支才崩。\n\n模块的返回值不一定是表。有些库只导出一个函数，那就直接 return 那个函数；有些库导出的是「可调用对象」，一张表加 __call 元方法。选择哪种取决于使用方式：如果调用方主要写 M.func()，用表；如果主要写 M(...)，用可调用对象。不要为了形式统一而强行包一层表，多余的间接层只会让调用代码变长，也让阅读者多跳一次。"
+      },
+      {
+        "type": "code",
+        "code": "local Counter = {}\nCounter.__index = Counter\n\nfunction Counter.new(start)\n  return setmetatable({value = start or 0}, Counter)\nend\n\nfunction Counter:inc(step)\n  self.value = self.value + (step or 1)\n  return self.value\nend\n\nlocal c = Counter.new(10)\nprint(c:inc(), c:inc(5))\nprint(Counter.new().value)",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "11\t16\n0"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "要素",
+          "作用",
+          "本课做法"
+        ],
+        "rows": [
+          [
+            "local M = {}",
+            "模块命名空间",
+            "所有导出项挂在 M 上"
+          ],
+          [
+            "local 辅助函数",
+            "私有实现",
+            "外部无法访问"
+          ],
+          [
+            "return M",
+            "导出模块",
+            "调用方拿到同一张表"
+          ],
+          [
+            "require('name')",
+            "加载并缓存",
+            "本沙箱不可用，用变量传递替代"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "模块之间传递依赖有两种常见方式：一种是在文件顶部用 local 变量接收另一个模块，另一种是通过参数注入。前者写起来短，但会形成硬编码依赖，测试时不好替换；后者多写几个参数，却能在测试里传入假对象，也更容易看清调用关系。小项目用前者足够，代码量上来之后建议逐步转向后者。选择标准是：这个依赖会不会在测试或不同环境里需要替换，会就用注入。\n\n模块的加载顺序也会影响行为。如果模块 A 在加载时就去读模块 B 的字段，而 B 还没加载完，拿到的可能是 nil 或半成品表。稳妥的做法是「加载时只定义，使用时才读取」，把跨模块的访问推迟到函数调用时。这样即使加载顺序变化，也不会出现初始化时的空值错误。Lua 没有编译期的依赖检查，这条约定只能靠代码规范和测试来保证，但收益很大。"
+      },
+      {
+        "type": "code",
+        "code": "local MathUtil = {}\n\nlocal function square(x)\n  return x * x\nend\n\nfunction MathUtil.sum_squares(t)\n  local s = 0\n  for _, v in ipairs(t) do s = s + square(v) end\n  return s\nend\n\nprint(MathUtil.sum_squares({1, 2, 3}))\nprint(type(MathUtil.square))",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "14\nnil"
+      },
+      {
+        "type": "tip",
+        "text": "模块文件不要写全局变量。用 local 把所有东西收起来，只 return 一张表，这样加载十次也不会污染全局命名空间。"
+      },
+      {
+        "type": "quiz",
+        "question": "Lua 里模块的标准形态是？",
+        "options": [
+          "一个 class 声明",
+          "一个返回表的文件",
+          "一个全局函数",
+          "一个特殊的关键字"
+        ],
+        "answer": 1,
+        "explain": "Lua 没有专门的模块语法，社区约定是文件最后 return 一张表，表里放导出的函数和数据，其余用 local 隐藏。"
+      }
+    ],
+    "exercise": {
+      "title": "计数器模块",
+      "brief": "实现 new_counter(start)：返回一个表，表里有 inc(step) 和 get() 两个方法，内部值从 start 开始（默认 0）。inc 返回新值，get 返回当前值。",
+      "starterCode": "function new_counter(start)\n  \nend\n\nlocal c = new_counter(10)\nprint(c.inc(5), c.get())",
+      "hint": "在函数里 local value = start or 0，返回一张表，两个函数都捕获这个 value。",
+      "tests": [
+        "local c = new_counter(10); assert(c.inc(5) == 15, '10 加 5 应为 15')",
+        "local c = new_counter(0); c.inc(); assert(c.get() == 1, '默认步长应为 1')",
+        "local a, b = new_counter(1), new_counter(100); a.inc(); assert(b.get() == 100, '两个计数器应互相独立')",
+        "local c = new_counter(); assert(c.get() == 0, '不传参数应从 0 开始')"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "function new_counter(start)\n  local value = start or 0\n  return {\n    inc = function(step)\n      value = value + (step or 1)\n      return value\n    end,\n    get = function()\n      return value\n    end\n  }\nend\n"
+    }
+  }
+]

@@ -41,8 +41,13 @@ class ContentCenter {
         private const val CATALOG_TIMEOUT_MS = 4000
         private const val MAX_RESPONSE_BYTES = 5 * 1024 * 1024 // 下载响应最多 5MB。
         private const val TAG = "ContentCenter"
+        // 离线目录里的包没有 base；万一某个包文件缺失，仍能用这个源补下。
+        const val FALLBACK_BASE_URL = "https://badhope.github.io/mashang"
         // 包 id 只允许字母、数字、下划线和横杠，挡路径穿越。
         private val SAFE_ID_REGEX = Regex("""^[a-zA-Z0-9_-]+$""")
+        // assets 里的预装包带版本后缀，例如 js-basics.v2.json。
+        private val BUNDLED_NAME_REGEX = Regex("""^([a-zA-Z0-9_-]+)\.v(\d+)\.json$""")
+        private val seedLock = Any()
 
         // 国内优先 GitCode，再 GitHub raw，最后 Pages。
         // 三个地址内容一样，Pages 那份由 sync_pages_assets.py 同步。
@@ -57,6 +62,7 @@ class ContentCenter {
         File(context.filesDir, "courses").apply { mkdirs() }
 
     fun installedVersions(context: Context): Map<String, Int> {
+        seedBundledPacks(context)
         val regex = Regex("""^(.+)\.v(\d+)\.json$""")
         return packsDir(context).listFiles()
             ?.mapNotNull { f ->
@@ -65,54 +71,114 @@ class ContentCenter {
             }?.toMap() ?: emptyMap()
     }
 
-    fun installedFiles(context: Context): List<File> =
-        packsDir(context).listFiles()?.filter { it.extension == "json" && !it.name.startsWith("tmp_") } ?: emptyList()
+    fun installedFiles(context: Context): List<File> {
+        seedBundledPacks(context)
+        return packsDir(context).listFiles()
+            ?.filter { it.extension == "json" && !it.name.startsWith("tmp_") }
+            ?: emptyList()
+    }
+
+    /**
+     * 把 APK assets 里的基础课程包复制到 filesDir/courses。
+     *
+     * 只在没有同版本或更高版本时复制；用户已经联网更新到 v3 时，
+     * 不会在下次启动又被 v2 覆盖。复制后删掉同包的旧版本，避免列表里
+     * 同一讲出现两份。
+     */
+    fun seedBundledPacks(context: Context): Int = synchronized(seedLock) {
+        val dir = packsDir(context)
+        val names = context.assets.list("content_packs") ?: emptyArray()
+        var copied = 0
+        for (name in names) {
+            val match = BUNDLED_NAME_REGEX.matchEntire(name) ?: continue
+            val id = match.groupValues[1]
+            val version = match.groupValues[2].toIntOrNull() ?: continue
+            val installed = dir.listFiles()
+                ?.mapNotNull { f ->
+                    val m = Regex("""^(.+)\.v(\d+)\.json$""").find(f.name) ?: return@mapNotNull null
+                    if (m.groupValues[1] != id) null
+                    else f to (m.groupValues[2].toIntOrNull() ?: 0)
+                }
+                ?: emptyList()
+            if (installed.any { it.second >= version }) continue
+
+            val target = File(dir, name)
+            val tmp = File(dir, "tmp_seed_$name")
+            try {
+                context.assets.open("content_packs/$name").use { input ->
+                    tmp.outputStream().use { output -> input.copyTo(output) }
+                }
+                // 预装内容也得是合法 JSON 数组，坏文件不能进课程列表。
+                JSONArray(tmp.readText(StandardCharsets.UTF_8))
+                if (!tmp.renameTo(target)) {
+                    tmp.copyTo(target, overwrite = true)
+                    tmp.delete()
+                }
+                installed.filter { it.second < version }.forEach { it.first.delete() }
+                copied++
+            } catch (e: Exception) {
+                tmp.delete()
+                Log.w(TAG, "预装课程包失败: $name", e)
+            }
+        }
+        copied
+    }
+
+    /** 离线目录，和 APK 一起装；语言中心没网也能列出全部预装包。 */
+    fun bundledCatalog(context: Context): ContentCatalog? = runCatching {
+        val text = context.assets.open("catalog.json").bufferedReader().use { it.readText() }
+        parseCatalog(text, "assets/catalog.json")
+    }.getOrNull()
 
     fun fetchCatalog(): Pair<ContentCatalog, String> {
         var lastError: Exception? = null
         for (url in CATALOG_URLS) {
             try {
                 val text = httpGet(url, CATALOG_TIMEOUT_MS)
-                val obj = JSONObject(text)
-                // 目录必须带 sha256，没带就拒绝。
-                val catalogSha = obj.optString("sha256").takeIf { it.isNotBlank() }
-                    ?: throw SecurityException("catalog 缺少 sha256 字段，拒绝加载（$url）")
-                // 签名的是去掉顶层 sha256 后的原文。这样目录能自己算自己，
-                // 改哪个字段都会对不上。
-                if (sha256Hex(stripSelfSha(text)) != catalogSha) {
-                    throw SecurityException("catalog 完整性校验失败（sha256 不匹配）: $url")
-                }
-                val packs = mutableListOf<ContentPack>()
-                val arr = obj.optJSONArray("packs") ?: JSONArray()
-                for (i in 0 until arr.length()) {
-                    val p = arr.getJSONObject(i)
-                    val id = p.optString("id", "")
-                    // id 不合法就跳过，不往下走。
-                    if (!id.matches(SAFE_ID_REGEX)) {
-                        Log.w(TAG, "跳过非法包 id（含非法字符）: '$id'")
-                        continue
-                    }
-                    packs.add(
-                        ContentPack(
-                            id = id,
-                            name = p.getString("name"),
-                            version = p.getInt("version"),
-                            description = p.optString("description"),
-                            sha256 = p.optString("sha256").takeIf { it.isNotBlank() },
-                            kind = p.optString("kind", "course"),
-                            lang = p.optString("lang", ""),
-                            lessons = p.optInt("lessons", 0),
-                            bytes = p.optLong("bytes", 0L),
-                            tier = p.optString("tier", "")
-                        )
-                    )
-                }
-                return ContentCatalog(obj.optString("updated_at"), packs) to url.removeSuffix("/catalog.json")
+                return parseCatalog(text, url) to url.removeSuffix("/catalog.json")
             } catch (e: Exception) {
                 lastError = e
             }
         }
         throw IllegalStateException("课程目录不可达: ${lastError?.message}", lastError)
+    }
+
+    private fun parseCatalog(text: String, source: String): ContentCatalog {
+        val obj = JSONObject(text)
+        // 目录必须带 sha256，没带就拒绝。
+        val catalogSha = obj.optString("sha256").takeIf { it.isNotBlank() }
+            ?: throw SecurityException("catalog 缺少 sha256 字段，拒绝加载（$source）")
+        // 签名的是去掉顶层 sha256 后的原文。这样目录能自己算自己，
+        // 改哪个字段都会对不上。
+        if (sha256Hex(stripSelfSha(text)) != catalogSha) {
+            throw SecurityException("catalog 完整性校验失败（sha256 不匹配）: $source")
+        }
+        val packs = mutableListOf<ContentPack>()
+        val arr = obj.optJSONArray("packs") ?: JSONArray()
+        for (i in 0 until arr.length()) {
+            val p = arr.getJSONObject(i)
+            val id = p.optString("id", "")
+            // id 不合法就跳过，不往下走。
+            if (!id.matches(SAFE_ID_REGEX)) {
+                Log.w(TAG, "跳过非法包 id（含非法字符）: '$id'")
+                continue
+            }
+            packs.add(
+                ContentPack(
+                    id = id,
+                    name = p.getString("name"),
+                    version = p.getInt("version"),
+                    description = p.optString("description"),
+                    sha256 = p.optString("sha256").takeIf { it.isNotBlank() },
+                    kind = p.optString("kind", "course"),
+                    lang = p.optString("lang", ""),
+                    lessons = p.optInt("lessons", 0),
+                    bytes = p.optLong("bytes", 0L),
+                    tier = p.optString("tier", "")
+                )
+            )
+        }
+        return ContentCatalog(obj.optString("updated_at"), packs)
     }
 
     fun download(context: Context, pack: ContentPack, baseUrl: String): File {

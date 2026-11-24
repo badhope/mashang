@@ -41,7 +41,7 @@
 | **Lua** | LuaJ 3.0.1 | 38 讲（基础、核心、进阶、专业四包） |
 | **SQL** | SQLite | 43 讲（38 讲主线，另 5 讲边界专题） |
 
-Python 主线随 APK 内置；其余五门从「语言中心」按需下载。首装约 39 MB。
+245 讲全部随 APK 预装，Python 主线和五门扩展课首次启动就能学；首装约 40 MB，不用先下载。
 
 C 和 TypeScript 是教学子集（C 不支持预处理指令、goto 与函数指针，TS 不支持装饰器与命名空间），遇到会明确提示。
 
@@ -78,7 +78,7 @@ C 和 TypeScript 是教学子集（C 不支持预处理指令、goto 与函数�
 - **GitCode**：[Releases](https://gitcode.com/badhope/mashang/releases) 国内直连
 - **Gitee**：[Releases](https://gitee.com/badhope/mashang/releases) 国内镜像
 - Android 10（API 29）及以上，arm64-v8a
-- 第一次用？先看 [完整用户手册](docs/USER_GUIDE.md)：安装、上手、语言包、备份与排障
+- 第一次用？先看 [完整用户手册](docs/USER_GUIDE.md)：安装、上手、课程包、备份与排障
 
 从源码构建：
 

@@ -12,13 +12,13 @@ Q：为什么叫「CodeLearning」/「码上」？
 
 Q：只学 Python 吗？
 
-内置六个离线运行时：Python（CPython 3.13）、JavaScript（Rhino）、TypeScript（类型擦除）、C（Kotlin 教学子集）、Lua（LuaJ）和 SQL（SQLite）。Python 主线 39 讲（含综合项目 1 讲）内置；语言中心可按需下载 JavaScript、TypeScript、C、Lua、SQL 课程包，以及 DSA 算法包（10 讲）与彩蛋课（1 讲）。Java、C++、Go、Rust 需要编译器或原生工具链，语言中心明确标注「暂不支持」且不提供下载。架构上 `LanguageRuntime` 已抽象，新增可解释语言只需再实现一个「说同一套 JSON」的后端。
+内置六个离线运行时：Python（CPython 3.13）、JavaScript（Rhino）、TypeScript（类型擦除）、C（Kotlin 教学子集）、Lua（LuaJ）和 SQL（SQLite）。Python 主线 39 讲（含综合项目 1 讲）、JavaScript / TypeScript / C / Lua / SQL 课程包，以及 DSA 算法包（10 讲）与彩蛋课（1 讲）共 245 讲全部随 APK 预装。Java、C++、Go、Rust 需要编译器或原生工具链，语言中心明确标注「暂不支持」且不提供下载。架构上 `LanguageRuntime` 已抽象，新增可解释语言只需再实现一个「说同一套 JSON」的后端。
 
 ## 离线与网络
 
 Q：真的完全离线？联网权限干什么用？
 
-学习、写码、运行、判题 100% 本地。 `INTERNET` 权限只用于「我的」里的语言中心手动检查/下载课程包（GitCode、GitHub raw、GitHub Pages 三级源，SHA-256 校验，零个人数据）。另外「系统设置」里的检查更新只读取 GitHub Releases 的公开版本号。
+学习、写码、运行、判题 100% 本地。 `INTERNET` 权限只用于「我的」里的语言中心手动检查课程包更新/补下缺失包（GitCode、GitHub raw、GitHub Pages 三级源，SHA-256 校验，零个人数据）。另外「系统设置」里的检查更新只读取 GitHub Releases 的公开版本号。
 
 Q：网页版也要联网吗？
 
@@ -67,7 +67,7 @@ Q：怎么本地构建？
 ```bash
 ./gradlew :app:assembleDebug          # Debug APK
 ./gradlew :app:assembleRelease        # 需 KEYSTORE_PATH 等 4 个环境变量
-python -m unittest discover -s tests  # 249 条测试
+python -m unittest discover -s tests  # 260 条测试
 python tests/validate_content.py      # 57 个 Python 判题项、229 用例
 ```
 

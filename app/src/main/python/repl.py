@@ -5,7 +5,7 @@ import sys
 import threading
 import time
 
-from runner import DEFAULT_TIMEOUT, EXEC_LOCK, SandboxTimeout, _Watchdog, _truncate
+from runner import DEFAULT_TIMEOUT, EXEC_LOCK, SandboxTimeout, _Watchdog, _truncate, sandbox_guard
 
 # 单条 REPL 语句最多跑多久，和 runner.DEFAULT_TIMEOUT 一样，
 # 桌面和 Android 行为保持一致。
@@ -44,7 +44,11 @@ class NeonConsole(code_module.InteractiveConsole):
                 sys.stderr = capture
                 sys.settrace(_Watchdog(deadline))
                 try:
-                    exec(code, self.locals)
+                    with sandbox_guard():
+                        try:
+                            exec(code, self.locals)
+                        finally:
+                            sys.settrace(None)
                 finally:
                     sys.settrace(None)
             except SystemExit:

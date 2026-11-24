@@ -1,11 +1,11 @@
 # 项目基线
 
 > 适用项目：CodeLearning（码上）  
-> 文档版本：2026-11-24 / baseline-2  
+> 文档版本：2026-11-24 / baseline-3
 > 维护人：项目负责人  
 > 更新规则：每次版本号、主分支、课程数、运行时或发布状态变化时同步更新，并由 `tools/check_baseline.py` 校验关键字段。
 
-<!-- baseline: version=0.7.4 code=23 lessons=245 code_blocks=448 runnable=434 cases=1097 -->
+<!-- baseline: version=0.7.5 code=24 lessons=245 code_blocks=448 runnable=434 cases=1097 -->
 
 ## 一、当前核心状态
 
@@ -15,21 +15,21 @@
 | --- | --- |
 | 应用名 | CodeLearning（码上） |
 | 包名 | `com.pyneon.academy` |
-| 发布版本 | `0.7.4`，`versionCode 23` |
+| 发布版本 | `0.7.5`，`versionCode 24` |
 | 最低系统 | Android 10（API 29） |
 | 发布 ABI | `arm64-v8a` |
-| 主分支 | `main`，0.7.4 发布提交 `4c4e7e4`；发布资料提交 `3db60ee`；0.7.3 发布提交 `180e59e` |
-| 发布标签 | `v0.7.4` → `4c4e7e4`；`v0.7.3` → `180e59e` |
-| 当前工作区 | 0.7.4 已发布；发布说明 `docs/RELEASE_0.7.4.md` |
+| 主分支 | `main`，0.7.5 开发提交见本次发布；0.7.4 发布提交 `4c4e7e4`；0.7.3 发布提交 `180e59e` |
+| 发布标签 | `v0.7.5` → 本次发布提交；`v0.7.4` → `4c4e7e4`；`v0.7.3` → `180e59e` |
+| 当前工作区 | 0.7.5 准备发布；发布说明 `docs/RELEASE_0.7.5.md` |
 | 构建环境 | JDK 17 / Android SDK 35 / Gradle 9.5 / Chaquopy 3.13 |
 | 签名 | 本地无 release keystore；正式包由 GitHub Actions + release secrets 签名 |
 
-0.7.4 发布入口（已生效）：
+0.7.5 发布入口（待 CI 生成正式签名包后生效）：
 
-- GitHub `badhope`：<https://github.com/badhope/mashang/releases/tag/v0.7.4>
-- GitHub `X33834`：<https://github.com/X33834/mashang/releases/tag/v0.7.4>
-- GitHub `Morningstar202604`：<https://github.com/Morningstar202604/mashang/releases/tag/v0.7.4>
-- Gitee：<https://gitee.com/badhope/mashang/releases/tag/v0.7.4>
+- GitHub `badhope`：<https://github.com/badhope/mashang/releases/tag/v0.7.5>
+- GitHub `X33834`：<https://github.com/X33834/mashang/releases/tag/v0.7.5>
+- GitHub `Morningstar202604`：<https://github.com/Morningstar202604/mashang/releases/tag/v0.7.5>
+- Gitee：<https://gitee.com/badhope/mashang/releases/tag/v0.7.5>
 - GitCode：<https://gitcode.com/badhope/mashang/releases>
 
 远端入口：
@@ -58,13 +58,13 @@
 | 项目 | 当前基线 |
 | --- | --- |
 | Kotlin 编译 | `compileDebugKotlin` 通过 |
-| Android 单测 | 306 项，0 失败，1 跳过 |
-| Python 测试 | 249 项通过，551 个 subtest 通过 |
+| Android 单测 | 311 项，0 失败，1 跳过 |
+| Python 测试 | 260 项通过，551 个 subtest 通过 |
 | Lint | 0 Error，47 Warning，6 Hint |
 | 内容校验 | 245 讲、22 挑战、267 判题项、1,097 用例，结构问题 0，判题失败 0 |
 | 链接检查 | 5 个页面通过 |
 | 官网结构 | HTML 标签无错误、无未闭合 |
-| 发布 APK | 26,324,182 字节，SHA-256 `bf4e36c5f915007c5dd7f0aff0e7fdd536e3c16316f4005477f5bc185e35007d`；证书 `9721440a...610e` 与 0.7.3 相同 |
+| 发布 APK | 0.7.5 正式包由 tag CI 生成；本地 release 构建 26,822,493 字节（未签名） |
 | APK 探针 | `ci_apk_probe.py --require-release` 全部通过 |
 
 ### 1.4 已知边界与风险
@@ -73,6 +73,7 @@
 - 没有账号、云同步、社区、广告、统计 SDK；学习数据只在本机。
 - 没有 iOS 版；只打 `arm64-v8a`。
 - 端侧大模型没有打进 APK。当前助教是规则 + 课程检索，零网络、零模型权重；原因和后续路径见 `COMPETITIVE_MATRIX.md` 第 6.3 节。
+- Python 操作沙箱是「防误触」边界，不是对抗恶意代码的进程级隔离；同一个解释器内无法承诺绝对不可绕过，正常课程与终端操作已覆盖。
 - 官网截图来自开发期构建，已标注“界面示意”，版本角标不代表当前版本。
 - 软著申请表中的“未使用 AI 开发”承诺需要申请人本人判断，不能代签。
 
@@ -93,7 +94,7 @@
 | F09 | 间隔复习 | 我的 → 复习 | `ReviewScheduler`、`ReviewScreen` | SM-2 变体，算法自写 | 自有 | 已交付 |
 | F10 | XP / 连击 / 徽章 | 首页/我的 | `Gamification`、`ProgressStore` | 无 | 自有 | 已交付 |
 | F11 | 终端 REPL | 终端 | `TerminalScreen` | 各语言运行时 | 自有交互 | 已交付 |
-| F12 | 内容中心 | 我的 → 语言中心 | `ContentHubScreen`、`ContentCenter` | GitHub/GitCode 公开内容源 | 只读下载与校验 | 已交付 |
+| F12 | 内容中心 | 我的 → 语言中心 | `ContentHubScreen`、`ContentCenter` | GitHub/GitCode 公开内容源 + APK 预装包 | 预装 + 只读更新校验 | 0.7.5 增强 |
 | F13 | 备份/恢复 | 我的 → 备份 | `BackupUtil`、`BackupScreen` | AndroidX DataStore、MediaStore | 系统 API | 已交付 |
 | F14 | 主题与字号 | 我的 → 设置 | `ThemePickerSection`、`SettingsScreen` | 无 | 自有 | 已交付 |
 | F15 | 新手引导 | 首次启动 | `WelcomeTutorial` | 无 | 自有 | 已交付 |
@@ -108,6 +109,8 @@
 | F24 | 发布流水线 | GitHub Actions | `.github/workflows/ci.yml` | GitHub Actions | 构建/签名/发布 | 已交付 |
 | F25 | 自动化测试 | CI/本地 | `tests/`、`app/src/test` | JUnit、Robolectric、pytest | 测试依赖不进 APK | 已交付 |
 | F26 | 练习草稿恢复 | 课程/挑战页 | `DraftStore` | 无 | 自有 | 0.7.4 交付 |
+| F27 | Python 操作沙箱 | 课程/终端执行 | `runner.py`、`repl.py` | 无 | 自有审计钩子 | 0.7.5 新增 |
+| F28 | 课程包全量预装 | 首次启动/语言中心 | `ContentCenter.seedBundledPacks`、`assets/content_packs` | 无 | 自有 | 0.7.5 新增 |
 
 ## 三、待开发任务池
 
@@ -122,6 +125,7 @@
 | T05 | P0 | 离线压力验证 | 120 次练习写入、126 次正常提交、12 次异常，0 崩溃 0 丢失 | 测试脚本 | 已完成 |
 | T06 | P0 | 0.7.3 发布 | 五端 Release、签名校验、APK 探针、质量报告同步 | CI secrets | 已完成 |
 | T07 | P0 | 0.7.4 可用性修复发布 | 草稿恢复、SQL 转义、助教上下文与性能、错题去重；五端 Release 与软著同步 | CI secrets | 已完成 |
+| T08 | P0 | 0.7.5 离线边界发布 | Python 操作沙箱、24 包/245 讲全量预装、五端 Release 与软著同步 | CI secrets | 进行中 |
 
 ### 3.2 后续候选
 
@@ -148,6 +152,7 @@
 | 0.7.2 | 发布收口 | 定位、质量报告、课程样例、软著材料、五端发布 | 已完成 |
 | 0.7.3 | 基线、离线助教与压力收口 | 四模块基线、竞品矩阵、离线助教、语法提示、压力验证 | 已发布 |
 | 0.7.4 | 可用性与数据安全修补 | 草稿落盘、SQL 转义、助教总结与异步检索、错题去重、XP 记账 | 已发布 |
+| 0.7.5 | 离线边界收口 | Python 网络/命令沙箱、24 包/245 讲全量预装、语言中心离线目录 | 发布中 |
 | 0.8.0 | 个性化学习 | 学习路径推荐、弱项复习、挑战页助教、可选模型包调研 | 不破坏离线核心，包体可控 |
 | 0.9.0 | 内容与项目 | Python 综合项目、SQL 实战、多文件只读项目演示 | 课程完成率和稳定性达标 |
 | 1.0.0 | 商店正式版 | 商店素材、隐私合规、长期稳定性、内容审计 | 可上架，连续使用 30 天无阻断问题 |

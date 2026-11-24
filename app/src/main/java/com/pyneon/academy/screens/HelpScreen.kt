@@ -33,6 +33,8 @@ fun HelpScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     // 毕业只算 Python 主线。下载的 DSA、彩蛋不算，不然这里和「我的」页对不上。
     val totalLessons = LessonRepository.mainline(context).size
+    // 预装后全库 245 讲；毕业线仍只算 Python 主线 39 讲，两个口径分开。
+    val totalCourseLessons = LessonRepository.lessons(context).size
     val totalChallenges = remember {
         runCatching {
             context.assets.open("challenges.json").bufferedReader(Charsets.UTF_8).use { reader ->
@@ -61,17 +63,17 @@ fun HelpScreen(onBack: () -> Unit) {
         FaqItem("从哪开始？", "打开「课程」，从第一幕第一课往下学。上一课过了才开下一课，通关后点「下一课」就行。")
         FaqItem("怎么练习？", "每课最后有实战演练。在编辑器里写代码，点「运行判题」自动批改。答对拿 XP，答错会进错题本。")
         FaqItem("想随手试代码？", "底部「终端」就是 REPL，输入一行跑一行，适合试小片段。")
-        FaqItem("学完有什么？", "通关全部 $totalLessons 讲后，「我的」页可以领毕业证书。「挑战」页还有 $totalChallenges 道题，做完加 XP。")
+        FaqItem("学完有什么？", "通关 Python 主线 $totalLessons 讲后，「我的」页可以领毕业证书。「挑战」页还有 $totalChallenges 道题，做完加 XP。")
 
         HelpSection("常用功能")
         FaqItem("变量快照是什么？", "每次运行后能看到当前变量的名字、类型和值。比只看输出更直观，排查问题时很有用。")
         FaqItem("错题本和复习台怎么用？", "判题错了会自动进错题本，在「我的」里能找到。复习台会按间隔重复排复习卡，隔几天再做一次，记得更牢。")
         FaqItem("主题能换吗？", "「我的」里有主题切换，7 套预置配色，也可以自己填主色。改完立即生效，下次打开还在。")
-        FaqItem("语言中心是干什么的？", "「我的」里的语言中心会列出六个内置运行时：Python、JavaScript、TypeScript、C、Lua、SQL，课程包可以按需下载。Java、C++、Go、Rust 还需要编译器，当前版本跑不了，也不会给下载入口。已经装好的课程断网也能学。")
+        FaqItem("语言中心是干什么的？", "「我的」里的语言中心会列出六个内置运行时：Python、JavaScript、TypeScript、C、Lua、SQL。24 个基础课程包已经随 APK 预装，联网只用于检查更新。Java、C++、Go、Rust 还需要编译器，当前版本跑不了，也不会给下载入口。")
         FaqItem("进度安全吗？", "进度都存在本机。「我的」里的备份恢复可以导出 JSON，换机后再导入。")
 
         HelpSection("常见问题")
-        FaqItem("完全离线吗？", "是。语言运行时直接打在 APK 里，$totalLessons 讲内置课程没网也能学。只有去语言中心下载额外课程包时才需要联网。")
+        FaqItem("完全离线吗？", "是。语言运行时和 $totalCourseLessons 讲课程都随 APK 预装，没网也能从第一讲学到最后一讲。联网只用于检查课程包更新和 App 版本。")
         FaqItem("报错看不懂怎么办？", "判题结果里点「问教练」，它会解释错误类型、指出大概哪一行有问题，再给排查步骤，不直接给答案。")
         FaqItem("重置后还能找回吗？", "之前导出过备份就能导入找回。没备份的话重置后找不回来，所以重置前会再确认一次。")
         FaqItem("课程为什么锁着？", "上一课过了才开下一课，避免跳着学后面看不懂。")

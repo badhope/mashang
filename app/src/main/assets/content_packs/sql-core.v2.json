@@ -1,0 +1,1117 @@
+[
+  {
+    "id": "sql11",
+    "order": 510,
+    "chapter": 52,
+    "chapterName": "SQL · 核心篇",
+    "lang": "sql",
+    "title": "两表配对",
+    "subtitle": "INNER JOIN",
+    "xp": 80,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把两张表按关系拼起来"
+      },
+      {
+        "type": "text",
+        "text": "关系数据库的「关系」体现在表与表之间的关联上：玩家表存玩家信息，订单表存交易记录，订单通过 player_id 指向玩家。查询「谁买了什么」时，需要把两张表按这个外键拼在一起，这个动作就是 JOIN。INNER JOIN 是最常用的连接方式，它只保留两边都能匹配上的行：玩家没有订单就不会出现，订单指向不存在的玩家也不会出现。写法和逗号连接不同，JOIN 让连接条件显式可见，是现代 SQL 的标准写法。连接语法是 FROM 表一 JOIN 表二 ON 条件。ON 后面写两表的配对规则，最常见的是 表二.外键 = 表一.主键，例如 ON o.player_id = p.id。ON 只负责配对，WHERE 负责过滤配对后的行，两者职责不同，虽然把条件写进 WHERE 有时结果一样，但语义上不要混用。连接时必须给表起短别名（p、o），并在所有列前加前缀，否则两张表有同名列（例如都有 id）时，SQLite 会报 ambiguous column name，或者悄悄取错列而不自知。JOIN 的执行顺序是逻辑上的：先按 ON 条件把两表的行两两配对，得到一张临时结果集，再用 WHERE 过滤、GROUP BY 分组、ORDER BY 排序。"
+      },
+      {
+        "type": "text",
+        "text": "理解这一点非常重要：如果一对多关系下忘了聚合，结果行数会比左表多，金额会被重复计算。例如一个玩家有三笔订单，连接后他会出现三行，此时 SUM(o.amount) 才是他真正的总额，但如果同时连接另一张一对多的表，两张子表会互相放大行数，金额可能翻倍。遇到「合计对不上」的问题，先数连接后的行数。内连接还有一个容易被忽视的细节：NULL 不参与匹配。如果订单的 player_id 是 NULL，ON 条件 o.player_id = p.id 的结果是未知，这一行会被丢弃。所以「找出没有归属的订单」这类数据质量检查，不能靠 INNER JOIN，要用 LEFT JOIN 加 IS NULL，或者单独查 WHERE player_id IS NULL。把这些边界记牢，连接结果才可信，后续做统计时才不会莫名其妙少掉几行。还有一种自连接（SELF JOIN）值得了解：同一张表起两个别名互相连接，用来比较表内的行。例如找出与某位玩家同地区的其他人，可以写 FROM players a JOIN players b ON a.region = b.region AND a.id <> b.id。"
+      },
+      {
+        "type": "text",
+        "text": "自连接本质上还是内连接，只是左右两边是同一张表，别名不可省略。它适合层级关系（员工与上级）和同伴比较这类场景，但写的时候要特别小心连接条件，漏掉 a.id <> b.id 会让每一行和自己配对，结果里出现大量无意义的自匹配。初学者还容易混淆「连接」和「并集」。连接是横向拼接列，把两张表的字段并到同一行；UNION 是纵向拼接行，把两张表结构相同的结果叠在一起。前者按 ON 条件配对，行数可能增加也可能减少；后者按列对齐，行数等于两边之和再去重。把这两个概念分清，遇到「要横向还是纵向」的需求时，就不会在 JOIN 和 UNION 之间犹豫。判断方法很简单：需要更多列用 JOIN，需要更多行用 UNION。关于连接的最后一个提醒：on 条件里的列最好都有索引，尤其是被连接的大表。SQLite 里INTEGER PRIMARY KEY 自带索引，其他外键列需要显式建。没有索引时，数据库可能对每一行都做一次全表扫描，行数一多就会明显变慢。可以用 EXPLAIN QUERY PLAN 查看执行计划，出现 SCAN 就说明在扫全表。不过也不要盲目加索引，写入频繁的表索引越多越慢，先确认慢查询真的由连接引起，再针对性地加。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT, region TEXT);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, amount INTEGER);\nINSERT INTO players VALUES (1, 'V', 'Neon'), (2, 'Judy', 'Neon'), (3, 'Jackie', 'Watson');\nINSERT INTO orders VALUES (1, 1, 100), (2, 1, 50), (3, 2, 80);\n\nSELECT p.name, o.amount\nFROM players p\nJOIN orders o ON o.player_id = p.id\nORDER BY o.id;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "name\tamount\nV\t100\nV\t50\nJudy\t80"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "保留哪些行",
+          "典型用途"
+        ],
+        "rows": [
+          [
+            "INNER JOIN",
+            "两边都匹配",
+            "查有订单的玩家"
+          ],
+          [
+            "LEFT JOIN",
+            "左表全部 + 匹配的右表",
+            "查所有玩家含无订单"
+          ],
+          [
+            "CROSS JOIN",
+            "两表笛卡尔积",
+            "生成组合矩阵"
+          ],
+          [
+            "ON",
+            "配对规则",
+            "o.player_id = p.id"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT, region TEXT);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, amount INTEGER);\nINSERT INTO players VALUES (1, 'V', 'Neon'), (2, 'Judy', 'Neon'), (3, 'Jackie', 'Watson');\nINSERT INTO orders VALUES (1, 1, 100), (2, 1, 50), (3, 2, 80);\n\nSELECT p.name, COUNT(o.id) AS orders, COALESCE(SUM(o.amount), 0) AS total\nFROM players p\nJOIN orders o ON o.player_id = p.id\nGROUP BY p.id\nORDER BY total DESC;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "name\torders\ttotal\nV\t2\t150\nJudy\t1\t80"
+      },
+      {
+        "type": "tip",
+        "text": "连接条件的列类型最好一致，并且两边都建索引。SQLite 只有 INTEGER PRIMARY KEY 天然有索引，订单表的 player_id 建议手动 CREATE INDEX，否则连接时可能退化成嵌套扫描。"
+      },
+      {
+        "type": "warn",
+        "text": "JOIN 后接 GROUP BY 时，如果被连接的表是一对多，SUM 会按连接后的行数累加。如果还连接了第二张一对多表，两边的行会相乘，金额成倍放大，这是报表口径出错的高发区。"
+      },
+      {
+        "type": "quiz",
+        "question": "players 有 3 人，orders 有 2 条分别属于其中 2 人，INNER JOIN 后返回几行？",
+        "options": [
+          "3 行",
+          "2 行",
+          "6 行",
+          "5 行"
+        ],
+        "answer": 1,
+        "explain": "INNER JOIN 只保留两边都匹配的行，没有订单的那位玩家不会出现，结果是 2 行。"
+      }
+    ],
+    "exercise": {
+      "title": "玩家订单明细",
+      "brief": "用 JOIN 连接 players 与 orders，输出玩家 name 与订单 amount，按订单 id 升序。",
+      "starterCode": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, amount INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy'), (3, 'Jackie');\nINSERT INTO orders VALUES (1, 1, 100), (2, 1, 50), (3, 2, 80);\n\n-- 在这里写查询\n",
+      "hint": "SELECT p.name, o.amount FROM players p JOIN orders o ON o.player_id = p.id ORDER BY o.id;",
+      "tests": [
+        "assert columns == ['name', 'amount'], columns",
+        "assert rows == [['V', 100], ['V', 50], ['Judy', 80]], rows",
+        "assert len(rows) == 3, rows"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, amount INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy'), (3, 'Jackie');\nINSERT INTO orders VALUES (1, 1, 100), (2, 1, 50), (3, 2, 80);\n\nSELECT p.name, o.amount\nFROM players p\nJOIN orders o ON o.player_id = p.id\nORDER BY o.id;\n"
+    }
+  },
+  {
+    "id": "sql12",
+    "order": 511,
+    "chapter": 52,
+    "chapterName": "SQL · 核心篇",
+    "lang": "sql",
+    "title": "保留没匹配的行",
+    "subtitle": "LEFT JOIN 与 RIGHT JOIN",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "外连接解决「没有」的问题"
+      },
+      {
+        "type": "text",
+        "text": "INNER JOIN 会丢掉没有匹配的行，但很多业务问题恰恰要问「谁没有」。例如列出所有玩家及其消费总额，没有下过单的人也要显示为 0。LEFT JOIN 保留左表全部行，右表没有匹配时用 NULL 填充，配合 COALESCE(SUM(o.amount), 0) 就能把空值变成零。判断某个玩家有没有订单，也可以看连接后右表主键是否为 NULL，例如 WHERE o.id IS NULL，这比 NOT IN 更不容易踩空值陷阱。LEFT JOIN 和 INNER JOIN 的区别只在「不匹配的行怎么处理」，匹配上的行完全一样。所以把 INNER JOIN 改成 LEFT JOIN 通常不会让结果变少，只会变多。反过来，如果一个 LEFT JOIN 的查询结果和 INNER JOIN 一样，说明右表在连接键上必然有匹配，这时要么是数据恰好完整，要么是 WHERE 里对右表列加了条件，把 NULL 行又过滤掉了。后一种情况是经典 bug：条件写在 WHERE 里会退化成内连接，必须挪到 ON 里才能保留左表全部行。RIGHT JOIN 是 LEFT JOIN 的镜像，保留右表全部行。SQLite 从 3.39 开始支持 RIGHT JOIN，早期版本不支持，需要用交换表顺序的 LEFT JOIN 来模拟。实际项目里 RIGHT JOIN 用得很少，因为把两张表换个位置写 LEFT JOIN 更直观，可读性也更好。建议统一约定：需要保留哪张表，就把哪张表放左边用 LEFT JOIN，团队里不用为方向争论，代码审查也更快。外连接还有个实用技巧：用 LEFT JOIN 做「差集」。"
+      },
+      {
+        "type": "text",
+        "text": "找出从未下单的玩家，写 SELECT p.name FROM players p LEFT JOIN orders o ON o.player_id = p.id WHERE o.id IS NULL。它的语义清晰，性能通常也不错，而且不像 NOT IN 那样在子查询返回 NULL 时整体失效。如果连接键可能为 NULL，ON 条件里的等值比较不会匹配，这些行在 LEFT JOIN 里会保留下来，正好符合「没有归属」的定义。外连接还有一个容易忽略的细节：ON 条件可以不只是等值比较，也可以写范围条件或复合条件。例如把订单按金额区间关联到折扣档位，ON o.amount BETWEEN d.lo AND d.hi，这种非等值连接在 INNER JOIN 和 LEFT JOIN 里都成立，只是无法用普通索引加速，数据量大时要谨慎。如果 ON 里需要多条件，用 AND 连接，别用逗号；逗号写在 FROM 后面是隐式的交叉连接，和 JOIN 混用会让优先级难以判断，现代 SQL 里应完全避免。最后说一个判断连接方向的实用方法：先问「哪张表的行必须全部保留」，答案是哪张，哪张就放左边用 LEFT JOIN。如果两张都要保留，标准 SQL 的 FULL OUTER JOIN 可以做到，但 SQLite 不支持，需要用 LEFT JOIN 加 UNION 模拟。多数业务问题其实只需要单向保留，把方向想清楚，比记住语法更重要。连接写完后用 COUNT(*) 分别核对左表行数与结果行数，是验证外连接是否按预期保留行的最快方式。另外，连接列的类型一致性会直接影响索引使用。如果 players.id 是 INTEGER，而 orders.player_id 声明成 TEXT，SQLite 在比较时会做隐式转换，可能无法使用索引，大数据量下从毫秒级退化到秒级。"
+      },
+      {
+        "type": "text",
+        "text": "建表时把外键列的类型写成与主键完全一致，是几乎零成本却常被忽略的优化。用 EXPLAIN QUERY PLAN 可以看到是否走了索引，看到 SCAN 就要警惕，看到 SEARCH ... USING INDEX 才说明命中了索引。关于 ON 与 WHERE 的取舍，可以用一句话记住：ON 决定「怎么配对」，WHERE 决定「配对后留哪些」。在 INNER JOIN 里两者可以互换，因为不匹配的行本来就要丢弃；在 OUTER JOIN 里则绝不能互换，条件写在 WHERE 会把补出来的 NULL 行筛掉。团队约定所有连接条件统一写在 ON 里，过滤条件统一写在 WHERE 里，代码审查时一眼就能看出意图，也不会因为换连接类型而悄悄改变语义。关于连接的性能，先建立两个直觉：小表连大表时，通常让小表做驱动表；连接列上有索引时，数据库可以只扫描匹配的行，而不是全表嵌套。SQLite 的优化器会根据统计信息自动选择顺序，但统计信息可能过时，必要时用 ANALYZE 更新。实际排查时打开 EXPLAIN QUERY PLAN，看到 SEARCH 说明用到了索引，看到 SCAN 说明在扫全表，再结合行数判断是否可接受。不要凭直觉给每条连接加索引，写多读少的表加了反而拖慢写入。另外别把「连接」和「子查询」对立起来看。同一条需求往往有三种写法：JOIN、IN、EXISTS。JOIN 会把右表字段带出来，适合需要展示明细的场景；IN 与 EXISTS 只做存在判断，不改变外层行数，适合筛选。选择时先看输出需要哪些列，再看是否需要保留未匹配行，最后才考虑性能。很多初学者一上来就纠结哪种更快，其实语义都没对齐，跑得再快也是错的。把需求翻译成「保留谁、带出什么、怎么配对」三句话，答案自然就出来了。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, amount INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy'), (3, 'Jackie');\nINSERT INTO orders VALUES (1, 1, 100), (2, 2, 80);\n\nSELECT p.name, COALESCE(SUM(o.amount), 0) AS total\nFROM players p\nLEFT JOIN orders o ON o.player_id = p.id\nGROUP BY p.id\nORDER BY p.id;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "name\ttotal\nV\t100\nJudy\t80\nJackie\t0"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "连接",
+          "左表不匹配",
+          "右表不匹配"
+        ],
+        "rows": [
+          [
+            "INNER JOIN",
+            "丢弃",
+            "丢弃"
+          ],
+          [
+            "LEFT JOIN",
+            "保留，右表补 NULL",
+            "丢弃"
+          ],
+          [
+            "RIGHT JOIN",
+            "丢弃",
+            "保留，左表补 NULL"
+          ],
+          [
+            "FULL JOIN",
+            "保留",
+            "保留（SQLite 不支持）"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, amount INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy');\nINSERT INTO orders VALUES (1, 1, 100), (2, 2, 80), (3, 9, 70);\n\nSELECT o.id, p.name, o.amount\nFROM players p\nRIGHT JOIN orders o ON o.player_id = p.id\nORDER BY o.id;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "id\tname\tamount\n1\tV\t100\n2\tJudy\t80\n3\tNULL\t70"
+      },
+      {
+        "type": "tip",
+        "text": "LEFT JOIN 后用 COUNT(o.id) 而不是 COUNT(*)，才能正确统计「匹配到的右表行数」。COUNT(*) 会把补 NULL 的那一行也算进去，没有订单的玩家会显示 1。"
+      },
+      {
+        "type": "warn",
+        "text": "把右表的过滤条件写在 WHERE 里，会让 LEFT JOIN 退化为 INNER JOIN。要保留左表全部行，条件必须写在 ON 子句里。"
+      },
+      {
+        "type": "quiz",
+        "question": "LEFT JOIN 后统计每位玩家的订单数，应该用哪个写法？",
+        "options": [
+          "COUNT(*)",
+          "COUNT(o.id)",
+          "COUNT(p.id)",
+          "SUM(o.id)"
+        ],
+        "answer": 1,
+        "explain": "COUNT(o.id) 只数右表非 NULL 的主键，没有订单的玩家得到 0，而 COUNT(*) 会算成 1。"
+      }
+    ],
+    "exercise": {
+      "title": "所有人的消费额",
+      "brief": "用 LEFT JOIN 列出所有玩家的 name 与消费总额 total（没有订单记 0），按玩家 id 升序。",
+      "starterCode": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, amount INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy'), (3, 'Jackie');\nINSERT INTO orders VALUES (1, 1, 100), (2, 2, 80);\n\n-- 在这里写查询\n",
+      "hint": "SELECT p.name, COALESCE(SUM(o.amount), 0) AS total FROM players p LEFT JOIN orders o ON o.player_id = p.id GROUP BY p.id ORDER BY p.id;",
+      "tests": [
+        "assert columns == ['name', 'total'], columns",
+        "assert rows == [['V', 100], ['Judy', 80], ['Jackie', 0]], rows",
+        "assert len(rows) == 3, rows"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, amount INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy'), (3, 'Jackie');\nINSERT INTO orders VALUES (1, 1, 100), (2, 2, 80);\n\nSELECT p.name, COALESCE(SUM(o.amount), 0) AS total\nFROM players p\nLEFT JOIN orders o ON o.player_id = p.id\nGROUP BY p.id\nORDER BY p.id;\n"
+    }
+  },
+  {
+    "id": "sql13",
+    "order": 512,
+    "chapter": 52,
+    "chapterName": "SQL · 核心篇",
+    "lang": "sql",
+    "title": "三表串联",
+    "subtitle": "多表连接与连接顺序",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "一条查询串起三张表"
+      },
+      {
+        "type": "text",
+        "text": "真实业务很少只查两张表。订单要关联玩家和商品：orders 存 player_id 与 product_id，players 提供姓名，products 提供名称与单价。三表连接的写法是把 JOIN 连续写下去，每一步用 ON 把新表接到已有的结果上：FROM orders o JOIN players p ON p.id = o.player_id JOIN products pr ON pr.id = o.product_id。连接顺序在逻辑上从左到右，优化器可能重排，但书写顺序决定了可读性，建议按「事实表在前、维度表在后」组织。多表连接最常见的问题是行数放大。如果 orders 到 players 是多对一，连接不会增加行数；但如果再连一张同样是一对多的表，例如订单明细，两边会形成笛卡尔积，一条订单会与多条明细组合，金额被重复累加。判断方法很简单：连接完先 SELECT COUNT(*) 看行数，和预期的事实表行数对比。若不一致，说明某条连接是一对多且没有被聚合。这时要么先聚合子表再连接，要么用子查询把明细汇总成一行。连接条件写错也是高频错误，尤其是把 ON 写成 WHERE 或者漏写。"
+      },
+      {
+        "type": "text",
+        "text": "漏写 ON 会得到笛卡尔积，三张表各十行时结果是一千行，看起来像数据爆炸；把条件放到 WHERE 里在 INNER JOIN 下结果相同，但和 LEFT JOIN 混用时语义就变了。另一种隐蔽错误是连接键类型不一致，例如一边是 INTEGER、一边是 TEXT，SQLite 会做隐式转换，可能导致索引失效，查询变慢但不报错。建表时保持外键与主键类型一致，是最省事的预防手段。多表查询还要注意列名歧义。三张表都有 id 和 name 时，SELECT id 会直接报 ambiguous，必须写 p.id、pr.name。养成「所有列都带表别名前缀」的习惯，代码可读性会明显提升，以后增删表也不容易出错。如果真的需要输出同名列，用 AS 起不同别名，例如 p.name AS player、pr.name AS product，前端拿到结果时才能区分。连接写完后，先 SELECT * 看一眼原始组合，再逐步裁剪列和加聚合，是排查多表问题的有效路径。连接的另一条实用原则是「先聚合再连接」。当子表是一对多关系且外层只需要汇总值时，先在子查询里把子表压成每键一行，再与主表连接，可以避免行数放大导致的重复计算。"
+      },
+      {
+        "type": "text",
+        "text": "例如先 SELECT player_id, SUM(amount) AS total FROM orders GROUP BY player_id 得到每人一行，再 LEFT JOIN players 取姓名，结果天然正确。这种写法比连接后直接 SUM 更不容易出错，尤其在连接三张以上表时，能显著降低推理难度。多表查询的结果列命名也值得规划。三张表都有 name 时，输出列必须起不同别名，否则前端拿到的 JSON 里会出现重复键，后一个覆盖前一个。建议约定命名规则：主表字段保持原名，关联表的字段加前缀，例如 player_name、product_name。如果结果要直接给报表工具使用，列名最好用英文小写下划线，避免中文别名在导出时出现编码问题。这些细节不影响 SQL 是否能跑通，却决定了这份查询能不能被长期复用。最后一个实践建议：把连接查询拆成「先验证、再聚合」两步。第一步用 SELECT * 加少量LIMIT 看几行原始组合，确认玩家、商品、数量都对得上；第二步再加上 GROUP BY 和聚合。直接写完整查询再调试，往往要在一堆数字里猜是哪一步错了，而分步验证能把问题定位到具体的连接或条件上。这个习惯在多表场景里节省的时间，远超过多写一条查询的成本。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, price INTEGER);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, product_id INTEGER, qty INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy'), (3, 'Jackie');\nINSERT INTO products VALUES (10, 'skin', 80), (20, 'mount', 120), (30, 'emote', 20);\nINSERT INTO orders VALUES (1, 1, 10, 2), (2, 1, 20, 1), (3, 2, 10, 1), (4, 3, 30, 5);\n\nSELECT p.name, pr.name AS product, o.qty, o.qty * pr.price AS amount\nFROM orders o\nJOIN players p ON p.id = o.player_id\nJOIN products pr ON pr.id = o.product_id\nORDER BY o.id;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "name\tproduct\tqty\tamount\nV\tskin\t2\t160\nV\tmount\t1\t120\nJudy\tskin\t1\t80\nJackie\temote\t5\t100"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "步骤",
+          "连接",
+          "得到什么"
+        ],
+        "rows": [
+          [
+            "1",
+            "orders JOIN players",
+            "订单 + 玩家姓名"
+          ],
+          [
+            "2",
+            "再 JOIN products",
+            "订单 + 玩家 + 商品"
+          ],
+          [
+            "3",
+            "GROUP BY 玩家",
+            "每人汇总"
+          ],
+          [
+            "4",
+            "ORDER BY total",
+            "按金额排名"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, price INTEGER);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, product_id INTEGER, qty INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy'), (3, 'Jackie');\nINSERT INTO products VALUES (10, 'skin', 80), (20, 'mount', 120), (30, 'emote', 20);\nINSERT INTO orders VALUES (1, 1, 10, 2), (2, 1, 20, 1), (3, 2, 10, 1), (4, 3, 30, 5);\n\nSELECT p.name, COUNT(DISTINCT o.product_id) AS kinds, SUM(o.qty * pr.price) AS total\nFROM players p\nJOIN orders o ON o.player_id = p.id\nJOIN products pr ON pr.id = o.product_id\nGROUP BY p.id\nORDER BY total DESC;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "name\tkinds\ttotal\nV\t2\t280\nJackie\t1\t100\nJudy\t1\t80"
+      },
+      {
+        "type": "tip",
+        "text": "多表查询先写 FROM 与所有 JOIN，把骨架搭好，再往 SELECT 里填列。这样即使中途报错，也能快速判断是连接写错还是列名写错。"
+      },
+      {
+        "type": "warn",
+        "text": "连续连接两张一对多的表会产生笛卡尔积，行数和金额都可能成倍放大。先用 COUNT(*) 核对行数，再决定是否需要先聚合子表。"
+      },
+      {
+        "type": "quiz",
+        "question": "三表连接时漏写 ON 条件会发生什么？",
+        "options": [
+          "报语法错误",
+          "返回空结果",
+          "产生笛卡尔积，行数暴增",
+          "只返回第一张表的行"
+        ],
+        "answer": 2,
+        "explain": "没有连接条件时，两表每一行都互相配对，行数是两边行数的乘积。"
+      }
+    ],
+    "exercise": {
+      "title": "每人消费汇总",
+      "brief": "连接 players、orders、products，计算每位玩家的消费总额 total（qty * price 求和），输出 name 与 total，按 total 降序。",
+      "starterCode": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, price INTEGER);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, product_id INTEGER, qty INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy'), (3, 'Jackie');\nINSERT INTO products VALUES (10, 'skin', 80), (20, 'mount', 120), (30, 'emote', 20);\nINSERT INTO orders VALUES (1, 1, 10, 2), (2, 1, 20, 1), (3, 2, 10, 1), (4, 3, 30, 5);\n\n-- 在这里写查询\n",
+      "hint": "SELECT p.name, SUM(o.qty * pr.price) AS total FROM players p JOIN orders o ON o.player_id = p.id JOIN products pr ON pr.id = o.product_id GROUP BY p.id ORDER BY total DESC;",
+      "tests": [
+        "assert columns == ['name', 'total'], columns",
+        "assert rows == [['V', 280], ['Jackie', 100], ['Judy', 80]], rows",
+        "assert len(rows) == 3, rows"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, price INTEGER);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, product_id INTEGER, qty INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy'), (3, 'Jackie');\nINSERT INTO products VALUES (10, 'skin', 80), (20, 'mount', 120), (30, 'emote', 20);\nINSERT INTO orders VALUES (1, 1, 10, 2), (2, 1, 20, 1), (3, 2, 10, 1), (4, 3, 30, 5);\n\nSELECT p.name, SUM(o.qty * pr.price) AS total\nFROM players p\nJOIN orders o ON o.player_id = p.id\nJOIN products pr ON pr.id = o.product_id\nGROUP BY p.id\nORDER BY total DESC;\n"
+    }
+  },
+  {
+    "id": "sql14",
+    "order": 513,
+    "chapter": 52,
+    "chapterName": "SQL · 核心篇",
+    "lang": "sql",
+    "title": "查询里嵌套查询",
+    "subtitle": "标量子查询与派生表",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把一条查询的结果当成输入"
+      },
+      {
+        "type": "text",
+        "text": "子查询就是写在另一条语句内部的 SELECT。按返回形态分三类：标量子查询返回一行一列，可以当成一个值使用，例如 WHERE score > (SELECT AVG(score) FROM matches)，把全表平均分当作比较基准；行子查询返回一行多列；表子查询返回多行多列，通常放在 FROM 后面当成临时表，称为派生表。这三类的使用场景不同，混用会导致语法错误或语义偏差，先分清类型再动手。标量子查询最常用，也最容易出问题。它要求子查询最多返回一行，如果实际返回多行，SQLite 会取第一行而不报错，PostgreSQL 则直接报错。写 WHERE score = (SELECT score FROM matches WHERE player = 'V') 时，如果 V 有多条记录，结果就不可预测。稳妥做法是先用 SELECT COUNT(*) 确认子查询唯一，或者改用聚合（MAX、AVG）显式保证单行。标量子查询在外层每行都可能执行一次，数据量大时性能不如 JOIN，优化器有时能改写成连接，但不能完全指望，看到慢查询要检查执行计划。派生表写在 FROM 后面，必须给它起别名，例如 FROM (SELECT player, SUM(score) AS total FROM matches GROUP BY player) t。"
+      },
+      {
+        "type": "text",
+        "text": "派生表在查询开始时物化成临时结果，外层可以像普通表一样过滤、排序、再连接。它的好处是能把「先聚合再筛选」的逻辑写得层次分明：内层算每人总分，外层筛选总分超过阈值的玩家。用 CTE 可以进一步把这个结构命名，可读性更好，进阶篇会专门讲。相关子查询是另一类：子查询里引用了外层的列，因此外层每行都要重新求值一次。例如 SELECT name FROM players p WHERE EXISTS (SELECT 1 FROM orders o WHERE o.player_id = p.id) 中，子查询依赖 p.id，无法一次性算完。相关子查询表达力强，适合「存在性」判断，但性能通常不如 JOIN，因为外层有多少行就要执行多少次。能用 JOIN 或 EXISTS 改写时优先改写，确实需要逐行计算时再用，并确保子查询里的关联列有索引。子查询还可以嵌套多层，例如 WHERE score > (SELECT AVG(score) FROM matches WHERE mode = (SELECT ...))，但层数越多越难读、越难优化。"
+      },
+      {
+        "type": "text",
+        "text": "经验上超过两层就应该改用 CTE 或拆成临时表，把每一步的结果命名，再组合。SQL 的可读性和可维护性往往比省几行代码更重要，尤其在团队协作中，一条让人看不懂的嵌套查询会在半年后变成无人敢改的黑盒。写子查询时保持「一层一个目的」的节奏，是控制复杂度最有效的办法。派生表还有一个限制：它不能引用同一层 FROM 里其他表的列，也不能像相关子查询那样逐行求值，因为派生表在逻辑上是先算完的一份独立结果。想实现「每行都跟一个动态集合比较」的效果，要么用相关子查询，要么用 JOIN 加窗口函数。理解派生表「先物化再使用」的特性，能帮你判断一段查询能否改写成派生表形式，也能解释为什么某些相关子查询无法简单替换成 FROM 子句。标量子查询还有一个常见用法是「取最新一条」：先用 MAX(id) 或 MAX(created_at) 找到目标行，再把它当条件。例如 SELECT * FROM orders WHERE id = (SELECT MAX(id) FROM orders)，就能拿到最后一笔订单。这种写法简单直观，但要求子查询结果唯一；如果业务上有并列第一，应该改用 ORDER BY ... LIMIT 1 或者窗口函数。别把「碰巧唯一」当成「必然唯一」，数据一变，查询就会返回意料之外的结果。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES (1, 'V', 90), (2, 'Judy', 80), (3, 'V', 70),\n  (4, 'Jackie', 60), (5, 'Judy', 95);\n\nSELECT player, score\nFROM matches\nWHERE score > (SELECT AVG(score) FROM matches)\nORDER BY score DESC;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\tscore\nJudy\t95\nV\t90\nJudy\t80"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "形态",
+          "返回",
+          "位置"
+        ],
+        "rows": [
+          [
+            "标量子查询",
+            "一行一列",
+            "WHERE / SELECT"
+          ],
+          [
+            "行子查询",
+            "一行多列",
+            "与 IN 或比较符配合"
+          ],
+          [
+            "表子查询",
+            "多行多列",
+            "FROM 后面（派生表）"
+          ],
+          [
+            "相关子查询",
+            "依赖外层列",
+            "EXISTS / 标量位置"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES (1, 'V', 90), (2, 'Judy', 80), (3, 'V', 70),\n  (4, 'Jackie', 60), (5, 'Judy', 95);\n\nSELECT t.player, t.total\nFROM (SELECT player, SUM(score) AS total\n      FROM matches GROUP BY player) t\nWHERE t.total > 150\nORDER BY t.total DESC;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\ttotal\nJudy\t175\nV\t160"
+      },
+      {
+        "type": "tip",
+        "text": "派生表必须起别名，否则 SQLite 会报语法错误。别名不只是形式要求，外层引用列时也要靠它区分来源，例如 t.total。"
+      },
+      {
+        "type": "warn",
+        "text": "标量子查询返回多行时，SQLite 不报错而是静默取第一行，这个行为极不可靠。写之前用 COUNT(*) 确认唯一，或在子查询里加聚合函数保证单行。"
+      },
+      {
+        "type": "quiz",
+        "question": "FROM (SELECT player, SUM(score) AS total FROM matches GROUP BY player) t 中，t 的作用是？",
+        "options": [
+          "给子查询结果起别名，供外层引用",
+          "给表起别名",
+          "创建一个新表",
+          "去重"
+        ],
+        "answer": 0,
+        "explain": "派生表必须命名，t 是外层查询引用这份临时结果的名称。"
+      }
+    ],
+    "exercise": {
+      "title": "高于平均分的比赛",
+      "brief": "从 matches 表选出 score 高于全表平均分的 player 与 score，按 score 降序。",
+      "starterCode": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES (1, 'V', 90), (2, 'Judy', 80), (3, 'V', 70),\n  (4, 'Jackie', 60), (5, 'Judy', 95);\n\n-- 在这里写查询\n",
+      "hint": "SELECT player, score FROM matches WHERE score > (SELECT AVG(score) FROM matches) ORDER BY score DESC;",
+      "tests": [
+        "assert columns == ['player', 'score'], columns",
+        "assert rows == [['Judy', 95], ['V', 90], ['Judy', 80]], rows",
+        "assert len(rows) == 3, rows"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES (1, 'V', 90), (2, 'Judy', 80), (3, 'V', 70),\n  (4, 'Jackie', 60), (5, 'Judy', 95);\n\nSELECT player, score\nFROM matches\nWHERE score > (SELECT AVG(score) FROM matches)\nORDER BY score DESC;\n"
+    }
+  },
+  {
+    "id": "sql15",
+    "order": 514,
+    "chapter": 52,
+    "chapterName": "SQL · 核心篇",
+    "lang": "sql",
+    "title": "在集合里找答案",
+    "subtitle": "IN 与 EXISTS",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "存在与不属于"
+      },
+      {
+        "type": "text",
+        "text": "IN 用来判断一个值是否落在某个集合里，集合可以是字面量列表，也可以是子查询的结果。SELECT name FROM players WHERE id IN (SELECT player_id FROM orders) 会列出所有下过单的玩家，语义直观，很多场景下优化器会把它改写成半连接，性能与 JOIN 相当。NOT IN 则是它的反面，用来找「不在集合里」的行，例如从未下单的玩家。IN 的写法简洁，但有两个必须记住的陷阱：子查询列必须只有一列，以及 NULL 会让 NOT IN 整体失效。NOT IN 的 NULL 陷阱值得单独解释。若子查询返回的集合里包含 NULL，x NOT IN (1, 2, NULL) 等价于 x <> 1 AND x <> 2 AND x <> NULL，最后一项结果是未知，整个条件就永远不为真，查询返回空结果。这不是 bug，而是三值逻辑的必然结果。规避方法有三种：子查询里加 WHERE 列 IS NOT NULL；改用 NOT EXISTS；或者用 LEFT JOIN ... WHERE 右表.id IS NULL。生产代码里推荐后两种，语义清晰且不受空值影响。EXISTS 判断子查询是否至少返回一行，返回的是布尔值，不关心具体内容。它天然是相关子查询，常写成 EXISTS (SELECT 1 FROM orders o WHERE o.player_id = p.id)，其中 SELECT 1 只是占位，写 * 或任何列都不影响语义。"
+      },
+      {
+        "type": "text",
+        "text": "EXISTS 在找到第一行匹配后就可以停止扫描，因此在「只关心有没有」的场景里通常比 IN 更高效，也不受 NULL 影响。NOT EXISTS 同理，用来找不存在关联记录的行，是 NOT IN 的稳妥替代。IN 和 EXISTS 怎么选？如果子查询结果集小且确定无 NULL，IN 更简洁；如果子查询依赖外层列、或者只关心存在性，EXISTS 更合适。JOIN 与它们的关系也值得理清：JOIN 会返回匹配的每一行，可能放大行数，而 IN 与 EXISTS 只做布尔判断，不会改变外层行数。需要输出右表的具体字段时用 JOIN，只需要判断「有没有」时用 IN 或 EXISTS。三种写法各有位置，不是互相替代的关系。最后比较一下性能直觉：IN 适合子查询结果集小的情况，数据库可以把集合装进内存逐个比对；EXISTS 适合外层行数少、内层有索引的情况，找到第一条匹配就停；JOIN 适合需要右表字段、或需要对右表做聚合的情况。优化器通常会把它们互相改写，所以「哪种更快」不能一概而论，必须以 EXPLAIN QUERY PLAN 的实际输出为准。写代码时先选语义最清楚的写法，再根据执行计划调优，而不是凭感觉猜哪种高级。"
+      },
+      {
+        "type": "text",
+        "text": "再补充一个数据质量的用法：找出「有订单但玩家不存在」的脏数据，可以写 SELECT o.id FROM orders o LEFT JOIN players p ON p.id = o.player_id WHERE p.id IS NULL。这类反连接（anti-join）检查应该定期跑，尤其是在没有外键约束的库上。SQLite 默认不强制外键，删除玩家时订单可能变成孤儿记录，表面上看一切正常，统计时才发现金额对不上。把反连接检查写进数据巡检脚本，是低成本高回报的工程习惯。IN 还有一个实用写法是配合字面量做「白名单」过滤，例如 WHERE region IN ('Neon', 'Watson')，比写一串 OR 更简洁，也更容易让优化器识别。列表太长时要注意 SQL 语句长度限制，几百个值以上通常应该改成临时表或 JOIN 子查询。EXISTS 也可以用在 SELECT 列表里做标记列，返回 1 或 0，例如 EXISTS (SELECT 1 FROM orders o WHERE o.player_id = p.id) AS has_order，适合给每行打一个布尔标签，再交给业务层决定怎么展示。需要注意的是，NOT EXISTS 返回的布尔值在 SQLite 里是 1 或 0，不是 TRUE/FALSE 关键字，展示时可按业务需要再包一层 CASE。另外，子查询里忘记写关联条件会让 EXISTS 恒为真，查询结果变成全表，这类错误不会报错，只能靠核对行数发现。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, amount INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy'), (3, 'Jackie'), (4, 'Rogue');\nINSERT INTO orders VALUES (1, 1, 100), (2, 2, 80);\n\nSELECT name\nFROM players\nWHERE id IN (SELECT player_id FROM orders)\nORDER BY name;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "name\nJudy\nV"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "语义",
+          "注意"
+        ],
+        "rows": [
+          [
+            "IN (子查询)",
+            "属于集合",
+            "子查询只能返回一列"
+          ],
+          [
+            "NOT IN",
+            "不属于集合",
+            "集合含 NULL 时结果为空"
+          ],
+          [
+            "EXISTS",
+            "至少存在一行",
+            "只判断有无，不取值"
+          ],
+          [
+            "NOT EXISTS",
+            "不存在",
+            "推荐替代 NOT IN"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, amount INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy'), (3, 'Jackie'), (4, 'Rogue');\nINSERT INTO orders VALUES (1, 1, 100), (2, 2, 80);\n\nSELECT p.name\nFROM players p\nWHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.player_id = p.id)\nORDER BY p.name;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "name\nJackie\nRogue"
+      },
+      {
+        "type": "tip",
+        "text": "EXISTS 里的 SELECT 列表写什么都不影响结果，习惯写 SELECT 1，向读者传达「这里只关心有没有行，不关心值」。"
+      },
+      {
+        "type": "warn",
+        "text": "NOT IN 遇到子查询返回 NULL 会返回空结果，不是因为数据少，而是三值逻辑导致条件恒不为真。跨库迁移时这个坑尤其常见，建议统一用 NOT EXISTS。"
+      },
+      {
+        "type": "quiz",
+        "question": "子查询 SELECT player_id FROM orders 返回 (1, 2, NULL)，WHERE id NOT IN (该子查询) 的结果是？",
+        "options": [
+          "返回 id 不等于 1 和 2 的行",
+          "返回空结果",
+          "报语法错误",
+          "返回所有行"
+        ],
+        "answer": 1,
+        "explain": "集合含 NULL 时，id <> NULL 结果为未知，整个 NOT IN 条件不成立，查询返回空。"
+      }
+    ],
+    "exercise": {
+      "title": "从未下单的玩家",
+      "brief": "用 NOT EXISTS 找出没有任何订单的玩家 name，按字母升序。",
+      "starterCode": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, amount INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy'), (3, 'Jackie'), (4, 'Rogue');\nINSERT INTO orders VALUES (1, 1, 100), (2, 2, 80);\n\n-- 在这里写查询\n",
+      "hint": "SELECT p.name FROM players p WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.player_id = p.id) ORDER BY p.name;",
+      "tests": [
+        "assert columns == ['name'], columns",
+        "assert rows == [['Jackie'], ['Rogue']], rows",
+        "assert len(rows) == 2, rows"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, player_id INTEGER, amount INTEGER);\nINSERT INTO players VALUES (1, 'V'), (2, 'Judy'), (3, 'Jackie'), (4, 'Rogue');\nINSERT INTO orders VALUES (1, 1, 100), (2, 2, 80);\n\nSELECT p.name\nFROM players p\nWHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.player_id = p.id)\nORDER BY p.name;\n"
+    }
+  },
+  {
+    "id": "sql16",
+    "order": 515,
+    "chapter": 52,
+    "chapterName": "SQL · 核心篇",
+    "lang": "sql",
+    "title": "条件表达式",
+    "subtitle": "CASE WHEN",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "在查询里写 if"
+      },
+      {
+        "type": "text",
+        "text": "CASE WHEN 是 SQL 里的条件表达式，写法是 CASE WHEN 条件 THEN 结果 WHEN 条件 THEN 结果 ELSE 默认值 END。它从上到下依次判断，命中第一个为真的分支就返回对应结果，后面的分支不再执行。这意味顺序很重要：判断分数等级时，必须先写 score >= 90 再写 score >= 80，否则 95 分会先命中 >= 80 的分支，被判成 A。把条件从严格到宽松排列，是写 CASE 的基本纪律。CASE 有两种形式。搜索形式如上，条件可以任意写，最常用；简单形式是 CASE 列 WHEN 值 THEN 结果 END，只做等值匹配，等价于一层层写列 = 值。简单形式只适合枚举映射，例如把地区代码翻译成中文名；一旦涉及范围判断或组合条件，就必须用搜索形式。如果所有条件都不满足又没写 ELSE，结果是 NULL，这经常导致报表出现空白，需要默认值时务必显式写 ELSE。CASE 最强大的用法是在聚合里做条件计数和条件求和。SUM(CASE WHEN score >= 90 THEN 1 ELSE 0 END) 统计高分场次，SUM(CASE WHEN mode = 'ranked' THEN amount ELSE 0 END) 只对排位赛金额求和。这相当于 SQL 版的透视表：一次扫描数据，同时算出多个口径的指标。"
+      },
+      {
+        "type": "text",
+        "text": "比写多条 WHERE 不同的查询分别统计高效得多，也是数据看板最常见的写法之一。CASE 还能用在 ORDER BY 里做自定义排序，例如让特定状态排在最前：ORDER BY CASE status WHEN 'urgent' THEN 0 WHEN 'normal' THEN 1 ELSE 2 END。它也可以出现在 GROUP BY 里做分档统计，例如按分数段分组。注意 CASE 返回的所有分支类型应当一致，混合数字和文本会让结果类型变得难以预测。每个分支都写清楚、顺序排对、默认值补齐，CASE 就是查询里最灵活的控制结构。CASE 还能和 COUNT 组合出「条件计数」的另一种写法：COUNT(CASE WHEN score >= 90 THEN 1 END) 只统计满足条件的行，因为不满足时返回 NULL，而 COUNT 会跳过 NULL。它和 SUM(CASE WHEN ... THEN 1 ELSE 0 END) 结果相同，区别在于前者不写 ELSE、更简洁，后者语义更直白。团队里选一种统一使用即可，混着写会让审阅者多花时间确认两种写法是不是同一个意思。在真实报表里，CASE 常被用来做「分桶」。例如把订单金额分成小单、中单、大单三档，再按档位分组统计单量和总额，一行 SQL 就能产出完整的分布报表。"
+      },
+      {
+        "type": "text",
+        "text": "分桶的边界要写清楚，避免出现 100 元既不算中单也不算大单的空档。写完后可以用SELECT MIN(amount), MAX(amount), COUNT(*) 核对每档的范围与总数，确保没有记录被漏掉。这类验证习惯能把「看起来对」变成「确认对」，是数据工作里最值得培养的素养。CASE 还有一个常见的坑：在 WHERE 里对 CASE 结果做过滤时，必须把整个 CASE 表达式重复写一遍，因为 WHERE 不能引用 SELECT 里定义的别名。想避免重复，可以套一层派生表，把 CASE 的结果作为列输出，外层再按这个列过滤。这个技巧在复杂报表里很实用，也让 SQL 的分层结构更清晰：内层负责计算，外层负责筛选和排序，各司其职。简单 CASE 形式还有一个容易踩的坑：它做的是等值匹配，不会做类型转换以外的任何处理。CASE region WHEN 'neon' THEN '霓虹' ELSE '其他' END 对 'Neon' 不会命中，因为字符串比较区分大小写。如果数据来源不规范，要么先用 LOWER 统一，要么改用搜索形式写 WHEN LOWER(region) = 'neon'。看起来只是写法差异，实际决定了结果对不对，写完后用小样本验证一遍再上报表，是稳妥的做法。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES (1, 'V', 92), (2, 'Judy', 85), (3, 'Jackie', 71), (4, 'Rogue', 58);\n\nSELECT player, score,\n       CASE WHEN score >= 90 THEN 'S'\n            WHEN score >= 80 THEN 'A'\n            WHEN score >= 70 THEN 'B'\n            ELSE 'C' END AS grade\nFROM matches\nORDER BY score DESC;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\tscore\tgrade\nV\t92\tS\nJudy\t85\tA\nJackie\t71\tB\nRogue\t58\tC"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "用途",
+          "示例"
+        ],
+        "rows": [
+          [
+            "CASE WHEN ... THEN ...",
+            "范围判断",
+            "score >= 90"
+          ],
+          [
+            "CASE 列 WHEN 值",
+            "等值映射",
+            "CASE region WHEN 'Neon'"
+          ],
+          [
+            "ELSE",
+            "默认分支",
+            "ELSE 'C'"
+          ],
+          [
+            "聚合内 CASE",
+            "条件统计",
+            "SUM(CASE WHEN ... THEN 1 END)"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES (1, 'V', 92), (2, 'Judy', 85), (3, 'Jackie', 71), (4, 'Rogue', 58);\n\nSELECT SUM(CASE WHEN score >= 90 THEN 1 ELSE 0 END) AS s_count,\n       SUM(CASE WHEN score >= 80 AND score < 90 THEN 1 ELSE 0 END) AS a_count,\n       SUM(CASE WHEN score < 80 THEN 1 ELSE 0 END) AS rest\nFROM matches;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "s_count\ta_count\trest\n1\t1\t2"
+      },
+      {
+        "type": "tip",
+        "text": "把 CASE 的分支按条件从严格到宽松排列。判断 score >= 90 必须写在 score >= 80 前面，否则第一个分支永远轮不到。"
+      },
+      {
+        "type": "warn",
+        "text": "忘写 ELSE 且所有条件都不满足时，CASE 返回 NULL，不是 0 也不是空串。做数值汇总时这会污染 SUM，务必补上 ELSE 0。"
+      },
+      {
+        "type": "quiz",
+        "question": "CASE WHEN score >= 80 THEN 'A' WHEN score >= 90 THEN 'S' ELSE 'B' END 对 score = 95 返回？",
+        "options": [
+          "S",
+          "A",
+          "B",
+          "NULL"
+        ],
+        "answer": 1,
+        "explain": "分支从上到下判断，95 先命中 >= 80，返回 A；要得到 S 必须把 >= 90 写在前面。"
+      }
+    ],
+    "exercise": {
+      "title": "给分数分档",
+      "brief": "从 matches 表按 score 分档：90 及以上为 'S'，80 到 89 为 'A'，70 到 79 为 'B'，其余为 'C'。输出 player、score、grade，按 score 降序。",
+      "starterCode": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES (1, 'V', 92), (2, 'Judy', 85), (3, 'Jackie', 71), (4, 'Rogue', 58);\n\n-- 在这里写查询\n",
+      "hint": "SELECT player, score, CASE WHEN score >= 90 THEN 'S' WHEN score >= 80 THEN 'A' WHEN score >= 70 THEN 'B' ELSE 'C' END AS grade FROM matches ORDER BY score DESC;",
+      "tests": [
+        "assert columns == ['player', 'score', 'grade'], columns",
+        "assert rows == [['V', 92, 'S'], ['Judy', 85, 'A'], ['Jackie', 71, 'B'], ['Rogue', 58, 'C']], rows",
+        "assert len(rows) == 4, rows"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES (1, 'V', 92), (2, 'Judy', 85), (3, 'Jackie', 71), (4, 'Rogue', 58);\n\nSELECT player, score,\n       CASE WHEN score >= 90 THEN 'S'\n            WHEN score >= 80 THEN 'A'\n            WHEN score >= 70 THEN 'B'\n            ELSE 'C' END AS grade\nFROM matches\nORDER BY score DESC;\n"
+    }
+  },
+  {
+    "id": "sql17",
+    "order": 516,
+    "chapter": 52,
+    "chapterName": "SQL · 核心篇",
+    "lang": "sql",
+    "title": "文本处理",
+    "subtitle": "字符串函数",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把名字改写成想要的样子"
+      },
+      {
+        "type": "text",
+        "text": "SQLite 的字符串函数覆盖了大多数日常需求：UPPER 转大写、LOWER 转小写、LENGTH 取长度、SUBSTR 截取子串、REPLACE 替换、TRIM 去首尾空格、INSTR 查子串位置、PRINTF 做格式化。这些函数可以直接用在 SELECT 列表、WHERE 条件、ORDER BY 里，也可以互相嵌套。字符串拼接用 || 运算符，而不是加号；'a' || 'b' 得到 'ab'，而 'a' + 'b' 会尝试把两边转成数字，得到 0。SUBSTR 的下标从 1 开始，这一点和 Python 从 0 开始不同，是从其他语言转过来最容易踩的坑。SUBSTR('neon', 2, 2) 返回 'eo'，表示从第 2 个字符开始取 2 个；如果只写两个参数，表示取到末尾。负数下标表示从末尾倒数，SUBSTR('neon', -2) 返回 'on'。LENGTH 对 TEXT 返回字符数，对 BLOB 返回字节数，中文在 SQLite 里按字符计数，长度是 1 而不是 3，这一点比 MySQL 的字节语义更符合直觉。LIKE 和字符串函数常常配合使用：WHERE name LIKE 'J%' 找 J 开头的名字，'%son' 找 son 结尾，'%a%' 找包含 a 的名字。下划线 _ 匹配任意单个字符。"
+      },
+      {
+        "type": "text",
+        "text": "LIKE 默认对 ASCII 大小写不敏感，但 = 是敏感的，这种不一致要心里有数；需要统一时用 LOWER(name) = LOWER('judy')。REPLACE 做全局替换，TRIM 默认去空格也可以指定字符。格式化用 PRINTF，例如 PRINTF('%03d', 7) 得到 '007'，拼接导出文件名时很好用。实际工程里，字符串清洗往往比查询本身更麻烦：前后空格、大小写不一致、全角半角混用、空串与 NULL 混杂。建议在写入时就做规范化，例如统一 TRIM 后存储、姓名首字母大写、地区代码统一大写，查询时就不用到处套函数。如果不得不在查询里清洗，尽量把函数作用在常量或小结果集上，避免对整列套函数导致索引失效。字符串函数很强大，但滥用会让查询难以维护，也会拖慢执行速度。再补充几个不常用但关键时刻很有用的函数。SUBSTR 与 INSTR 可以组合实现简单的解析，例如从 'player:V' 这样的字符串里取出冒号后面的部分：SUBSTR(s, INSTR(s, ':') + 1)。PRINTF 支持 %s、%d、%f、%.2f 等占位符，生成固定宽度的编号或两位小数非常方便。GROUP_CONCAT 把多行文本拼成一行，适合把一位玩家的所有成就名合成一个标签串，但它没有顺序保证，需要有序时得在子查询里先排序再聚合。"
+      },
+      {
+        "type": "text",
+        "text": "字符串比较还有一个容易忽略的规则：SQLite 默认按字节序比较，'Z' 排在 'a' 前面，因为大写字母的编码更小。如果希望按照人类习惯忽略大小写排序，可以写 ORDER BY LOWER(name)，或者在建表时给列加 COLLATE NOCASE，让该列的默认比较不区分大小写。中文排序在 SQLite 里没有内置拼音规则，只能按 Unicode 码点排，需要拼音序时得借助外部字典或应用层排序，这一点在设计中文站点的搜索功能时要提前考虑，而不是等到上线后才发现顺序很怪。字符串函数还能做简单的脱敏与格式化。例如把手机号中间四位替换成星号，可以用 SUBSTR(phone, 1, 3) || '****' || SUBSTR(phone, 8)，输出时既不泄露完整号码，又能让用户辨认。生成用户名时可以 LOWER(REPLACE(name, ' ', '.'))，把空格换成点并统一小写。这些变换放在查询里做，好处是原始数据保持完整，展示层按需处理；缺点是每次查询都要计算，高频接口更适合在写入时生成一个派生列并加索引。还有一个容易忽略的点：LENGTH 对中文按字符计数，对 BLOB 按字节计数，判断长度时先确认列的类型。SUBSTR 的下标从 1 开始，越界时返回空串而不是报错，这会让错误悄悄变成空值，测试时要专门覆盖边界下标。"
+      },
+      {
+        "type": "code",
+        "code": "SELECT UPPER('neon') AS upper_name,\n       LOWER('NEON') AS lower_name,\n       LENGTH('neon') AS len,\n       SUBSTR('neon', 2, 2) AS part,\n       REPLACE('a-b-c', '-', '/') AS replaced,\n       TRIM('  x  ') AS trimmed,\n       INSTR('neon', 'e') AS pos;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "upper_name\tlower_name\tlen\tpart\treplaced\ttrimmed\tpos\nNEON\tneon\t4\teo\ta/b/c\tx\t2"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "函数",
+          "作用",
+          "示例"
+        ],
+        "rows": [
+          [
+            "UPPER / LOWER",
+            "大小写转换",
+            "UPPER('neon') = 'NEON'"
+          ],
+          [
+            "LENGTH",
+            "字符数",
+            "LENGTH('neon') = 4"
+          ],
+          [
+            "SUBSTR",
+            "截取，下标从 1 开始",
+            "SUBSTR('neon', 2, 2) = 'eo'"
+          ],
+          [
+            "REPLACE",
+            "全局替换",
+            "REPLACE('a-b', '-', '/') = 'a/b'"
+          ],
+          [
+            "TRIM",
+            "去首尾空格",
+            "TRIM('  x  ') = 'x'"
+          ],
+          [
+            "||",
+            "字符串拼接",
+            "'a' || 'b' = 'ab'"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nINSERT INTO players VALUES (1, 'v'), (2, 'judy'), (3, 'jackie');\n\nSELECT UPPER(name) AS name, LENGTH(name) AS len\nFROM players\nWHERE name LIKE 'j%'\nORDER BY name;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "name\tlen\nJACKIE\t6\nJUDY\t4"
+      },
+      {
+        "type": "tip",
+        "text": "字符串拼接用 ||，不要用 +。SQLite 的 + 是算术加法，会把文本尝试转成数字，拼接需求用加号很容易得到 0。"
+      },
+      {
+        "type": "warn",
+        "text": "对列套函数会让该列上的索引失效，例如 WHERE UPPER(name) = 'V' 无法使用 name 的普通索引。高频查询可以考虑建表达式索引，或者写入时就统一大小写。"
+      },
+      {
+        "type": "quiz",
+        "question": "SUBSTR('neon', 2, 2) 的返回值是？",
+        "options": [
+          "'ne'",
+          "'eo'",
+          "'on'",
+          "'e'"
+        ],
+        "answer": 1,
+        "explain": "SQLite 的 SUBSTR 下标从 1 开始，从第 2 个字符取 2 个，得到 'eo'。"
+      }
+    ],
+    "exercise": {
+      "title": "规范化玩家名",
+      "brief": "从 players 表选出 name 以 j 开头的玩家（不区分大小写），输出大写后的 name 与长度 len，按 name 升序。",
+      "starterCode": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nINSERT INTO players VALUES (1, 'v'), (2, 'judy'), (3, 'jackie');\n\n-- 在这里写查询\n",
+      "hint": "SELECT UPPER(name) AS name, LENGTH(name) AS len FROM players WHERE name LIKE 'j%' ORDER BY name;",
+      "tests": [
+        "assert columns == ['name', 'len'], columns",
+        "assert rows == [['JACKIE', 6], ['JUDY', 4]], rows",
+        "assert len(rows) == 2, rows"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT);\nINSERT INTO players VALUES (1, 'v'), (2, 'judy'), (3, 'jackie');\n\nSELECT UPPER(name) AS name, LENGTH(name) AS len\nFROM players\nWHERE name LIKE 'j%'\nORDER BY name;\n"
+    }
+  },
+  {
+    "id": "sql18",
+    "order": 517,
+    "chapter": 52,
+    "chapterName": "SQL · 核心篇",
+    "lang": "sql",
+    "title": "跟时间打交道",
+    "subtitle": "日期与时间函数",
+    "xp": 100,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "SQLite 用文本存日期"
+      },
+      {
+        "type": "text",
+        "text": "SQLite 没有独立的日期类型，日期和时间通常存成 TEXT，格式为 YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS；也可以存成 Unix 时间戳整数或 Julian 天数。存成 ISO 格式文本的好处是字典序等于时间序，比较和排序都能直接用字符串操作，肉眼也容易读。建表时把列声明为 TEXT，并在应用层保证格式统一，是 SQLite 项目最常见的做法。格式一旦混用，例如有的带时分秒有的不带，排序和区间查询就会出现意外结果。DATE 函数把时间值规整成 YYYY-MM-DD，TIME 返回时分秒，DATETIME 返回完整时间，JULIANDAY 返回 Julian 天数（浮点）。它们都支持修饰符，可以链式叠加：DATE('2024-03-15', '+1 month') 得到下个月同一天，再加 'start of month' 得到下个月第一天；'-7 days' 得到一周前；'weekday 1' 找到下一个周一。修饰符从左到右依次应用，顺序不同结果可能不同，写复杂日期计算时建议一步一步验证。STRFTIME 负责格式化，把日期转成想要的字符串：%Y 四位年、%m 两位月、%d 两位日、%H 小时、%M 分钟、%S 秒、%w 星期（0 是周日）、%j 一年中的第几天。按月汇总订单时，STRFTIME('%Y-%m', paid_on) 是最常用的分组键。"
+      },
+      {
+        "type": "text",
+        "text": "反过来，如果只有年月字符串想补成完整日期，可以拼接 '-01' 再交给 DATE 处理。格式化符号区分大小写，%m 是月、%M 是分钟，写错不会报错但结果会出乎意料。时间区间查询要注意边界。查「2024 年 1 月」的数据，写 paid_on >= '2024-01-01' AND paid_on < '2024-02-01' 比用 BETWEEN '2024-01-01' AND '2024-01-31' 更稳妥，因为后者会漏掉 1 月 31 日带时分秒的记录。当前时间用 DATE('now')、DATETIME('now') 获取，注意它返回 UTC，需要本地时间时加 'localtime' 修饰符。跨时区业务最好统一存 UTC，展示时再按用户时区转换，避免夏令时和时区偏移带来的混乱。日期函数还可以做「距今多久」的计算：JULIANDAY('now') - JULIANDAY(created_at) 得到相差的天数，乘以 24 得到小时数。查「最近 7 天」的数据写 created_at >= DATE('now', '-7 days')，比在应用层算好日期再拼字符串更可靠，也不会受时区设置影响。需要注意的是 DATE('now') 只到天，如果要精确到分钟，用 DATETIME('now', '-7 days')。报表按天汇总时用前者，审计日志按秒比对时用后者。"
+      },
+      {
+        "type": "text",
+        "text": "最后提醒：日期格式化会改变字符串，但不会改变底层存储。视图或查询里用 STRFTIME 输出 '2024-01' 只影响展示，底表仍存完整的 '2024-01-05'。如果后续要按这个月做连接或比较，必须在外层重新解析，不能直接把 '2024-01' 当成日期用。养成「存储保持完整、展示才裁剪」的习惯，能避免大量难以追查的日期比较错误，也让数据在导出、迁移时保持可追溯。时间戳与文本的转换也要留意。如果数据库里存的是 Unix 时间戳整数，可以用 DATE(ts, 'unixepoch') 转成日期，加 'localtime' 再转本地时间；反过来用 STRFTIME('%s', 日期文本) 取回时间戳字符串，需要整数时再 CAST。两种存储方式各有取舍：文本可读性好、便于人工排查，整数比较快、没有格式歧义。同一个系统里只选一种，并在文档里写清楚，否则混用会让每条查询都要先判断这一列到底是什么格式。再补充一个跨月统计的写法。想按自然月分组且保证空月也出现在结果里，单纯 GROUP BY 做不到，因为没有任何一行的月份是空的。这时需要一张日历表，或者用递归 CTE 生成月份序列再 LEFT JOIN 实际数据。数据看板里「本月零单」这类指标经常需要这种补零技巧，否则图表会缺一段柱子，看起来像系统故障。进阶篇的 CTE 会给出生成序列的具体写法，这里先建立「聚合结果需要补全维度」的意识。"
+      },
+      {
+        "type": "code",
+        "code": "SELECT DATE('2024-03-15', '+1 month', 'start of month') AS next_month_start,\n       DATE('2024-03-15', '-7 days') AS week_before,\n       STRFTIME('%Y-%m', '2024-03-15') AS ym,\n       STRFTIME('%w', '2024-03-15') AS weekday,\n       JULIANDAY('2024-03-15') - JULIANDAY('2024-03-01') AS days;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "next_month_start\tweek_before\tym\tweekday\tdays\n2024-04-01\t2024-03-08\t2024-03\t5\t14.0"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "函数",
+          "返回",
+          "示例"
+        ],
+        "rows": [
+          [
+            "DATE",
+            "日期部分",
+            "DATE('2024-03-15') = '2024-03-15'"
+          ],
+          [
+            "DATETIME",
+            "日期时间",
+            "DATETIME('now')"
+          ],
+          [
+            "STRFTIME",
+            "格式化文本",
+            "STRFTIME('%Y-%m', 日期)"
+          ],
+          [
+            "JULIANDAY",
+            "Julian 天数",
+            "两个日期相减得天差"
+          ],
+          [
+            "修饰符",
+            "日期加减",
+            "'+1 month' / '-7 days'"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE orders (id INTEGER PRIMARY KEY, paid_on TEXT, amount INTEGER);\nINSERT INTO orders VALUES (1, '2024-01-05', 100), (2, '2024-01-20', 50),\n  (3, '2024-02-03', 80), (4, '2024-02-18', 120);\n\nSELECT STRFTIME('%Y-%m', paid_on) AS month, SUM(amount) AS total\nFROM orders\nGROUP BY month\nORDER BY month;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "month\ttotal\n2024-01\t150\n2024-02\t200"
+      },
+      {
+        "type": "tip",
+        "text": "日期统一存 YYYY-MM-DD 的 TEXT，必要时带 HH:MM:SS。不要存 '2024/3/5' 这种格式，字典序会乱，字符串比较也不等于时间比较。"
+      },
+      {
+        "type": "warn",
+        "text": "BETWEEN '2024-01-01' AND '2024-01-31' 会漏掉 1 月 31 日当天带时分秒的记录。查整月请用 >= 月初 AND < 下月月初 的左闭右开写法。"
+      },
+      {
+        "type": "quiz",
+        "question": "要按月份汇总订单，最合适的分组表达式是？",
+        "options": [
+          "GROUP BY paid_on",
+          "GROUP BY STRFTIME('%Y-%m', paid_on)",
+          "GROUP BY DATE(paid_on)",
+          "GROUP BY YEAR(paid_on)"
+        ],
+        "answer": 1,
+        "explain": "STRFTIME('%Y-%m', paid_on) 把日期截成 2024-01 这样的年月文本，正是按月分组需要的粒度。"
+      }
+    ],
+    "exercise": {
+      "title": "按月汇总",
+      "brief": "从 orders 表按月份汇总金额，输出 month（YYYY-MM）与 total，按 month 升序。",
+      "starterCode": "CREATE TABLE orders (id INTEGER PRIMARY KEY, paid_on TEXT, amount INTEGER);\nINSERT INTO orders VALUES (1, '2024-01-05', 100), (2, '2024-01-20', 50),\n  (3, '2024-02-03', 80), (4, '2024-02-18', 120);\n\n-- 在这里写查询\n",
+      "hint": "SELECT STRFTIME('%Y-%m', paid_on) AS month, SUM(amount) AS total FROM orders GROUP BY month ORDER BY month;",
+      "tests": [
+        "assert columns == ['month', 'total'], columns",
+        "assert rows == [['2024-01', 150], ['2024-02', 200]], rows",
+        "assert len(rows) == 2, rows"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE orders (id INTEGER PRIMARY KEY, paid_on TEXT, amount INTEGER);\nINSERT INTO orders VALUES (1, '2024-01-05', 100), (2, '2024-01-20', 50),\n  (3, '2024-02-03', 80), (4, '2024-02-18', 120);\n\nSELECT STRFTIME('%Y-%m', paid_on) AS month, SUM(amount) AS total\nFROM orders\nGROUP BY month\nORDER BY month;\n"
+    }
+  },
+  {
+    "id": "sql19",
+    "order": 518,
+    "chapter": 52,
+    "chapterName": "SQL · 核心篇",
+    "lang": "sql",
+    "title": "集合运算",
+    "subtitle": "UNION / INTERSECT / EXCEPT",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "把两个结果集拼起来"
+      },
+      {
+        "type": "text",
+        "text": "集合运算把两条 SELECT 的结果当成集合来处理。UNION 取并集并自动去重，UNION ALL 取并集但保留重复且更快；INTERSECT 取交集，只保留两边都有的行；EXCEPT 取差集，保留在左边但不在右边的行。使用它们的前提是两条查询的列数相同、对应列的类型兼容，列名以第一条查询为准，ORDER BY 只能写在最后，作用于整个合并结果。UNION 去重意味着它要对结果排序或建哈希表，数据量大时开销明显；如果业务上确定两边不会有重复，或者重复本身有意义（例如统计所有流水，同一天两笔相同金额不能合并），就应该用 UNION ALL。经验法则是：默认写 UNION ALL，只有确实需要去重时才写 UNION。这个选择在日志分析里尤其重要，用错了会把真实的重复记录悄悄吃掉，导致统计结果偏小。INTERSECT 和 EXCEPT 在业务上分别对应「同时满足」和「只在一边」。例如找出两个赛季都上过场的玩家用 INTERSECT，找出只在第一个赛季出现的新玩家用 EXCEPT。它们同样会去重，而且对 NULL 的处理是把 NULL 视为相等，这一点和 = 比较不同：两个 NULL 在集合运算里算同一个元素，会被去重成一条。"
+      },
+      {
+        "type": "text",
+        "text": "理解这个差别，才能正确解释结果行数。集合运算要求列的顺序和数量严格对齐，第一列对第一列、第二列对第二列，列名不参与匹配。如果两张表列顺序不同，必须显式写出对应的列名再合并，不能图省事写 SELECT *。合并后想区分数据来源，可以加一个常量列，例如 SELECT 'neon' AS source, name FROM neon UNION ALL SELECT 'watson', name FROM watson，这样结果里能看出每行来自哪张表。排序时如果要按来源分组，把这个常量列放进 ORDER BY 即可。集合运算的另一个常见用途是「合并多张结构相同的分表」。按季度拆分的 orders_2024q1、orders_2024q2 可以用 UNION ALL 拼成全年视图，再在视图上做统计。用 UNION ALL 而不是 UNION，是因为不同季度的订单 id 不会重复，去重只会白白增加排序开销。如果确实存在跨表重复，例如同一笔订单被重复导入，才需要 UNION 或在外层用 GROUP BY 去重。分表合并后最好加一列来源标记，方便回溯数据出自哪张表。"
+      },
+      {
+        "type": "text",
+        "text": "最后一点：集合运算的优先级低于 ORDER BY 和 LIMIT，写多段合并时要用括号明确范围，例如 (SELECT ... LIMIT 5) UNION ALL (SELECT ... LIMIT 5)。如果只在最后写一个 LIMIT 5，它作用于合并后的整个结果，而不是每段各取 5 条。这个小差异在写「取各表前几名」的需求时经常出错，测试时用两组明显不同的数据就能一眼看出结果是否符合预期。集合运算还有一个语义细节：ORDER BY 只能出现在最后，且只能引用第一条 SELECT 的列名或列序号。如果两段查询的列名不同，例如第一段叫 name、第二段叫 player_name，排序时必须用第一段的名字或序号，用第二段的名字会报错。同理，WHERE 不能写在合并之后，想过滤合并结果只能套一层派生表或 CTE，在外层加条件。这些限制源于集合运算「先合并再处理」的语义，理解之后就不会写出语法正确但逻辑混乱的语句。实践时建议先分别验证两段查询的行数与内容，确认各自符合预期，再做集合运算；直接合并后调试，很难判断差异来自哪一段。这也是为什么复杂报表更推荐用 CTE：每一段都能独立运行、独立核对。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE neon (name TEXT);\nCREATE TABLE watson (name TEXT);\nINSERT INTO neon VALUES ('V'), ('Judy'), ('Jackie');\nINSERT INTO watson VALUES ('Judy'), ('Rogue');\n\nSELECT name FROM neon\nUNION\nSELECT name FROM watson\nORDER BY name;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "name\nJackie\nJudy\nRogue\nV"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "运算",
+          "含义",
+          "是否去重"
+        ],
+        "rows": [
+          [
+            "UNION",
+            "并集",
+            "去重"
+          ],
+          [
+            "UNION ALL",
+            "并集",
+            "保留重复，更快"
+          ],
+          [
+            "INTERSECT",
+            "交集",
+            "去重"
+          ],
+          [
+            "EXCEPT",
+            "差集（左减右）",
+            "去重"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE neon (name TEXT);\nCREATE TABLE watson (name TEXT);\nINSERT INTO neon VALUES ('V'), ('Judy'), ('Jackie');\nINSERT INTO watson VALUES ('Judy'), ('Rogue');\n\nSELECT 'neon' AS source, name FROM neon\nUNION ALL\nSELECT 'watson', name FROM watson\nORDER BY source, name;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "source\tname\nneon\tJackie\nneon\tJudy\nneon\tV\nwatson\tJudy\nwatson\tRogue"
+      },
+      {
+        "type": "tip",
+        "text": "集合运算的列名取自第一条 SELECT。想统一列名，就在第一条查询里写 AS，后面的查询不需要重复别名。"
+      },
+      {
+        "type": "warn",
+        "text": "UNION 会去重，把两笔金额相同但业务上独立的记录合并成一条。统计流水、日志这类允许重复的数据时，必须用 UNION ALL。"
+      },
+      {
+        "type": "quiz",
+        "question": "neon 有 V、Judy、Jackie，watson 有 Judy、Rogue，SELECT name FROM neon EXCEPT SELECT name FROM watson 返回？",
+        "options": [
+          "V, Jackie",
+          "Judy",
+          "Rogue",
+          "V, Judy, Jackie, Rogue"
+        ],
+        "answer": 0,
+        "explain": "EXCEPT 保留在左表但不在右表的行，Judy 两边都有被排除，剩下 V 和 Jackie。"
+      }
+    ],
+    "exercise": {
+      "title": "两区玩家并集",
+      "brief": "把 neon 与 watson 两张表的 name 合并，去重后按字母升序输出。",
+      "starterCode": "CREATE TABLE neon (name TEXT);\nCREATE TABLE watson (name TEXT);\nINSERT INTO neon VALUES ('V'), ('Judy'), ('Jackie');\nINSERT INTO watson VALUES ('Judy'), ('Rogue');\n\n-- 在这里写查询\n",
+      "hint": "SELECT name FROM neon UNION SELECT name FROM watson ORDER BY name;",
+      "tests": [
+        "assert columns == ['name'], columns",
+        "assert rows == [['Jackie'], ['Judy'], ['Rogue'], ['V']], rows",
+        "assert len(rows) == 4, rows"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "CREATE TABLE neon (name TEXT);\nCREATE TABLE watson (name TEXT);\nINSERT INTO neon VALUES ('V'), ('Judy'), ('Jackie');\nINSERT INTO watson VALUES ('Judy'), ('Rogue');\n\nSELECT name FROM neon\nUNION\nSELECT name FROM watson\nORDER BY name;\n"
+    }
+  },
+  {
+    "id": "sql20",
+    "order": 519,
+    "chapter": 52,
+    "chapterName": "SQL · 核心篇",
+    "lang": "sql",
+    "title": "把查询存起来",
+    "subtitle": "视图 VIEW",
+    "xp": 100,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "视图是一层命名好的查询"
+      },
+      {
+        "type": "text",
+        "text": "视图（VIEW）本质上是一条被命名并保存的 SELECT 语句，本身不存数据，每次查询视图时数据库都会重新执行它背后的 SQL。创建语法是 CREATE VIEW 视图名 AS SELECT ...。例如把「每位玩家的订单数与总额」这条聚合查询保存成 player_totals，之后就可以像查普通表一样 SELECT * FROM player_totals WHERE total >= 100。视图让复杂查询有了名字，复用和维护都更方便。视图的最大价值是封装复杂度与统一口径。多个报表都要算「有效订单金额」，如果每个地方各写一遍，规则一改就要全项目搜索替换；把它定义成视图，所有调用方自动跟着变，口径天然一致。视图还能起到权限隔离的作用：只把视图授权给分析人员，让他们看不到底表的敏感列，例如手机号、身份证号。这是一种轻量级的行级与列级安全手段。视图也有代价。它不存数据，每次查询都要重新计算，如果底层是复杂的三表聚合，视图会被反复执行，性能可能不如物化表。"
+      },
+      {
+        "type": "text",
+        "text": "视图也不能带参数，想按玩家筛选只能在外部加 WHERE。SQLite 的视图默认是只读的，不能直接对视图 INSERT 或 UPDATE，需要写 INSTEAD OF 触发器才能支持写入，这一点和某些数据库不同。另外，视图依赖底表结构，底表删列会导致视图查询报错，上线前要检查依赖关系。使用视图的经验是：把稳定的、多处复用的查询抽成视图，把一次性的探索查询留在脚本里。视图命名建议加前缀或后缀，例如 v_player_totals，和物理表区分开。视图里不要写 ORDER BY，因为外层的排序需求各不相同，内层排序既无意义也可能被优化器忽略。如果视图逻辑变复杂，可以在内部继续使用 CTE，但要注意嵌套层级，太深的视图链会让人难以追查数据来源。视图和表的另一个区别体现在结构变更上。给底表加一列，视图通常不受影响，因为它只选择自己需要的列；给底表删列或改名，视图会在下次查询时报错，但创建时不会校验，这类「延迟失败」很容易在上线后才暴露。"
+      },
+      {
+        "type": "text",
+        "text": "做表结构迁移时，先查 sqlite_master 里所有视图的定义，确认没有依赖被删的列，再执行变更。把视图当代码看待，纳入版本管理和评审流程，是团队协作里更稳妥的做法。视图还能嵌套：在现有视图上再建视图。少量嵌套能提升复用，层级过深则会让执行计划变得难以分析，排查问题时需要一层层展开。经验上超过两层就考虑用 CTE 重写，把逻辑集中在一处而不是分散在多个视图里。视图是工具，不是架构，它的价值在于让重复的查询有统一出口，而不是把所有查询都包装成视图。保持克制，才能让视图真正降低维护成本。视图还能配合权限控制做数据隔离。SQLite 本身没有细粒度授权，但把数据同步到服务端数据库后，可以只给分析账号授予视图的 SELECT 权限，而不给底表权限，这样他们既能做统计又看不到原始敏感字段。视图里还可以预先过滤掉软删除的行，让所有调用方自动忽略 deleted_at 不为空的数据，避免每个报表都重复写过滤条件。把这类「公共约束」沉淀到视图，是让数据口径长期一致的低成本手段。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE orders (id INTEGER PRIMARY KEY, player TEXT, amount INTEGER);\nINSERT INTO orders VALUES (1, 'V', 100), (2, 'V', 50), (3, 'Judy', 80);\n\nCREATE VIEW player_totals AS\nSELECT player, COUNT(*) AS orders, SUM(amount) AS total\nFROM orders\nGROUP BY player;\n\nSELECT player, orders, total FROM player_totals ORDER BY total DESC;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\torders\ttotal\nV\t2\t150\nJudy\t1\t80"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "特性",
+          "视图",
+          "表"
+        ],
+        "rows": [
+          [
+            "存储数据",
+            "否，只存查询",
+            "是"
+          ],
+          [
+            "能否带参数",
+            "否",
+            "不适用"
+          ],
+          [
+            "能否直接写入",
+            "SQLite 默认只读",
+            "可以"
+          ],
+          [
+            "典型用途",
+            "封装口径、权限隔离",
+            "持久化业务数据"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE orders (id INTEGER PRIMARY KEY, player TEXT, amount INTEGER);\nINSERT INTO orders VALUES (1, 'V', 100), (2, 'V', 50), (3, 'Judy', 80);\n\nCREATE VIEW player_totals AS\nSELECT player, COUNT(*) AS orders, SUM(amount) AS total\nFROM orders\nGROUP BY player;\n\nSELECT player, total FROM player_totals WHERE total >= 100 ORDER BY total DESC;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\ttotal\nV\t150"
+      },
+      {
+        "type": "tip",
+        "text": "视图名加 v_ 前缀，和物理表区分。查看现有视图用 SELECT name FROM sqlite_master WHERE type = 'view'。"
+      },
+      {
+        "type": "warn",
+        "text": "视图不缓存结果，每次查询都重新执行底层 SQL。高频访问的复杂视图应考虑物化成表并定时刷新，否则可能成为性能瓶颈。"
+      },
+      {
+        "type": "quiz",
+        "question": "关于视图，下列说法正确的是？",
+        "options": [
+          "视图会物理存储查询结果",
+          "视图本质是保存下来的 SELECT 语句",
+          "视图可以带参数",
+          "视图一定能更新"
+        ],
+        "answer": 1,
+        "explain": "视图只保存查询定义，不存数据，每次访问时重新执行，因此也不支持参数。"
+      }
+    ],
+    "exercise": {
+      "title": "建立消费视图",
+      "brief": "创建视图 player_totals，包含每位玩家的 player、订单数 orders、总额 total；然后从视图中选出 total 大于等于 100 的玩家，按 total 降序。",
+      "starterCode": "CREATE TABLE orders (id INTEGER PRIMARY KEY, player TEXT, amount INTEGER);\nINSERT INTO orders VALUES (1, 'V', 100), (2, 'V', 50), (3, 'Judy', 80);\n\n-- 在这里写 CREATE VIEW 与查询\n",
+      "hint": "CREATE VIEW player_totals AS SELECT player, COUNT(*) AS orders, SUM(amount) AS total FROM orders GROUP BY player; SELECT player, total FROM player_totals WHERE total >= 100 ORDER BY total DESC;",
+      "tests": [
+        "assert columns == ['player', 'total'], columns",
+        "assert rows == [['V', 150]], rows",
+        "assert len(rows) == 1, rows"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE orders (id INTEGER PRIMARY KEY, player TEXT, amount INTEGER);\nINSERT INTO orders VALUES (1, 'V', 100), (2, 'V', 50), (3, 'Judy', 80);\n\nCREATE VIEW player_totals AS\nSELECT player, COUNT(*) AS orders, SUM(amount) AS total\nFROM orders\nGROUP BY player;\n\nSELECT player, total FROM player_totals WHERE total >= 100 ORDER BY total DESC;\n"
+    }
+  }
+]

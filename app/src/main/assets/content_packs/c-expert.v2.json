@@ -1,0 +1,985 @@
+[
+  {
+    "id": "c31",
+    "order": 730,
+    "chapter": 74,
+    "chapterName": "C · 专业篇",
+    "lang": "c",
+    "title": "内存布局：栈、堆与静态区",
+    "subtitle": "局部变量到底住在哪、活多久",
+    "xp": 170,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "变量住在哪块内存"
+      },
+      {
+        "type": "text",
+        "text": "程序运行时的内存通常分成几块：代码区存放编译后的指令；静态区存放全局变量和 static 变量，程序启动时分配、结束时回收；栈区存放函数调用所需的数据；堆区由程序员通过动态内存接口申请。栈是理解局部变量的关键。每次调用函数，运行时都会在栈顶压入一帧，帧里放参数、返回地址和局部变量；函数返回时整帧弹出，里面的变量随之消失。栈是后进先出结构，容量有限，常见只有几 MB。局部数组过大、递归过深都会把栈撑爆，表现为栈溢出崩溃，而不是普通的逻辑错误。栈的分配和释放由编译器生成的指令自动完成，速度极快，也不会产生碎片，所以能放在栈上的数据优先放栈上。判断一个变量住在哪块区域，看它的声明位置和存储类别：函数内部不加 static 的是自动变量，住栈；函数外部或加了 static 的是静态存储期变量，住静态区。"
+      },
+      {
+        "type": "text",
+        "text": "局部变量的生命周期从声明语句被执行开始，到所在块结束为止，而不是从函数开始到函数结束。一个变量只在自己所在的复合语句里有效，离开右花括号就失效；同一函数里两个并列的块可以各有一个同名变量，它们是两块不同的存储。内层块声明同名变量会遮蔽外层，离开内层后外层恢复可见。未初始化的局部变量内容是垃圾值，读它是未定义行为，所以声明时就赋初值。函数返回后，它的栈帧被回收，局部变量的地址随之失效；把这个地址返回给调用者，得到的是悬空指针，之后任何读写都可能踩到别的函数留下的数据。静态存储期的变量则从程序启动活到程序结束：全局变量和 static 全局在 main 之前完成初始化，未显式初始化会被清零。它们的地址在整个运行期稳定，因此可以安全地返回指向它们的指针，但这也意味着所有调用者共享同一份数据，需要自己管理并发和重入问题。"
+      },
+      {
+        "type": "text",
+        "text": "用教学模型估算栈帧大小：int 4 字节、double 8 字节、char 1 字节、指针 8 字节，数组按元素大小乘长度，结构体按成员之和向上对齐到 8 的倍数。一个含 6 个 int 的数组占 24 字节，一个 int 加 char 加 double 的结构体占 16 字节。知道这些数字，你就能判断一个大数组会不会把栈撑爆，也能理解为什么结构体传值会产生拷贝开销。工程上的几条规则：局部变量尽量小，超大缓冲区改用堆或静态区；不要返回局部变量的地址；不要把未初始化的变量当零使用；需要跨调用保留状态时，优先用参数和返回值，其次才考虑 static。最后提醒一句：本课程不打印真实内存地址，因为地址每次运行都可能不同，打印出来也无法作为稳定输出；判断内存布局要靠 sizeof、作用域和生命周期这些可推理的性质，而不是靠观察地址大小。地址在高地址还是低地址、栈向哪个方向增长，属于平台实现细节，不应该写进业务代码的假设里。把布局知识用在判断「这块数据会不会太大」「这个指针还能不能用」上，比记住具体地址有用得多。"
+      },
+      {
+        "type": "code",
+        "code": "int main() {\n    int outer = 1;\n    int a[6];\n    printf(\"outer=%d sizeof(a)=%d\\n\", outer, sizeof(a));\n    {\n        int inner = 2;\n        printf(\"inner=%d outer=%d\\n\", inner, outer);\n    }\n    printf(\"outer=%d\\n\", outer);\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "outer=1 sizeof(a)=24\ninner=2 outer=1\nouter=1"
+      },
+      {
+        "type": "code",
+        "code": "int sum_to(int n) {\n    int local = n * 10;\n    if (n == 0) return 0;\n    int rest = sum_to(n - 1);\n    printf(\"frame n=%d local=%d rest=%d\\n\", n, local, rest);\n    return n + rest;\n}\n\nint main() {\n    printf(\"sum=%d\\n\", sum_to(3));\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "frame n=1 local=10 rest=0\nframe n=2 local=20 rest=1\nframe n=3 local=30 rest=3\nsum=6"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "区域",
+          "谁管理",
+          "生命周期",
+          "典型问题"
+        ],
+        "rows": [
+          [
+            "栈",
+            "编译器自动",
+            "函数调用期间",
+            "大数组、深递归导致栈溢出"
+          ],
+          [
+            "静态区",
+            "编译器",
+            "整个程序运行期",
+            "共享状态、跨文件重名"
+          ],
+          [
+            "堆",
+            "程序员手动",
+            "从申请到释放",
+            "泄漏、悬空指针、重复释放"
+          ],
+          [
+            "代码区",
+            "加载器",
+            "整个程序运行期",
+            "只读，写入会崩溃"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "判断变量住栈还是静态区，看声明位置和 static：函数内不加 static 是自动变量，函数外或加 static 是静态存储期。"
+      },
+      {
+        "type": "warn",
+        "text": "不要返回局部变量的地址。函数返回后栈帧被回收，那个地址就是悬空指针；本课程也不打印真实地址，地址值每次运行都可能不同。"
+      },
+      {
+        "type": "quiz",
+        "question": "函数返回后，它的局部变量处于什么状态？",
+        "options": [
+          "继续有效，直到程序结束",
+          "自动变成全局变量",
+          "随栈帧一起失效，地址不能再使用",
+          "被复制到静态区"
+        ],
+        "answer": 2,
+        "explain": "栈帧在函数返回时弹出，局部变量的存储被回收，继续通过旧地址访问就是悬空指针。"
+      },
+      {
+        "type": "task",
+        "text": "把递归示例改成 sum_to(5)，在纸上画出 5 次调用的栈帧，标出每层 local 的值。"
+      }
+    ],
+    "exercise": {
+      "title": "结构体块对齐估算",
+      "brief": "实现 block_bytes(ints, doubles, chars)：按教学模型计算字节数（int 4、double 8、char 1），再向上对齐到 8 的倍数；三者都为 0 时返回 0。",
+      "starterCode": "int block_bytes(int ints, int doubles, int chars) {\n    // 先算原始字节数，再补齐到 8 的倍数\n    return 0;\n}",
+      "hint": "int bytes = ints * 4 + doubles * 8 + chars; if (bytes == 0) return 0; return ((bytes + 7) / 8) * 8;",
+      "tests": [
+        "int main() { assert(block_bytes(1, 0, 0) == 8, \"一个 int 补齐到 8 字节\"); return 0; }",
+        "int main() { assert(block_bytes(3, 0, 0) == 16, \"三个 int 共 12 字节，补齐到 16\"); return 0; }",
+        "int main() { assert(block_bytes(0, 1, 1) == 16, \"double+char 共 9 字节，补齐到 16\"); return 0; }",
+        "int main() { assert(block_bytes(0, 0, 0) == 0, \"空结构应为 0\"); return 0; }",
+        "int main() { assert(block_bytes(2, 1, 1) == 24, \"8+8+1=17，补齐到 24\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 180,
+      "solution": "int block_bytes(int ints, int doubles, int chars) {\n    int bytes = ints * 4 + doubles * 8 + chars;\n    if (bytes == 0) return 0;\n    return ((bytes + 7) / 8) * 8;\n}\n"
+    }
+  },
+  {
+    "id": "c32",
+    "order": 731,
+    "chapter": 74,
+    "chapterName": "C · 专业篇",
+    "lang": "c",
+    "title": "动态内存：malloc、free 与内存池",
+    "subtitle": "堆上的每一块都有主人",
+    "xp": 190,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "堆内存由你负责"
+      },
+      {
+        "type": "text",
+        "text": "动态内存解决的是「运行时才知道要多大」和「要活过函数返回」这两类需求。malloc 接收字节数，返回一块连续内存的首地址；这块内存没有初始化，内容是垃圾值；申请失败返回空指针，必须判断。calloc 接收元素个数和单个元素大小，把整块内存清零，适合数组。realloc 调整已有块的大小：新块可能被搬到别处，返回值才是有效地址，原来的指针随即失效；扩容后新增部分不会自动清零。free 把块还给分配器，参数必须是 malloc、calloc 或 realloc 返回的地址，free(NULL) 是允许的空操作。四个函数构成一套完整的生命周期：申请、使用、调整、释放，任何一步漏掉都会留下问题。算字节数时用元素个数乘 sizeof(元素类型)，不要手写常量；乘法前先确认不会溢出，因为溢出的结果可能变成一个很小的数，后续写入就会越界。申请到的块按字节编址，但里面放什么由你决定：同一块内存可以当 int 数组，也可以当结构体数组，取决于指针类型和访问方式。这种自由是 C 的威力，也是错误的来源——分配器只记住块有多大，不记住里面是什么类型。"
+      },
+      {
+        "type": "text",
+        "text": "堆内存不会自动回收，生命周期完全由程序员控制。忘记 free 是内存泄漏，程序跑得越久占用越多，最终可能被系统杀掉；free 之后继续读写是悬空指针，可能读到旧数据，也可能破坏分配器的内部结构；对同一块内存 free 两次是未定义行为，常见后果是崩溃。分配器在每块内存前后维护元数据，用来记录大小和空闲链表；越界写一个字节，可能改坏相邻块的元数据，错误要到下一次 malloc 或 free 才爆发，这就是堆错误难查的原因。频繁申请大小不一的块还会产生碎片：总空闲量够，但没有一块足够大的连续空间。工程规则可以压缩成五条：申请后判空、按元素个数乘大小、使用前初始化、明确所有权、释放后把指针置空。跨函数传递堆内存时，在接口注释里写清楚谁负责释放，最好用成对的创建与销毁函数把约定固化下来。还有一种隐蔽的泄漏叫丢失指针：指针被重新赋值，原来那块内存再也没有变量指向它，想 free 也无从下手。所以释放之前不要提前覆盖指针，遍历时另存一个临时变量。"
+      },
+      {
+        "type": "text",
+        "text": "本课程的解释器没有真实的分配器，malloc 系列不能执行，下面的动态内存代码是参考块，需要在装有 GCC 的机器上验证。可运行的例子用一个结构体数组模拟固定容量的内存池：每个块有 used 标志、容量 size 和一小段 payload，申请时从头扫描第一个足够大且空闲的块，释放时把 used 清零。这个模型和真实分配器的 first-fit 策略同构：都在一张表里找空闲块、标记占用、归还时复用。区别在于没有真实地址、没有元数据、不能扩容，但「谁申请谁释放」「释放后不能再使用」「重复释放要拒绝」这些纪律完全一样。把内存池练熟，换成 malloc 时只是把「扫描数组」换成「调用分配器」，把「标记 used」换成「free」，思路不需要重学。最后一个观察点：固定池的容量上限是编译期常量，真实堆的上限是进程地址空间；两者都要面对「申请失败」这条分支，不能假设申请一定成功。教学模型里用固定数组模拟，但不要把「数组不会失败」这个假设带进真实项目：堆申请会失败，失败必须处理，而不是假装它不会发生。"
+      },
+      {
+        "type": "code",
+        "code": "typedef struct {\n    int used;\n    int size;\n    int payload[4];\n} Block;\n\nint pool_alloc(Block pool[], int n, int size) {\n    for (int i = 0; i < n; i++) {\n        if (pool[i].used == 0 && pool[i].size >= size) {\n            pool[i].used = 1;\n            return i;\n        }\n    }\n    return -1;\n}\n\nint pool_free(Block pool[], int n, int index) {\n    if (index < 0 || index >= n) return 0;\n    if (pool[index].used == 0) return 0;\n    pool[index].used = 0;\n    return 1;\n}\n\nint main() {\n    Block pool[3] = {{0, 4}, {0, 8}, {0, 2}};\n    int a = pool_alloc(pool, 3, 4);\n    int b = pool_alloc(pool, 3, 8);\n    int c = pool_alloc(pool, 3, 8);\n    printf(\"a=%d b=%d c=%d\\n\", a, b, c);\n\n    pool[b].payload[0] = 42;\n    printf(\"payload=%d\\n\", pool[b].payload[0]);\n\n    int first = pool_free(pool, 3, b);\n    int again = pool_free(pool, 3, b);\n    printf(\"free=%d double_free=%d\\n\", first, again);\n\n    int reuse = pool_alloc(pool, 3, 8);\n    printf(\"reuse=%d\\n\", reuse);\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "a=0 b=1 c=-1\npayload=42\nfree=1 double_free=0\nreuse=1"
+      },
+      {
+        "type": "code",
+        "code": "/* 参考块：需要真实编译器和内存分配器，本课程解释器不执行 */\nint main() {\n    int n = 5;\n    int *a = malloc(n * sizeof(int));\n    if (a == NULL) return 1;\n    for (int i = 0; i < n; i++) a[i] = i * i;\n\n    int *b = calloc(n, sizeof(int));\n    if (b == NULL) {\n        free(a);\n        return 1;\n    }\n\n    int *tmp = realloc(a, 10 * sizeof(int));\n    if (tmp != NULL) a = tmp;\n\n    printf(\"%d %d\\n\", a[4], b[0]);\n    free(a);\n    free(b);\n    a = NULL;\n    b = NULL;\n    return 0;\n}",
+        "runnable": false
+      },
+      {
+        "type": "table",
+        "headers": [
+          "函数",
+          "作用",
+          "失败时",
+          "注意"
+        ],
+        "rows": [
+          [
+            "malloc",
+            "申请指定字节数",
+            "返回 NULL",
+            "内容未初始化"
+          ],
+          [
+            "calloc",
+            "申请并清零",
+            "返回 NULL",
+            "参数是个数和元素大小"
+          ],
+          [
+            "realloc",
+            "调整块大小",
+            "返回 NULL，原块仍有效",
+            "新地址可能搬家"
+          ],
+          [
+            "free",
+            "归还内存",
+            "—",
+            "只能释放一次，释放后置空"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "申请内存的字节数用「元素个数 × sizeof(元素类型)」算，不要手写常量；释放后立刻把指针置空。"
+      },
+      {
+        "type": "warn",
+        "text": "malloc/calloc/realloc/free 不在本课程解释器支持范围内，参考块 runnable 为 false，练习中不要使用。"
+      },
+      {
+        "type": "quiz",
+        "question": "realloc 成功返回了一个新地址，原来的指针应该怎么处理？",
+        "options": [
+          "用返回值替换原指针，原指针不再使用",
+          "继续使用原指针",
+          "free 返回值",
+          "把两个指针都保存"
+        ],
+        "answer": 0,
+        "explain": "realloc 可能把数据搬走，旧地址随即失效；必须用返回值更新指针，且不能对返回值再 free 一次。"
+      },
+      {
+        "type": "task",
+        "text": "给内存池例子增加一个统计函数，返回当前已用块数和剩余总容量。"
+      }
+    ],
+    "exercise": {
+      "title": "固定内存池分配",
+      "brief": "实现 pool_alloc(used[], size[], n, need)：用两个平行数组表示内存池的占用标志和块容量，从头扫描，找到第一个 used 为 0 且 size >= need 的块，标记 used 为 1 并返回下标；找不到返回 -1。",
+      "starterCode": "int pool_alloc(int used[], int size[], int n, int need) {\n    // 从头找第一个足够大的空闲块\n    return -1;\n}",
+      "hint": "for (int i = 0; i < n; i++) { if (used[i] == 0 && size[i] >= need) { used[i] = 1; return i; } } return -1;",
+      "tests": [
+        "int main() { int used[3] = {0, 0, 0}; int size[3] = {4, 8, 2}; assert(pool_alloc(used, size, 3, 4) == 0, \"第一个足够大的块是 0\"); assert(used[0] == 1, \"分配后应标记已用\"); return 0; }",
+        "int main() { int used[3] = {1, 0, 0}; int size[3] = {4, 8, 2}; assert(pool_alloc(used, size, 3, 8) == 1, \"块 0 已用，应选块 1\"); return 0; }",
+        "int main() { int used[3] = {1, 1, 0}; int size[3] = {4, 8, 2}; assert(pool_alloc(used, size, 3, 8) == -1, \"没有足够大的空闲块\"); return 0; }",
+        "int main() { int used[3] = {1, 1, 0}; int size[3] = {4, 8, 2}; assert(pool_alloc(used, size, 3, 2) == 2, \"应选最小的可用块 2\"); return 0; }",
+        "int main() { int used[2] = {0, 0}; int size[2] = {4, 8}; assert(pool_alloc(used, size, 2, 9) == -1, \"请求超过所有块应失败\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 200,
+      "solution": "int pool_alloc(int used[], int size[], int n, int need) {\n    for (int i = 0; i < n; i++) {\n        if (used[i] == 0 && size[i] >= need) {\n            used[i] = 1;\n            return i;\n        }\n    }\n    return -1;\n}\n"
+    }
+  },
+  {
+    "id": "c33",
+    "order": 732,
+    "chapter": 74,
+    "chapterName": "C · 专业篇",
+    "lang": "c",
+    "title": "文件 I/O：文本、二进制与记录格式",
+    "subtitle": "把数据写到进程之外",
+    "xp": 190,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "文件是进程之外的持久存储"
+      },
+      {
+        "type": "text",
+        "text": "文件是进程之外持久保存的数据。C 标准库用 FILE 指针表示一个打开的文件流，fopen 负责打开并返回流，失败返回 NULL；fclose 关闭流并刷新缓冲区。打开模式决定读写权限和文件存在性：r 只读且要求文件存在；w 只写、不存在则创建、存在则清空；a 追加，写入总在末尾；加号表示同时可读可写；加 b 表示二进制模式。文本模式与二进制模式的差别主要在换行转换：某些平台会把换行写成回车加换行两个字节，二进制模式则原样读写。标准输入、标准输出、标准错误也是流，只是不需要自己打开。文件操作的第一步永远是判断 fopen 的返回值，路径错误、权限不足、磁盘满都是日常会发生的正常分支，不是异常情况。读写组合还有 r+、w+、a+ 三种：r+ 要求文件存在且不清空，w+ 会清空并允许读，a+ 在末尾追加并允许读。写代码前先查表确认，不要凭记忆猜。"
+      },
+      {
+        "type": "text",
+        "text": "fread 和 fwrite 按「元素大小 × 元素个数」读写，返回实际完成的元素个数；返回值小于请求数量时，可能是到了文件末尾，也可能是出错，需要用 feof 和 ferror 区分。fseek 和 ftell 提供定位能力，可以实现随机访问；文本模式下定位有额外限制，跨平台代码应优先用二进制模式。格式化读写 fprintf 和 fscanf 适合人可读的文本，但解析规则脆弱，字段一变就容易错位。把结构体直接按字节写入文件看似方便，实际上不可移植：结构体有填充字节，整数有大小端，int 的宽度也不固定。稳妥做法是定义明确的文本格式或逐字段编码，读回时逐字段解析并校验。写入完成后要检查返回值并关闭文件，因为缓冲区里的数据只有关闭或刷新时才真正落盘；程序崩溃时未刷新的数据会丢失。缓冲区大小要与记录长度匹配：缓冲区太小会把一条记录截成两次读，太大则浪费内存；按行读时还要考虑一行被截断的情况，必要时把剩余部分读完再拼接。"
+      },
+      {
+        "type": "text",
+        "text": "本课程的解释器没有文件系统访问能力，fopen 系列不能执行，下面的文件代码是参考块，需要真实编译器验证。可运行的例子用一段字符缓冲区模拟文件：先用 sprintf 把三条记录格式化成文本写进数组，再从头逐字符扫描，解析出学号和分数并统计。把缓冲区看成文件，sprintf 就相当于 fprintf，扫描就相当于 fgets 加解析，区别只是数据没有离开内存。这个练习的重点是「序列化格式」和「解析状态」：记录之间用什么分隔、字段宽度是否固定、读到末尾怎么停、非法字符怎么处理，这些问题在真实文件里一模一样。工程上还要注意：打开失败要给出可读的错误信息；所有打开的文件都要在同一条清理路径上关闭；覆盖重要文件时先写临时文件再改名，避免写到一半断电留下半个文件；多个进程同时写同一个文件没有内置保护，需要锁或改用数据库。最后一个工程习惯：给文件操作写一层薄封装，把打开、读写、关闭和错误处理收在一处，业务代码只调用封装后的函数，将来换平台或换格式时改动面会小很多。"
+      },
+      {
+        "type": "code",
+        "code": "int main() {\n    char file[128];\n    int n = sprintf(file, \"101:90\\n102:85\\n103:78\\n\");\n    int records = 0;\n    int total = 0;\n    char *p = file;\n\n    while (*p != 0) {\n        int id = 0;\n        int score = 0;\n        while (*p >= '0' && *p <= '9') {\n            id = id * 10 + (*p - '0');\n            p++;\n        }\n        if (*p == ':') p++;\n        while (*p >= '0' && *p <= '9') {\n            score = score * 10 + (*p - '0');\n            p++;\n        }\n        if (*p == '\\n') p++;\n        records++;\n        total += score;\n        printf(\"record %d id=%d score=%d\\n\", records, id, score);\n    }\n    printf(\"records=%d total=%d bytes=%d\\n\", records, total, n);\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "record 1 id=101 score=90\nrecord 2 id=102 score=85\nrecord 3 id=103 score=78\nrecords=3 total=253 bytes=21"
+      },
+      {
+        "type": "code",
+        "code": "/* 参考块：需要真实文件系统，本课程解释器不执行 */\nstruct Record {\n    int id;\n    int score;\n};\n\nint main() {\n    FILE *fp = fopen(\"scores.dat\", \"wb\");\n    if (fp == NULL) return 1;\n    struct Record out[2];\n    out[0].id = 101; out[0].score = 90;\n    out[1].id = 102; out[1].score = 85;\n    size_t written = fwrite(out, sizeof(struct Record), 2, fp);\n    fclose(fp);\n\n    fp = fopen(\"scores.dat\", \"rb\");\n    if (fp == NULL) return 1;\n    struct Record in[2];\n    size_t got = fread(in, sizeof(struct Record), 2, fp);\n    fclose(fp);\n    printf(\"%d %d %d\\n\", (int)written, (int)got, in[1].score);\n    return 0;\n}",
+        "runnable": false
+      },
+      {
+        "type": "table",
+        "headers": [
+          "函数",
+          "方向",
+          "返回值",
+          "常见错误"
+        ],
+        "rows": [
+          [
+            "fopen",
+            "打开",
+            "FILE* 或 NULL",
+            "不判空、模式写错"
+          ],
+          [
+            "fclose",
+            "关闭",
+            "0 成功，EOF 失败",
+            "忘记关闭导致缓冲丢失"
+          ],
+          [
+            "fread",
+            "读",
+            "实际读到的元素数",
+            "把元素数当成字节数"
+          ],
+          [
+            "fwrite",
+            "写",
+            "实际写出的元素数",
+            "不检查部分写入"
+          ],
+          [
+            "fseek",
+            "定位",
+            "0 成功，非 0 失败",
+            "文本模式随意定位"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "所有文件操作都先判断返回值；打开失败、读到末尾、写了一半都是正常分支，不是异常。"
+      },
+      {
+        "type": "warn",
+        "text": "本课程不支持文件读写，FILE 代码是参考块，runnable 为 false；练习和可运行示例都不使用 fopen。"
+      },
+      {
+        "type": "quiz",
+        "question": "fread 返回值小于请求的元素个数，说明什么？",
+        "options": [
+          "一定读到文件末尾",
+          "文件一定损坏",
+          "可能到末尾，也可能出错，需要 feof/ferror 区分",
+          "必须重新打开文件"
+        ],
+        "answer": 2,
+        "explain": "短读既可能是文件结束，也可能是 I/O 错误；feof 判断末尾，ferror 判断错误，两者不能混为一谈。"
+      },
+      {
+        "type": "task",
+        "text": "把内存文件例子改成 4 条记录，并增加一个按学号查找分数的函数。"
+      }
+    ],
+    "exercise": {
+      "title": "解析定宽记录",
+      "brief": "实现 record_score(char *file, int index)：这是与示例不同的定宽记录格式，每条 4 个字符（2 位学号 + 2 位分数，无分隔符、无换行），返回第 index 条记录的两位分数（0–99）。",
+      "starterCode": "int record_score(char *file, int index) {\n    // 每条记录 4 个字符，分数在记录内的第 2、3 位\n    return 0;\n}",
+      "hint": "int base = index * 4; return (file[base + 2] - '0') * 10 + (file[base + 3] - '0');",
+      "tests": [
+        "int main() { char file[13] = \"109011851278\"; assert(record_score(file, 0) == 90, \"第 0 条分数应为 90\"); return 0; }",
+        "int main() { char file[13] = \"109011851278\"; assert(record_score(file, 1) == 85, \"第 1 条分数应为 85\"); return 0; }",
+        "int main() { char file[13] = \"109011851278\"; assert(record_score(file, 2) == 78, \"第 2 条分数应为 78\"); return 0; }",
+        "int main() { char file[5] = \"0175\"; assert(record_score(file, 0) == 75, \"前导零也应正确解析\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 200,
+      "solution": "int record_score(char *file, int index) {\n    int base = index * 4;\n    int score = (file[base + 2] - '0') * 10 + (file[base + 3] - '0');\n    return score;\n}\n"
+    }
+  },
+  {
+    "id": "c34",
+    "order": 733,
+    "chapter": 74,
+    "chapterName": "C · 专业篇",
+    "lang": "c",
+    "title": "预处理器：宏、条件编译与头文件",
+    "subtitle": "编译之前先做文本替换",
+    "xp": 170,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "预处理器先于编译器工作"
+      },
+      {
+        "type": "text",
+        "text": "预处理是编译的第一阶段，发生在语法分析之前。预处理器只做文本层面的工作：把源文件按行拼接、去掉注释、展开宏、插入头文件、根据条件保留或丢弃代码段。它不认识类型，也不做作用域检查，所以宏展开出来的错误常常表现为莫名其妙的语法错误。include 指令把目标文件的内容原样插入当前位置；尖括号形式优先在系统目录查找，引号形式优先在当前目录查找。头文件里通常只放声明、类型定义和宏，不放变量定义和函数定义，否则被多个源文件包含时会产生重复定义。头文件守卫用 ifndef、define、endif 包住全部内容，保证同一个翻译单元里只展开一次；它的作用是防止重复包含，不是防止多个源文件各包含一次。现代编译器还支持 pragma once，效果类似但不在标准里。预处理阶段还会处理行继续符和注释替换，所以宏定义可以跨行书写；但调试器看到的行号是预处理之后的，和源文件不一定对得上，排查宏问题时要有这个心理准备。"
+      },
+      {
+        "type": "text",
+        "text": "define 定义宏，分对象式宏和函数式宏。对象式宏把名字替换成一段文本，函数式宏还会替换参数。宏的参数必须加括号，整个宏体也要加括号，否则运算符优先级会把结果算错；参数如果带自增或函数调用，还可能被求值多次。宏没有类型检查，调试器也看不到宏名，出错时只能看展开后的代码。多语句宏要包成 do { ... } while (0)，这样在 if 后面使用时才不会破坏分支结构。井号可以把参数转成字符串，双井号可以拼接标识符，这两个是预处理器独有的能力。条件编译用 ifdef、ifndef、if、elif、else、endif，配合 defined 运算符判断宏是否存在，常用于平台差异、调试开关和功能裁剪。预定义宏如 __FILE__、__LINE__ 在日志里很有用，但本课程不执行预处理，这些只能作为概念了解。条件编译的组合容易失控：两三个开关就能产生八种构建，测试很难全部覆盖。能用运行期开关解决的，就不要用编译期开关；编译期开关只留给「代码根本不能编进目标平台」的场景。"
+      },
+      {
+        "type": "text",
+        "text": "本课程的解释器不实现预处理器，可运行代码里不能出现 include 和 define，否则会直接报「暂不支持」。教学上用 const 常量模拟对象式宏：它有类型、有作用域、调试器能看到值，比宏安全；用普通函数模拟函数式宏：参数只求值一次，有类型检查；用 const int 开关模拟条件编译：虽然代码不会被真正裁掉，但你可以用 if 演示「开关打开时执行哪段」。区别要讲清楚：宏是编译前的文本替换，const 是运行时的真实对象；宏可以出现在任何记号位置，const 只能出现在表达式里；宏没有地址，const 对象有地址。真实项目里，配置常量优先用 const 或枚举，函数优先用普通函数，只有头文件守卫、条件编译、字符串化和日志宏这些预处理器独有的场景才用宏。读老代码时看到全大写名字，先确认它是宏还是常量，两者行为完全不同。另外，宏展开不产生作用域，也没有命名空间，不同头文件里的同名宏会互相覆盖，所以宏名通常要加项目前缀。"
+      },
+      {
+        "type": "code",
+        "code": "const int MAX_STUDENTS = 40;\nconst int DEBUG = 1;\nconst double PI = 3.14159;\n\ndouble circle_area(double r) {\n    return PI * r * r;\n}\n\nint main() {\n    printf(\"area=%.2f\\n\", circle_area(2.0));\n    printf(\"capacity=%d\\n\", MAX_STUDENTS);\n    if (DEBUG) {\n        printf(\"debug: MAX_STUDENTS=%d\\n\", MAX_STUDENTS);\n    }\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "area=12.57\ncapacity=40\ndebug: MAX_STUDENTS=40"
+      },
+      {
+        "type": "code",
+        "code": "const int DEBUG = 0;\n\nint main() {\n    int value = 42;\n    if (DEBUG) {\n        printf(\"debug: value=%d\\n\", value);\n    }\n    printf(\"result=%d\\n\", value * 2);\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "result=84"
+      },
+      {
+        "type": "diagram",
+        "text": "预处理是纯文本替换，不产生运行时对象：\n#define MAX_STUDENTS 40        →  MAX_STUDENTS 全部替换成 40\n#define SQUARE(x) ((x)*(x))    →  SQUARE(3) 展开成 ((3)*(3))\n#include <stdio.h>            →  把头文件内容原样插入这一行\n#if DEBUG_LEVEL > 0 ... #endif →  条件成立才保留这段代码，否则整段删除\n\n展开发生在编译之前，所以宏没有类型、没有作用域、调试器也看不到宏名。"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "指令 / 宏",
+          "作用",
+          "替代写法",
+          "风险"
+        ],
+        "rows": [
+          [
+            "#include",
+            "插入头文件内容",
+            "本课程内置函数直接可用",
+            "重复包含、暴露实现"
+          ],
+          [
+            "#define 常量",
+            "文本替换常量",
+            "const 变量",
+            "无类型、无作用域"
+          ],
+          [
+            "#define 函数宏",
+            "文本替换参数",
+            "普通函数",
+            "多次求值、缺括号"
+          ],
+          [
+            "#ifdef / #if",
+            "条件编译",
+            "const 开关 + if（仅演示）",
+            "配置组合难测试"
+          ],
+          [
+            "#ifndef 守卫",
+            "防止重复包含",
+            "pragma once（非标准）",
+            "忘记 endif"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "能用 const 常量就不要用对象式宏：有类型、有作用域、调试器能看到值。"
+      },
+      {
+        "type": "warn",
+        "text": "本课程不实现预处理器，可运行代码里不要写 #include 或 #define，解释器会直接报「暂不支持」；预处理器只能靠上面的示意图和表格理解。"
+      },
+      {
+        "type": "quiz",
+        "question": "#define 与 const int 的关键区别是什么？",
+        "options": [
+          "宏在预处理阶段做文本替换，const 是有类型的对象",
+          "宏有类型检查，const 没有",
+          "const 不能取地址",
+          "宏只在函数内有效"
+        ],
+        "answer": 0,
+        "explain": "宏只是记号替换，发生在编译之前；const 变量是真实对象，有类型、有作用域、有地址。"
+      },
+      {
+        "type": "task",
+        "text": "把 DEBUG 开关改成 0，观察调试输出消失；再用一个函数封装日志，比较两种写法。"
+      }
+    ],
+    "exercise": {
+      "title": "用常量表达折扣规则",
+      "brief": "已有两个 const 常量 DISCOUNT_PERCENT = 10 和 MIN_CHARGE = 100。实现 final_price(price)：price 小于 MIN_CHARGE 时原价返回；否则减去 price * DISCOUNT_PERCENT / 100（整数除法）。",
+      "starterCode": "const int DISCOUNT_PERCENT = 10;\nconst int MIN_CHARGE = 100;\n\nint final_price(int price) {\n    return price;\n}",
+      "hint": "先判断 price < MIN_CHARGE 直接返回；否则 return price - price * DISCOUNT_PERCENT / 100;。",
+      "tests": [
+        "int main() { assert(DISCOUNT_PERCENT == 10 && MIN_CHARGE == 100, \"两个配置常量应可读\"); return 0; }",
+        "int main() { assert(final_price(100) == 90, \"满 100 应打九折\"); return 0; }",
+        "int main() { assert(final_price(99) == 99, \"未满 100 应原价\"); return 0; }",
+        "int main() { assert(final_price(250) == 225, \"250 应减 25\"); return 0; }",
+        "int main() { assert(final_price(0) == 0, \"0 元应原价\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 180,
+      "solution": "const int DISCOUNT_PERCENT = 10;\nconst int MIN_CHARGE = 100;\n\nint final_price(int price) {\n    if (price < MIN_CHARGE) return price;\n    return price - price * DISCOUNT_PERCENT / 100;\n}\n"
+    }
+  },
+  {
+    "id": "c35",
+    "order": 734,
+    "chapter": 74,
+    "chapterName": "C · 专业篇",
+    "lang": "c",
+    "title": "多文件与链接：声明、定义与 extern",
+    "subtitle": "一个程序，多个翻译单元",
+    "xp": 180,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "声明可以有很多份，定义只能有一份"
+      },
+      {
+        "type": "text",
+        "text": "一个 C 程序可以由多个源文件组成。每个源文件加上它包含的头文件构成一个翻译单元，编译器一次处理一个翻译单元，生成目标文件；链接器再把所有目标文件和库拼成可执行文件。声明告诉编译器「这个名字存在，类型是什么」，定义则真正分配存储或提供函数体。声明可以出现很多次，定义只能有一次，否则链接器会报重复定义。头文件负责放声明：函数原型、结构体定义、typedef、外部变量声明；源文件负责放定义：函数体、变量定义。函数原型让调用者不需要看到函数体就能通过编译；结构体定义让所有文件对布局达成一致。变量在头文件里用 extern 声明，在且仅在一个源文件里定义，这是最基本的组织规则。编译单元是编译的最小单位，链接器看到的是符号表：每个目标文件导出若干符号，也引用若干符号，链接的工作就是把这些引用和定义对上。"
+      },
+      {
+        "type": "text",
+        "text": "extern 表示「这个符号定义在别处」，编译器只记录名字和类型，链接时再去别处找；找不到就是未定义引用。函数默认具有外部链接，所以函数原型不必写 extern。static 用在文件作用域的变量或函数上，表示内部链接，只在本翻译单元可见，可以用来隐藏实现细节，也允许不同文件里出现同名辅助函数。头文件守卫防止同一个翻译单元重复包含头文件，但它不能阻止两个源文件各自包含同一个头文件——如果头文件里放了定义，仍然会重复定义。链接错误通常只有两类：undefined reference 表示声明了却没定义，常见原因是漏编译某个源文件、函数名拼错、库的顺序不对；multiple definition 表示同一个符号定义了多次，常见原因是在头文件里写了变量或函数定义。看到这两类错误，先分清是「找不到」还是「找到太多」，再去看对应的定义位置。还有一类错误是声明与定义不一致：头文件写 int f(int)，源文件写成 int f(double)，两边各自都能编译，链接时才发现对不上，或者更糟——悄悄按错误的调用约定工作。"
+      },
+      {
+        "type": "text",
+        "text": "本课程的解释器把整段代码当作一个翻译单元，不支持真正的分文件编译和链接；extern 会被接受为修饰符，但没有真实的跨文件语义，调用顺序也不受声明顺序限制。可运行的例子用一条 extern 声明加一份后置的全局定义来模拟「先声明、后定义」：函数在定义之前先声明原型，全局变量用 extern 说明它存在，真正的定义放在后面。这个写法在单文件里看起来多余，但它是多文件项目的日常写法。真实项目的典型结构是：student.h 放结构体、函数原型和守卫；student.c 包含 student.h 并实现函数；main.c 包含 student.h 并调用。编译命令分两步：先把每个 .c 编译成 .o，再把所有 .o 链接成可执行文件。设计上要控制头文件的暴露面：只放调用者必须知道的东西，内部辅助函数用 static 藏起来；需要隐藏结构体细节时，头文件里只留前置声明和操作函数，这叫不透明指针，是 C 里模拟封装的标准手法。头文件还可以用前置声明减少依赖：只需要指针时写 struct Student; 就够了，不必包含完整定义，这样能缩短编译时间，也能避免两个头文件互相包含。"
+      },
+      {
+        "type": "code",
+        "code": "extern int shared_total;\n\nint add(int a, int b);\n\nint add(int a, int b) {\n    return a + b + shared_total;\n}\n\nint shared_total = 10;\n\nint main() {\n    printf(\"add=%d\\n\", add(2, 3));\n    printf(\"shared=%d\\n\", shared_total);\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "add=15\nshared=10"
+      },
+      {
+        "type": "code",
+        "code": "/* 参考块：多文件与链接需要真实编译器，本课程解释器不执行 */\n/* ---------- student.h ---------- */\n#ifndef STUDENT_H\n#define STUDENT_H\n\ntypedef struct {\n    int id;\n    int score;\n} Student;\n\nint total_score(Student s[], int n);\n\n#endif\n\n/* ---------- student.c ---------- */\n#include \"student.h\"\n\nint total_score(Student s[], int n) {\n    int total = 0;\n    for (int i = 0; i < n; i++) total += s[i].score;\n    return total;\n}\n\n/* ---------- main.c ---------- */\n#include \"student.h\"\n\nint main() {\n    Student s[2] = {{101, 90}, {102, 85}};\n    printf(\"%d\\n\", total_score(s, 2));\n    return 0;\n}",
+        "runnable": false
+      },
+      {
+        "type": "table",
+        "headers": [
+          "概念",
+          "写法",
+          "放在哪",
+          "常见错误"
+        ],
+        "rows": [
+          [
+            "函数声明",
+            "int add(int, int);",
+            "头文件",
+            "参数类型与定义不一致"
+          ],
+          [
+            "函数定义",
+            "int add(...) { ... }",
+            "源文件",
+            "写进头文件导致重复定义"
+          ],
+          [
+            "变量声明",
+            "extern int counter;",
+            "头文件",
+            "漏写 extern 变成定义"
+          ],
+          [
+            "变量定义",
+            "int counter = 0;",
+            "一个源文件",
+            "多个文件各定义一次"
+          ],
+          [
+            "文件内私有",
+            "static int helper();",
+            "源文件",
+            "误以为 static 能跨文件"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "头文件只放声明，定义放源文件；变量在头文件用 extern 声明，在一个源文件里定义。"
+      },
+      {
+        "type": "warn",
+        "text": "本课程按单翻译单元执行，extern 只是被接受，没有真实链接语义；多文件代码是参考块，runnable 为 false。"
+      },
+      {
+        "type": "quiz",
+        "question": "两个源文件都定义了全局变量 int counter;，链接时会发生什么？",
+        "options": [
+          "各用各的，互不影响",
+          "自动合并成一个",
+          "编译通过但值随机",
+          "链接器报重复定义"
+        ],
+        "answer": 3,
+        "explain": "外部链接的变量在整个程序里只能有一个定义，两处定义会让链接器报 multiple definition。"
+      },
+      {
+        "type": "task",
+        "text": "把示例拆成「声明区 + 定义区 + 调用区」三段注释，说明每段在真实项目里对应哪个文件。"
+      }
+    ],
+    "exercise": {
+      "title": "用前置声明解决相互调用",
+      "brief": "实现 is_even(n) 和 is_odd(n)：用相互递归判断非负整数奇偶，先写 is_even 的原型，再定义 is_odd，最后定义 is_even。",
+      "starterCode": "int is_even(int n);\n\nint is_odd(int n) {\n    return 0;\n}\n\nint is_even(int n) {\n    return 0;\n}",
+      "hint": "is_odd(n)：n == 0 返回 0，否则 return is_even(n - 1);；is_even(n)：n == 0 返回 1，否则 return is_odd(n - 1);。",
+      "tests": [
+        "int main() { assert(is_even(10) == 1, \"10 是偶数\"); return 0; }",
+        "int main() { assert(is_odd(7) == 1, \"7 是奇数\"); return 0; }",
+        "int main() { assert(is_even(7) == 0, \"7 不是偶数\"); return 0; }",
+        "int main() { assert(is_odd(0) == 0, \"0 不是奇数\"); return 0; }",
+        "int main() { assert(is_even(0) == 1, \"0 是偶数\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 190,
+      "solution": "int is_even(int n);\n\nint is_odd(int n) {\n    if (n == 0) return 0;\n    return is_even(n - 1);\n}\n\nint is_even(int n) {\n    if (n == 0) return 1;\n    return is_odd(n - 1);\n}\n"
+    }
+  },
+  {
+    "id": "c36",
+    "order": 735,
+    "chapter": 74,
+    "chapterName": "C · 专业篇",
+    "lang": "c",
+    "title": "数据结构实战：单链表",
+    "subtitle": "用指针把节点串起来",
+    "xp": 200,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "节点、头指针与遍历"
+      },
+      {
+        "type": "text",
+        "text": "链表由一个个节点组成，每个节点保存数据和指向下一个节点的指针。节点结构体里出现指向自身的指针是合法的，因为指针大小固定；如果写成值成员，类型会要求包含一个完整的自己，尺寸无限递归，编译器直接拒绝。链表用头指针表示整体，头指针为空表示空链表。由于本课程没有 malloc，节点来自一个结构体数组，靠取地址把数组元素串起来；这并不影响链表的所有逻辑，真实项目只是把「数组元素」换成「堆上申请的节点」。遍历的标准写法是 while (p != NULL) { 处理 p; p = p->next; }，循环条件必须是当前节点非空，而不是下一个节点非空，否则会漏掉最后一个节点。遍历时不要修改头指针，用一个临时游标保存当前位置，否则走完一遍就再也找不到链表开头。头指针本身也是个变量，函数想修改它就必须传它的地址，也就是二级指针；本课程不支持二级指针，所以删除、插入这类可能改变头的操作一律返回新的头指针，由调用者重新赋值。这是教学子集对接口设计的实际影响，也是很多真实 C 库的常见写法。"
+      },
+      {
+        "type": "text",
+        "text": "插入和删除是链表的核心操作。头插法让新节点的 next 指向原头，再把头指针指向新节点，两步顺序不能反，反了会丢失原链表。尾插法要么从头走到最后一个节点，要么额外维护尾指针；空链表要单独处理。在给定节点后插入，先让新节点接上后继，再让前驱接上新节点，顺序反了同样会断链。删除节点需要前驱：先保存要删节点的后继，再让前驱的 next 指向它；删除头节点没有前驱，必须单独更新头指针。按值删除要处理「找不到」的情况，函数应返回新的头指针，因为头可能被删掉。反转链表用三个指针：prev 指已反转部分，cur 指当前节点，next 暂存后继；每轮先把 next 保存下来，再改 cur 的指向，最后整体前移。所有指针操作的本质都是「先保存、后改写」，顺序错了就会丢掉链。环形链表和双向链表是单链表的自然延伸，但都需要额外维护指针，容易出错的点也更多；先把单链表写熟，再考虑它们。"
+      },
+      {
+        "type": "text",
+        "text": "链表的常见错误几乎都和指针有关：解引用空指针、丢失后继、忘记更新头指针、让最后一个节点的 next 指向未初始化的值、把节点值相等当成指针相等。调试时最有效的方法是画图：每改一次指针就更新箭头，确认没有节点被孤立、没有环。代码层面可以加不变量检查：遍历计数是否等于预期长度、最后一个节点的 next 是否为空、头指针是否仍指向第一个节点。复杂度方面，按位置查找是 O(n)，已知前驱的插入和删除是 O(1)，头插是 O(1)；数组随机访问是 O(1)，但中间插入要搬移元素。选择结构时看访问模式：频繁按下标读用数组，频繁在中间增删用链表。真实项目里节点来自堆，删除后必须 free，整条链表销毁时要先保存 next 再 free 当前节点，顺序反了就会读到已释放内存。另外，链表长度不要每次需要时都从头数一遍，可以在结构体里维护一个 count，插入删除时同步更新，代价是每个操作都要记得改它。"
+      },
+      {
+        "type": "code",
+        "code": "struct Node {\n    int value;\n    struct Node *next;\n};\n\nvoid print_list(struct Node *head) {\n    struct Node *p = head;\n    while (p != NULL) {\n        printf(\"%d\", p->value);\n        if (p->next != NULL) printf(\" -> \");\n        p = p->next;\n    }\n    printf(\"\\n\");\n}\n\nint main() {\n    struct Node pool[4];\n    for (int i = 0; i < 4; i++) {\n        pool[i].value = (i + 1) * 10;\n        pool[i].next = NULL;\n    }\n\n    struct Node *head = &pool[0];\n    pool[0].next = &pool[1];\n    pool[1].next = &pool[2];\n    print_list(head);\n\n    pool[3].next = head;\n    head = &pool[3];\n    print_list(head);\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "10 -> 20 -> 30\n40 -> 10 -> 20 -> 30"
+      },
+      {
+        "type": "code",
+        "code": "struct Node {\n    int value;\n    struct Node *next;\n};\n\nvoid print_list(struct Node *head) {\n    struct Node *p = head;\n    while (p != NULL) {\n        printf(\"%d\", p->value);\n        if (p->next != NULL) printf(\" -> \");\n        p = p->next;\n    }\n    printf(\"\\n\");\n}\n\nstruct Node *remove_value(struct Node *head, int value) {\n    struct Node *prev = NULL;\n    struct Node *cur = head;\n    while (cur != NULL) {\n        if (cur->value == value) {\n            if (prev == NULL) return cur->next;\n            prev->next = cur->next;\n            return head;\n        }\n        prev = cur;\n        cur = cur->next;\n    }\n    return head;\n}\n\nint main() {\n    struct Node pool[4];\n    for (int i = 0; i < 4; i++) {\n        pool[i].value = i + 1;\n        pool[i].next = NULL;\n    }\n    pool[0].next = &pool[1];\n    pool[1].next = &pool[2];\n    pool[2].next = &pool[3];\n\n    struct Node *head = &pool[0];\n    head = remove_value(head, 1);\n    print_list(head);\n    head = remove_value(head, 3);\n    print_list(head);\n    head = remove_value(head, 99);\n    print_list(head);\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "2 -> 3 -> 4\n2 -> 4\n2 -> 4"
+      },
+      {
+        "type": "diagram",
+        "text": "head ──► [10] ──► [20] ──► [30] ──► NULL\n          ▲\n          pool[0]\n\n删除 20：先保存 20->next（30），再让 10->next 指向 30\nhead ──► [10] ──► [30] ──► NULL"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "操作",
+          "关键步骤",
+          "时间复杂度",
+          "风险"
+        ],
+        "rows": [
+          [
+            "遍历",
+            "p = p->next 直到 NULL",
+            "O(n)",
+            "忘记推进会死循环"
+          ],
+          [
+            "头插",
+            "新节点 next 指向原 head，再更新 head",
+            "O(1)",
+            "顺序反了丢失原链表"
+          ],
+          [
+            "按值删除",
+            "保存后继，改前驱链接，返回新 head",
+            "O(n)",
+            "删头节点要单独处理"
+          ],
+          [
+            "反转",
+            "先存 next，再改 cur->next，最后前移",
+            "O(n)",
+            "顺序错会断链"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "写链表先画三个方框和箭头，每改一次指针就更新图；顺序永远是先保存后继，再改写链接。"
+      },
+      {
+        "type": "warn",
+        "text": "本课程没有 malloc，链表节点用结构体数组模拟，节点地址在数组作用域内有效；真实项目节点来自堆，删除后必须 free。"
+      },
+      {
+        "type": "quiz",
+        "question": "反转链表时，改写 cur->next 之前必须先做什么？",
+        "options": [
+          "更新头指针",
+          "释放 cur",
+          "保存 cur->next",
+          "把 prev 置空"
+        ],
+        "answer": 2,
+        "explain": "改写 cur->next 会覆盖原来的后继指针，必须先把它存到临时变量，否则剩下的链就丢了。"
+      },
+      {
+        "type": "task",
+        "text": "给链表增加按值查找函数，返回第一个匹配节点的下标；找不到返回 -1。"
+      }
+    ],
+    "exercise": {
+      "title": "反转单链表",
+      "brief": "实现 list_reverse(struct Node *head)：原地反转单链表并返回新头指针；空链表返回 NULL。",
+      "starterCode": "struct Node {\n    int value;\n    struct Node *next;\n};\n\nstruct Node *list_reverse(struct Node *head) {\n    return head;\n}",
+      "hint": "用 prev/cur 两个指针，循环里先保存 next = cur->next，再让 cur->next = prev，最后 prev = cur; cur = next;。",
+      "tests": [
+        "int main() { struct Node a; struct Node b; struct Node c; a.value = 1; b.value = 2; c.value = 3; a.next = &b; b.next = &c; c.next = NULL; struct Node *h = list_reverse(&a); assert(h != NULL && h->value == 3, \"新头应是原尾节点 3\"); assert(h->next != NULL && h->next->value == 2, \"第二节点应是 2\"); assert(h->next->next != NULL && h->next->next->value == 1, \"第三节点应是 1\"); assert(h->next->next->next == NULL, \"最后一个节点的 next 应是 NULL\"); return 0; }",
+        "int main() { assert(list_reverse(NULL) == NULL, \"空链表反转后仍是 NULL\"); return 0; }",
+        "int main() { struct Node a; a.value = 7; a.next = NULL; struct Node *h = list_reverse(&a); assert(h != NULL && h->value == 7, \"单节点反转后仍指向该节点\"); assert(h->next == NULL, \"单节点的 next 应为 NULL\"); return 0; }",
+        "int main() { struct Node a; struct Node b; a.value = 10; b.value = 20; a.next = &b; b.next = NULL; struct Node *h = list_reverse(&a); assert(h->value == 20 && h->next->value == 10, \"反转后顺序应变成 20, 10\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 210,
+      "solution": "struct Node {\n    int value;\n    struct Node *next;\n};\n\nstruct Node *list_reverse(struct Node *head) {\n    struct Node *prev = NULL;\n    while (head != NULL) {\n        struct Node *next = head->next;\n        head->next = prev;\n        prev = head;\n        head = next;\n    }\n    return prev;\n}\n"
+    }
+  },
+  {
+    "id": "c37",
+    "order": 736,
+    "chapter": 74,
+    "chapterName": "C · 专业篇",
+    "lang": "c",
+    "title": "数据结构实战：栈与队列",
+    "subtitle": "两种受限的线性结构",
+    "xp": 200,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "后进先出与先进先出"
+      },
+      {
+        "type": "text",
+        "text": "栈是一种后进先出的线性结构，只允许在顶端插入和删除。用数组实现时，需要一个 top 变量记录栈顶位置；约定 top 表示「下一个空位」时，入栈写 data[top] 再 top++，出栈先 top-- 再读 data[top]；约定 top 表示「最后一个元素下标」时，初始值要设成 -1，入栈先 top++ 再写。两种约定都对，但必须固定一种并在注释里写清楚，混用就是 off-by-one 错误的源头。栈满时入栈要拒绝，栈空时出栈要拒绝，函数返回 0 或 1 表示成功失败，不要把错误藏在返回值里。栈的典型应用包括括号匹配、表达式求值、函数调用、撤销操作和深度优先搜索。函数调用本身就用栈保存返回地址和局部变量，所以递归过深会栈溢出，这和数据结构里的栈是同一个概念。栈的实现还可以把容量也放进结构体，这样同一套函数能服务多个不同容量的栈，而不是把 5 写死在判断里。把容量变成字段，是让数据结构可复用的第一步。栈顶指针的初始化也要和约定一致：top 表示下一个空位时从 0 开始，表示最后一个元素时从负一开始，初始化函数和判空判满必须用同一套约定。"
+      },
+      {
+        "type": "text",
+        "text": "队列是先进先出结构，入队发生在队尾，出队发生在队头。用数组实现时，最朴素的做法是出队后把后面所有元素前移，复杂度 O(n)，数据量大时不可接受。更好的做法是环形缓冲区：用 head 记录队头下标，用 count 记录元素个数，队尾下标由 (head + count) % 容量 算出来；入队写 data[tail] 再 count++，出队读 data[head] 再把 head 循环后移、count--。count 的作用是区分「空」和「满」：head 相等时，count 为 0 是空，count 等于容量是满。没有 count 时，空和满的 head 与 tail 关系相同，必须牺牲一个槽位来区分，反而更容易写错。环形队列的典型应用包括任务调度、广度优先搜索、生产者消费者缓冲和网络数据包排队。环形队列的取模要注意负数：head 只会增加再取模，不会变负；如果实现里允许 head 减一，就必须先加容量再取模。"
+      },
+      {
+        "type": "text",
+        "text": "栈和队列的所有基本操作都是 O(1)，代价是容量固定、扩容需要整体搬迁。判断用哪一个，看数据的访问顺序：后进先出用栈，先进先出用队列；需要两端都能进出用双端队列，需要按优先级取出用堆。常见错误集中在边界：栈的空与满、队列的空与满、环形下标的取模、count 的增减。写实现时先把四个边界用例想清楚——空结构上取元素、满结构上放元素、只有一个元素、绕回数组开头——再写主逻辑，能省掉大量调试时间。测试时不要只测正常路径，边界才是 bug 的藏身处。本课程用数组实现，容量是编译期常量；真实项目里可以用动态内存扩容，思路是容量翻倍、复制旧数据、释放旧块，和 c32 的内存池模型一致。理解「容量、长度、头尾指针」这四个状态变量，栈和队列就只剩加一减一和取模。队列还有一个变种叫优先队列，出队顺序由优先级决定而不是到达顺序，通常用堆实现；它不属于本次练习范围，但值得先记住名字。环形队列的容量如果取 2 的幂，取模可以写成按位与，速度更快；这是编译器常见的优化，读源码时看到与运算不要惊讶。"
+      },
+      {
+        "type": "code",
+        "code": "struct Stack {\n    int data[5];\n    int top;\n};\n\nvoid stack_init(struct Stack *s) {\n    s->top = 0;\n}\n\nint push(struct Stack *s, int value) {\n    if (s->top >= 5) return 0;\n    s->data[s->top] = value;\n    s->top++;\n    return 1;\n}\n\nint pop(struct Stack *s, int *out) {\n    if (s->top <= 0) return 0;\n    s->top--;\n    *out = s->data[s->top];\n    return 1;\n}\n\nint main() {\n    struct Stack s;\n    stack_init(&s);\n    push(&s, 10);\n    push(&s, 20);\n    push(&s, 30);\n\n    int v = 0;\n    printf(\"pop=%d\\n\", pop(&s, &v));\n    printf(\"value=%d top=%d\\n\", v, s.top);\n    printf(\"peek=%d\\n\", s.data[s.top - 1]);\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "pop=1\nvalue=30 top=2\npeek=20"
+      },
+      {
+        "type": "code",
+        "code": "struct Queue {\n    int data[4];\n    int head;\n    int count;\n};\n\nvoid queue_init(struct Queue *q) {\n    q->head = 0;\n    q->count = 0;\n}\n\nint enqueue(struct Queue *q, int value) {\n    if (q->count >= 4) return 0;\n    int tail = (q->head + q->count) % 4;\n    q->data[tail] = value;\n    q->count++;\n    return 1;\n}\n\nint dequeue(struct Queue *q, int *out) {\n    if (q->count <= 0) return 0;\n    *out = q->data[q->head];\n    q->head = (q->head + 1) % 4;\n    q->count--;\n    return 1;\n}\n\nint main() {\n    struct Queue q;\n    queue_init(&q);\n    enqueue(&q, 1);\n    enqueue(&q, 2);\n    enqueue(&q, 3);\n\n    int v = 0;\n    printf(\"first=%d\\n\", dequeue(&q, &v));\n    printf(\"value=%d\\n\", v);\n    enqueue(&q, 4);\n    enqueue(&q, 5);\n\n    int first = 1;\n    while (dequeue(&q, &v)) {\n        if (!first) printf(\" \");\n        printf(\"%d\", v);\n        first = 0;\n    }\n    printf(\"\\nhead=%d count=%d\\n\", q.head, q.count);\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "first=1\nvalue=1\n2 3 4 5\nhead=1 count=0"
+      },
+      {
+        "type": "diagram",
+        "text": "栈（top 指向下一个空位）\n  data: [10][20][30][ ][ ]\n                       ▲ top=3\npush 写 data[top] 再 top++；pop 先 top-- 再读\n\n环形队列（容量 4，head=3，count=2）\n  index:  0    1    2    3\n  data:  [ ][ ][ ][9]  + 新元素写入 (3+2)%4 = 1\n  出队：读 data[head]，head=(head+1)%4，count--"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "结构",
+          "规则",
+          "核心状态",
+          "典型应用"
+        ],
+        "rows": [
+          [
+            "栈",
+            "后进先出",
+            "top / size",
+            "括号匹配、表达式求值、DFS"
+          ],
+          [
+            "队列",
+            "先进先出",
+            "head / count",
+            "任务调度、BFS、缓冲"
+          ],
+          [
+            "环形队列",
+            "取模复用空间",
+            "head / count / cap",
+            "生产者消费者、网络包排队"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "实现栈和队列先把空、满、单元素、绕回四种边界写清楚，再写主逻辑。"
+      },
+      {
+        "type": "warn",
+        "text": "数组实现的容量是编译期常量，满时必须拒绝入栈或入队；不要用越界写来「扩容」。"
+      },
+      {
+        "type": "quiz",
+        "question": "环形队列里 count 变量的作用是什么？",
+        "options": [
+          "记录队头下标",
+          "保存最大容量",
+          "区分空和满，并记录元素个数",
+          "替代取模运算"
+        ],
+        "answer": 2,
+        "explain": "只有 head 和 tail 时，空与满的指针关系相同；count 让两者可区分，也直接给出元素个数。"
+      },
+      {
+        "type": "task",
+        "text": "把栈的容量改成 3，依次压入 4 个元素，观察第 4 次入栈的返回值。"
+      }
+    ],
+    "exercise": {
+      "title": "用栈检查括号匹配",
+      "brief": "实现 brackets_ok(char *s)：判断字符串中的 ()、[]、{} 是否正确配对和嵌套；空串视为合法。",
+      "starterCode": "int brackets_ok(char *s) {\n    // 用数组当栈，遇到左括号入栈，右括号与栈顶匹配\n    return 1;\n}",
+      "hint": "左括号入栈；右括号检查栈非空且栈顶是配套左括号，否则返回 0；扫描结束后栈必须为空。",
+      "tests": [
+        "int main() { assert(brackets_ok(\"\") == 1, \"空串应平衡\"); return 0; }",
+        "int main() { assert(brackets_ok(\"()\") == 1, \"圆括号应平衡\"); return 0; }",
+        "int main() { assert(brackets_ok(\"([{}])\") == 1, \"嵌套应平衡\"); return 0; }",
+        "int main() { assert(brackets_ok(\"(]\") == 0, \"类型不匹配应失败\"); return 0; }",
+        "int main() { assert(brackets_ok(\"([)]\") == 0, \"交叉嵌套应失败\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 210,
+      "solution": "int brackets_ok(char *s) {\n    char stack[64];\n    int top = 0;\n    while (*s != 0) {\n        char c = *s;\n        if (c == '(' || c == '[' || c == '{') {\n            if (top >= 64) return 0;\n            stack[top] = c;\n            top++;\n        } else if (c == ')' || c == ']' || c == '}') {\n            if (top == 0) return 0;\n            char open = stack[top - 1];\n            top--;\n            if (c == ')' && open != '(') return 0;\n            if (c == ']' && open != '[') return 0;\n            if (c == '}' && open != '{') return 0;\n        }\n        s++;\n    }\n    return top == 0;\n}\n"
+    }
+  },
+  {
+    "id": "c38",
+    "order": 737,
+    "chapter": 74,
+    "chapterName": "C · 专业篇",
+    "lang": "c",
+    "title": "综合项目：成绩排名与查询",
+    "subtitle": "结构体数组、排序、统计与报表",
+    "xp": 220,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "从数据模型到接口设计"
+      },
+      {
+        "type": "text",
+        "text": "这个项目把结构体数组、排序、统计和格式化输出串成一个完整程序。数据模型是一个学生结构体，包含学号、姓名和分数；所有学生放在固定容量数组里，另用一个 n 记录实际人数。功能拆成若干小函数：总分、平均分、最高分下标、最低分下标、及格人数、分数段统计。每个函数只做一件事，参数是数组加 n，返回值是计算结果；需要同时返回多个值时用指针输出参数。先定接口再写实现，每个函数单独测试，最后再拼主流程，调试范围会小很多。接口设计要考虑边界：n 为 0 时返回什么、分数范围是否合法、数组容量够不够。把这些写进函数注释，调用者就不用猜。接口命名要能读出意图：total_score 比 sum 清楚，find_max 比 get 清楚；参数顺序也保持一致，数组在前、长度在后，调用处一眼就能看懂。输入参数和输出参数的顺序也要固定，通常输入在前、输出在后，输出参数用指针，调用者一眼就能看出哪些值会被改写。"
+      },
+      {
+        "type": "text",
+        "text": "排序采用冒泡排序，按分数从高到低；分数相同时按学号从小到大，保证结果稳定可复现。比较和交换都针对整个结构体，不能只交换分数，否则学号和姓名会错位。排名要为同分学生给出相同名次，下一名跳号：遍历已排序数组，分数变化时把名次更新为当前下标加一，分数相同则沿用上一个名次。这个规则比「按顺序编号」更符合真实成绩单，也更容易测试。如果只需要前 k 名，不必对整个数组排序：维护一个长度为 k 的有序结果数组，逐个插入并截断，时间复杂度是 O(n×k)，k 很小时比全排序更省。输出用格式化宽度对齐，姓名左对齐、分数右对齐，保证终端里列不会错位。排序的稳定性靠比较规则保证：只有严格更优才交换，相等时保持原顺序；如果要按学号决胜，就把学号写进比较规则，而不是依赖排序算法本身的实现细节。"
+      },
+      {
+        "type": "text",
+        "text": "项目的分层可以更清楚：数据层负责结构体和数组，逻辑层负责统计与排序，展示层负责格式化输出。三层之间只通过函数参数和返回值传递数据，不共享可变的全局状态，这样每个函数都能单独测试。边界用例至少覆盖：n 为 0、n 为 1、全部同分、全部不及格、满分、以及 k 大于 n。整数除法会截断，平均分要用浮点计算；百分比同理，先乘 100 再除。这个项目还可以沿着课程主线继续扩展：用文件读写做持久化，用动态内存支持任意人数，用多文件拆分模块，用链表支持频繁插入删除。每加一个功能，先想清楚它属于哪一层、接口怎么变、边界在哪里，再动手写代码。把一个小项目做完整，比写十个半成品更能建立工程直觉。收尾时给项目留一个测试入口，把每个函数用固定数据跑一遍并打印结果；真实项目里这就是单元测试的雏形，改动之后先跑它，确认没有回归。测试数据要覆盖边界而不只是正常路径：空数组、单人、同分、满分、零分，这些用例写一次就能反复用，比每次手工验证可靠得多。"
+      },
+      {
+        "type": "code",
+        "code": "typedef struct {\n    int id;\n    char name[12];\n    int score;\n} Student;\n\nint total_score(Student s[], int n) {\n    int total = 0;\n    for (int i = 0; i < n; i++) total += s[i].score;\n    return total;\n}\n\nint find_max(Student s[], int n) {\n    int best = 0;\n    for (int i = 1; i < n; i++) {\n        if (s[i].score > s[best].score) best = i;\n    }\n    return best;\n}\n\nint find_min(Student s[], int n) {\n    int worst = 0;\n    for (int i = 1; i < n; i++) {\n        if (s[i].score < s[worst].score) worst = i;\n    }\n    return worst;\n}\n\nint pass_count(Student s[], int n) {\n    int count = 0;\n    for (int i = 0; i < n; i++) {\n        if (s[i].score >= 60) count++;\n    }\n    return count;\n}\n\nint grade_index(int score) {\n    if (score >= 90) return 0;\n    if (score >= 80) return 1;\n    if (score >= 70) return 2;\n    if (score >= 60) return 3;\n    return 4;\n}\n\nint main() {\n    Student s[6] = {\n        {101, \"Ann\", 92},\n        {102, \"Bob\", 58},\n        {103, \"Cid\", 76},\n        {104, \"Dan\", 60},\n        {105, \"Eve\", 85},\n        {106, \"Fay\", 85}\n    };\n    int n = 6;\n    int total = total_score(s, n);\n    int hi = find_max(s, n);\n    int lo = find_min(s, n);\n    int count[5];\n    for (int i = 0; i < 5; i++) count[i] = 0;\n    for (int i = 0; i < n; i++) {\n        int g = grade_index(s[i].score);\n        count[g]++;\n    }\n    printf(\"total=%d avg=%.1f\\n\", total, total * 1.0 / n);\n    printf(\"max=%s(%d) min=%s(%d)\\n\", s[hi].name, s[hi].score, s[lo].name, s[lo].score);\n    printf(\"pass=%d rate=%.1f%%\\n\", pass_count(s, n), pass_count(s, n) * 100.0 / n);\n    printf(\"A=%d B=%d C=%d D=%d F=%d\\n\", count[0], count[1], count[2], count[3], count[4]);\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "total=456 avg=76.0\nmax=Ann(92) min=Bob(58)\npass=5 rate=83.3%\nA=1 B=2 C=1 D=1 F=1"
+      },
+      {
+        "type": "code",
+        "code": "typedef struct {\n    int id;\n    char name[12];\n    int score;\n} Student;\n\nvoid sort_by_score(Student s[], int n) {\n    for (int i = 0; i < n - 1; i++) {\n        for (int j = 0; j < n - 1 - i; j++) {\n            int swap = s[j].score < s[j + 1].score;\n            if (s[j].score == s[j + 1].score && s[j].id > s[j + 1].id) swap = 1;\n            if (swap) {\n                Student t = s[j];\n                s[j] = s[j + 1];\n                s[j + 1] = t;\n            }\n        }\n    }\n}\n\nchar grade_of(int score) {\n    if (score >= 90) return 'A';\n    if (score >= 80) return 'B';\n    if (score >= 70) return 'C';\n    if (score >= 60) return 'D';\n    return 'F';\n}\n\nint main() {\n    Student s[6] = {\n        {105, \"Eve\", 85},\n        {101, \"Ann\", 92},\n        {104, \"Dan\", 60},\n        {102, \"Bob\", 58},\n        {103, \"Cid\", 76},\n        {106, \"Fay\", 85}\n    };\n    int n = 6;\n    sort_by_score(s, n);\n    printf(\"%-4s %-6s %5s %5s\\n\", \"rank\", \"name\", \"score\", \"grade\");\n    int rank = 0;\n    for (int i = 0; i < n; i++) {\n        if (i == 0 || s[i].score != s[i - 1].score) rank = i + 1;\n        printf(\"%-4d %-6s %5d %5c\\n\", rank, s[i].name, s[i].score, grade_of(s[i].score));\n    }\n    return 0;\n}",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "rank name   score grade\n1    Ann       92     A\n2    Eve       85     B\n2    Fay       85     B\n4    Cid       76     C\n5    Dan       60     D\n6    Bob       58     F"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "函数",
+          "职责",
+          "边界输入",
+          "输出"
+        ],
+        "rows": [
+          [
+            "total_score",
+            "累加总分",
+            "n=0 返回 0",
+            "整数总分"
+          ],
+          [
+            "find_max / min",
+            "最高 / 最低分下标",
+            "n>=1 由调用者保证",
+            "数组下标"
+          ],
+          [
+            "pass_count",
+            "统计及格人数",
+            "60 分算及格",
+            "整数人数"
+          ],
+          [
+            "grade_index",
+            "分数段映射",
+            "0-100",
+            "0..4 的段下标"
+          ],
+          [
+            "sort_by_score",
+            "降序排序，同分按学号升序",
+            "n=0/1 直接返回",
+            "原地修改数组"
+          ]
+        ]
+      },
+      {
+        "type": "tip",
+        "text": "先写接口和边界用例，再填实现；每个函数单独验证通过后再拼主流程。"
+      },
+      {
+        "type": "warn",
+        "text": "结构体数组传参必须同时传 n，函数内部不能用 sizeof 求元素个数；排序交换要针对整个结构体。"
+      },
+      {
+        "type": "quiz",
+        "question": "成绩排名时，两个学生分数相同，合理的名次规则是？",
+        "options": [
+          "同名次，下一名跳号",
+          "按出现顺序依次加一",
+          "随机分配名次",
+          "按姓名字母排序"
+        ],
+        "answer": 0,
+        "explain": "同分同名次、下一名跳号（1、2、2、4）是成绩单的常见规则，也便于验证排序稳定性。"
+      },
+      {
+        "type": "task",
+        "text": "给项目增加按学号查找学生并打印其名次的功能，找不到时输出 not found。"
+      }
+    ],
+    "exercise": {
+      "title": "取前 N 名",
+      "brief": "实现 top_n(Student s[], int n, int k, Student out[])：把成绩最高的前 k 名学生按「分数降序、同分学号升序」写入 out，返回实际写入人数；k<=0 或 n<=0 返回 0。",
+      "starterCode": "typedef struct {\n    int id;\n    char name[12];\n    int score;\n} Student;\n\nint top_n(Student s[], int n, int k, Student out[]) {\n    return 0;\n}",
+      "hint": "维护一个长度最多为 k 的有序数组：未满时插入；满后只有比 out[k-1] 更优才插入并截断。比较规则是先比分数降序，再比学号升序。",
+      "tests": [
+        "int main() { Student s[5] = {{1, \"A\", 70}, {2, \"B\", 90}, {3, \"C\", 80}, {4, \"D\", 90}, {5, \"E\", 60}}; Student out[3]; int m = top_n(s, 5, 2, out); assert(m == 2, \"应返回 2 条\"); assert(out[0].id == 2 && out[1].id == 4, \"同分 90 按学号升序\"); return 0; }",
+        "int main() { Student s[3] = {{3, \"C\", 60}, {1, \"A\", 95}, {2, \"B\", 75}}; Student out[5]; int m = top_n(s, 3, 5, out); assert(m == 3, \"k 大于 n 时返回 n\"); assert(out[0].id == 1 && out[1].id == 2 && out[2].id == 3, \"应全部降序排列\"); return 0; }",
+        "int main() { Student s[2] = {{1, \"A\", 88}, {2, \"B\", 77}}; Student out[2]; assert(top_n(s, 2, 0, out) == 0, \"k=0 应返回 0 且不写入\"); assert(top_n(s, 0, 2, out) == 0, \"n=0 应返回 0\"); return 0; }",
+        "int main() { Student s[4] = {{4, \"D\", 60}, {2, \"B\", 88}, {3, \"C\", 60}, {1, \"A\", 88}}; Student out[2]; int m = top_n(s, 4, 2, out); assert(m == 2, \"应截断到 k 条\"); assert(out[0].id == 1 && out[1].id == 2, \"截断后仍保持同分学号升序\"); return 0; }"
+      ],
+      "stdin": [],
+      "xp": 230,
+      "solution": "typedef struct {\n    int id;\n    char name[12];\n    int score;\n} Student;\n\nint better(Student a, Student b) {\n    if (a.score != b.score) return a.score > b.score;\n    return a.id < b.id;\n}\n\nint top_n(Student s[], int n, int k, Student out[]) {\n    if (k <= 0 || n <= 0) return 0;\n    int m = 0;\n    for (int i = 0; i < n; i++) {\n        if (m < k) {\n            int pos = m;\n            while (pos > 0 && better(s[i], out[pos - 1])) {\n                out[pos] = out[pos - 1];\n                pos--;\n            }\n            out[pos] = s[i];\n            m++;\n        } else if (better(s[i], out[k - 1])) {\n            int pos = k - 1;\n            while (pos > 0 && better(s[i], out[pos - 1])) {\n                out[pos] = out[pos - 1];\n                pos--;\n            }\n            out[pos] = s[i];\n        }\n    }\n    return m;\n}\n"
+    }
+  }
+]

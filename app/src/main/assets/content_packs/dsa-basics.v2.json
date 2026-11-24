@@ -1,0 +1,361 @@
+[
+  {
+    "id": "dsa01",
+    "order": 100,
+    "chapter": 10,
+    "title": "复杂度直觉",
+    "subtitle": "为什么同样两段代码，速度差天壤之别",
+    "xp": 160,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "算法快慢的尺子：大 O"
+      },
+      {
+        "type": "text",
+        "text": "大 O 记号不告诉你‘跑多少秒’，而是告诉你‘数据翻倍时，工作量怎么翻’。O(n) 是数据 2 倍工作 2 倍，O(n²) 是数据 2 倍工作 4 倍——这就是为什么同样的问题，算法选错会从‘秒回’变‘卡死’。攻打算法前，先学会给复杂度‘称重’。"
+      },
+      {
+        "type": "code",
+        "runnable": true,
+        "code": "n = 1000\n\n# O(n)：一条流水线，逐个加工\ntask_1 = n\n\n# O(n^2)：两两组合检查，工作量爆炸\ntask_2 = n * n\n\nprint(f'n = {n}')\nprint(f'O(n)    工作量 = {task_1}')\nprint(f'O(n^2)  工作量 = {task_2}')\nratio = task_2 / task_1\nprint(f'差距倍率 = {ratio:.0f}x')"
+      },
+      {
+        "type": "output",
+        "text": "n = 1000\nO(n)    工作量 = 1000\nO(n^2)  工作量 = 1000000\n差距倍率 = 1000x"
+      },
+      {
+        "type": "text",
+        "text": "如何估算？数‘嵌套循环’：一个循环套一个循环，几乎就是 O(n²)；两层以上套娃往往直接超标。改用数学公式或哈希表，常能把 O(n²) 砍回 O(n)。"
+      },
+      {
+        "type": "quiz",
+        "question": "n = 1_000_000（一百万）时，O(n²) 的工作量接近哪个数量级？",
+        "options": [
+          "一百万",
+          "一千万",
+          "一万亿（10^12）"
+        ],
+        "answer": 2,
+        "explain": "一百万 × 一百万 = 10^12，这就是 1 千亿量级的‘卡死’来源；O(n) 只是 10^6。"
+      },
+      {
+        "type": "task",
+        "text": "先在心里做：把 1..n 全部加起来，手写循环是 O(n)，数学公式 n*(n+1)//2 是 O(1)。任何一个都行——但你要能说出两者的差别。"
+      }
+    ],
+    "exercise": {
+      "title": "一秒求和的公式",
+      "brief": "实现 sum_to_n(n)，用 O(1) 的数学公式返回 1 到 n 的和（n >= 0）。禁止写 for 循环。",
+      "starterCode": "def sum_to_n(n):\n    ____\n\nprint(sum_to_n(5))\nprint(sum_to_n(100))",
+      "hint": "等差数列求和：n * (n + 1) // 2。先用乘法再用 // 保证整数。",
+      "tests": [
+        "assert sum_to_n(5) == 15",
+        "assert sum_to_n(1) == 1",
+        "assert sum_to_n(100) == 5050",
+        "assert sum_to_n(0) == 0"
+      ],
+      "stdin": [],
+      "xp": 170
+    },
+    "chapterName": "增补包 · DSA 算法基础"
+  },
+  {
+    "id": "dsa02",
+    "order": 101,
+    "chapter": 10,
+    "title": "双指针",
+    "subtitle": "两头夹逼，把 O(n²) 摇身变成 O(n)",
+    "xp": 160,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "两个手指，一次扫描"
+      },
+      {
+        "type": "text",
+        "text": "在有序序列上，用两个下标从两端向中间靠拢（或同向一快一慢），一次遍历解决‘找和、去重、回文’等任务，复杂度从 O(n²) 直降 O(n)。这是入门竞赛最常用的招数之一，也是面试的高频考点。"
+      },
+      {
+        "type": "code",
+        "runnable": true,
+        "code": "nums = [2, 7, 11, 15]\ntarget = 26\n\ni, j = 0, len(nums) - 1\nwhile i < j:\n    s = nums[i] + nums[j]\n    print(f'i={i} j={j} 和={s}')\n    if s == target:\n        print('命中:', i, j)\n        break\n    elif s < target:\n        i += 1\n    else:\n        j -= 1"
+      },
+      {
+        "type": "output",
+        "text": "i=0 j=3 和=17\ni=1 j=3 和=22\ni=2 j=3 和=26\n命中: 2 3"
+      },
+      {
+        "type": "text",
+        "text": "为什么能跳过中间很多组合？因为序列有序——左边太小就往右动一个，右边太大就往左动一个，每次排除一整行候选，绝不回退。"
+      },
+      {
+        "type": "visualize",
+        "title": "双指针怎么逼近目标",
+        "caption": "有序数组 [1,2,4,7,11]，找两数之和为 9：i 从左、j 从右，和偏小就右移 i，偏大就左移 j",
+        "frames": [
+          {
+            "label": "初始：i=0(1), j=4(11)，和=12 > 9 → j 左移",
+            "items": [
+              {
+                "name": "i",
+                "value": "0 → 1"
+              },
+              {
+                "name": "j",
+                "value": "4 → 3"
+              },
+              {
+                "name": "sum",
+                "value": "12"
+              }
+            ],
+            "highlight": [
+              "j",
+              "sum"
+            ]
+          },
+          {
+            "label": "i=0(1), j=3(7)，和=8 < 9 → i 右移",
+            "items": [
+              {
+                "name": "i",
+                "value": "0 → 1"
+              },
+              {
+                "name": "j",
+                "value": "3"
+              },
+              {
+                "name": "sum",
+                "value": "8"
+              }
+            ],
+            "highlight": [
+              "i",
+              "sum"
+            ]
+          },
+          {
+            "label": "i=1(2), j=3(7)，和=9 == 9 ✓ 找到",
+            "items": [
+              {
+                "name": "i",
+                "value": "1"
+              },
+              {
+                "name": "j",
+                "value": "3"
+              },
+              {
+                "name": "sum",
+                "value": "9"
+              }
+            ],
+            "highlight": [
+              "sum"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "quiz",
+        "question": "双指针能成立的一个关键前提是什么？",
+        "options": [
+          "数据必须是无序的",
+          "数据必须有序（或可单调推演）",
+          "数据必须是字符串"
+        ],
+        "answer": 1,
+        "explain": "只有能单调判断‘该往哪边走’时，排除法才不丢解。"
+      }
+    ],
+    "exercise": {
+      "title": "两数之和（有序版）",
+      "brief": "实现 two_sum_sorted(nums, target)：nums 是升序整数列表，用双指针在 O(n) 内找到和等于 target 的两个数的下标 (i, j)（保证存在且唯一解，i < j），返回 (i, j)。",
+      "starterCode": "def two_sum_sorted(nums, target):\n    ____\n\nprint(two_sum_sorted([2, 7, 11, 15], 9))",
+      "hint": "i=0, j=len(nums)-1 两头夹：和太小 i+=1，和太大 j-=1，相等即返回 (i, j)。",
+      "tests": [
+        "assert two_sum_sorted([2, 7, 11, 15], 9) == (0, 1)",
+        "assert two_sum_sorted([1, 3, 5], 8) == (1, 2)",
+        "assert two_sum_sorted([0, 1], 1) == (0, 1)",
+        "assert two_sum_sorted([1, 2, 3, 4, 5], 9) == (3, 4)"
+      ],
+      "stdin": [],
+      "xp": 180
+    },
+    "chapterName": "增补包 · DSA 算法基础"
+  },
+  {
+    "id": "dsa03",
+    "order": 102,
+    "chapter": 10,
+    "title": "哈希表",
+    "subtitle": "字典分身：把‘找’从翻遍全场变成点菜上场",
+    "xp": 160,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "键即坐标：O(1) 查找"
+      },
+      {
+        "type": "text",
+        "text": "列表里找一个值要 O(n) 地翻；字典则把‘值’当坐标直接命中。计数、去重、找出现次数、判断是否存在——凡是‘见一个查一个’的问题，先想字典。"
+      },
+      {
+        "type": "code",
+        "runnable": true,
+        "code": "text = 'neoncity rain neon'\ncounts = {}\nfor word in text.split():\n    counts[word] = counts.get(word, 0) + 1\n\nfor word in sorted(counts):\n    print(word, counts[word])\n\n# 判断是否出现过\nprint('neon 出现过:', 'neon' in counts)"
+      },
+      {
+        "type": "output",
+        "text": "neon 1\nneoncity 1\nrain 1\nneon 出现过: True"
+      },
+      {
+        "type": "text",
+        "text": "counts.get(word, 0) 是‘键不存在返回 0’的惯用法；in 判断键是否存在同样是 O(1)。多数字典操作都是 O(1)，少数冲突退化为 O(n)——但在竞赛与工程里，字典就是‘快’的代名词。"
+      },
+      {
+        "type": "quiz",
+        "question": "在字典里用 `key in d` 判断键是否存在，平均复杂度是？",
+        "options": [
+          "O(1)",
+          "O(n)",
+          "O(n²)"
+        ],
+        "answer": 0,
+        "explain": "字典按哈希定位，平均 O(1)；列表的 in 才是 O(n)。"
+      }
+    ],
+    "exercise": {
+      "title": "第一个不重复字符",
+      "brief": "实现 first_unique(s)：返回字符串 s 中第一个不重复字符的下标；如果没有不重复字符，返回 -1。用字典先统计再扫描。",
+      "starterCode": "def first_unique(s):\n    ____\n\nprint(first_unique('pyneon'))\nprint(first_unique('aabb'))",
+      "hint": "第一遍遍历用 dict 统计每个字符出现次数；第二遍遍历找第一个 counts[ch] == 1 的下标。",
+      "tests": [
+        "assert first_unique('pyneon') == 0",
+        "assert first_unique('aabb') == -1",
+        "assert first_unique('abcab') == 2",
+        "assert first_unique('zzbzz') == 2"
+      ],
+      "stdin": [],
+      "xp": 180
+    },
+    "chapterName": "增补包 · DSA 算法基础"
+  },
+  {
+    "id": "dsa04",
+    "order": 103,
+    "chapter": 10,
+    "title": "栈与队列",
+    "subtitle": "后进先出与先进先出：IDE 撤销键的底层原理",
+    "xp": 160,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "两种排队纪律"
+      },
+      {
+        "type": "text",
+        "text": "栈（stack）：后进先出，像一摞盘子——编辑器 Undo、函数调用、括号配对都靠它。队列（queue）：先进先出，像排队买奶茶——任务调度、BFS 遍历靠它。"
+      },
+      {
+        "type": "code",
+        "runnable": true,
+        "code": "stack = []\nfor op in ['写代码', '保存', '格式化']:\n    stack.append(op)\nprint('栈顶（最后一次操作）:', stack[-1])\n# 撤销：从栈顶弹出\nlast = stack.pop()\nprint('撤销了:', last)\nprint('剩余:', stack)\n\nqueue = ['A', 'B']\nqueue.append('C')   # 新任务入队\nprint('队列:', queue)\nprint('先出队的是:', queue.pop(0))"
+      },
+      {
+        "type": "output",
+        "text": "栈顶（最后一次操作）: 格式化\n撤销了: 格式化\n剩余: ['写代码', '保存']\n队列: ['A', 'B', 'C']\n先出队的是: A"
+      },
+      {
+        "type": "text",
+        "text": "栈只在‘末端’进出，队列在‘两端’进出。括号嵌套深度、表达式求值、浏览器前进后退，把这些日常操作翻译成这两条纪律，就是算法题的核心直觉。"
+      },
+      {
+        "type": "quiz",
+        "question": "文本编辑器的 Undo（撤销）功能最适合用哪种结构实现？",
+        "options": [
+          "队列",
+          "栈",
+          "哈希表"
+        ],
+        "answer": 1,
+        "explain": "撤销要‘最后做的先撤回’，正是后进先出——栈。"
+      }
+    ],
+    "exercise": {
+      "title": "括号嵌套深度",
+      "brief": "实现 bracket_depth(s)：s 只含 '(' 和 ')'。遇到 '(' 深度加 1，遇到 ')' 深度减 1；若任何时候深度 < 0（提前闭合）或结束后深度 != 0（未闭合），返回 -1；否则返回过程中的最大深度。空串返回 0。",
+      "starterCode": "def bracket_depth(s):\n    ____\n\nprint(bracket_depth('(()(()))'))\nprint(bracket_depth('(()'))",
+      "hint": "记住 stack 的长度就是当前深度；max_depth 记录峰值；提前闭合或结尾未闭合都返回 -1。",
+      "tests": [
+        "assert bracket_depth('(()(()))') == 3",
+        "assert bracket_depth('()') == 1",
+        "assert bracket_depth('') == 0",
+        "assert bracket_depth('(()') == -1",
+        "assert bracket_depth('())') == -1"
+      ],
+      "stdin": [],
+      "xp": 180
+    },
+    "chapterName": "增补包 · DSA 算法基础"
+  },
+  {
+    "id": "dsa05",
+    "order": 104,
+    "chapter": 10,
+    "title": "递归与记忆化",
+    "subtitle": "函数调用自己，并给结果‘记小抄’",
+    "xp": 160,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "问题拆小，答案记下"
+      },
+      {
+        "type": "text",
+        "text": "递归 = 函数调用自己。写递归三件事：①边界（base case）阻止无限自调；②每次调用向‘更小的问题’前进；③返回值逐层回卷。裸递归重复计算会指数爆炸，‘记忆化’（把算过的答案存进字典）就能变回多项式。"
+      },
+      {
+        "type": "code",
+        "runnable": true,
+        "code": "def fib(n, memo=None):\n    if memo is None:\n        memo = {}\n    if n in memo:\n        return memo[n]\n    if n < 2:\n        return n\n    memo[n] = fib(n - 1, memo) + fib(n - 2, memo)\n    return memo[n]\n\nprint('fib(10) =', fib(10))\nprint('fib(30) =', fib(30))"
+      },
+      {
+        "type": "output",
+        "text": "fib(10) = 55\nfib(30) = 832040"
+      },
+      {
+        "type": "text",
+        "text": "不记忆化时 fib(30) 要算 100 多万次调用；加一行 memo 字典，调用次数降到 30 出头。记住：递归常见陷阱是默认参数被共享——所以用 `memo=None` 再初始化，这才是正确姿势。"
+      },
+      {
+        "type": "quiz",
+        "question": "记忆化的本质是什么？",
+        "options": [
+          "多开线程加速",
+          "把重复子问题结果缓存复用",
+          "把递归改成死循环"
+        ],
+        "answer": 1,
+        "explain": "每个子问题只算一次，之后查字典直达——这就是‘记小抄’。为了正常递归这里需要函数默认值防共享。"
+      }
+    ],
+    "exercise": {
+      "title": "记忆化斐波那契",
+      "brief": "实现 fib_memo(n)：用‘递归 + 字典记忆化’返回第 n 个斐波那契数（f(0)=0，f(1)=1）。不要再写裸递归（会超时）。",
+      "starterCode": "def fib_memo(n, memo=None):\n    ____\n\nprint(fib_memo(10))\nprint(fib_memo(30))",
+      "hint": "if memo is None: memo = {}；n < 2 返回 n；否则先查 memo 再递归，并把结果写回 memo。",
+      "tests": [
+        "assert fib_memo(0) == 0",
+        "assert fib_memo(1) == 1",
+        "assert fib_memo(10) == 55",
+        "assert fib_memo(15) == 610"
+      ],
+      "stdin": [],
+      "xp": 180
+    },
+    "chapterName": "增补包 · DSA 算法基础"
+  }
+]

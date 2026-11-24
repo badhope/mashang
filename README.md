@@ -41,7 +41,7 @@ These screenshots come from an earlier development build; the version badge and 
 | **Lua** | LuaJ 3.0.1 | 38 (basic / core / advanced / expert packs) |
 | **SQL** | SQLite | 43 (38 mainline + 5 edge topics) |
 
-The Python mainline ships inside the APK. The other five download on demand from the Language Center. First install ~39 MB.
+All 245 lessons ship inside the APK, including the Python mainline and every language pack. First install ~40 MB; no download needed on first launch.
 
 C and TypeScript are teaching subsets (C has no preprocessor, `goto` or function pointers; TypeScript has no decorators or namespaces) and say so explicitly when you hit a gap.
 

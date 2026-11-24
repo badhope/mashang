@@ -1,0 +1,1137 @@
+[
+  {
+    "id": "sql01",
+    "order": 500,
+    "chapter": 51,
+    "chapterName": "SQL · 基础篇",
+    "lang": "sql",
+    "title": "第一次查询",
+    "subtitle": "SELECT 与 FROM",
+    "xp": 60,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "数据库开口说话"
+      },
+      {
+        "type": "text",
+        "text": "SQL 是结构化查询语言。它和 Python 这类过程式语言的工作方式不同：你只描述想要什么结果，由数据库负责决定怎么扫描、怎么过滤、怎么返回，具体执行路径交给查询优化器安排。一条最基础的查询由 SELECT 和 FROM 两个子句组成，SELECT 决定返回哪些列，FROM 决定从哪张表取数据。课程使用 SQLite 内存数据库，每次运行都从零开始建表，上一次运行留下的数据不会影响下一次，因此可以放心反复试验，不用担心把环境弄坏，也不用在每次练习前写清理脚本。列名直接写在 SELECT 后面，多个列用逗号分隔，书写顺序就是结果里的列顺序。写 SELECT name, level 得到两列；写 SELECT level, name 得到的两列顺序相反，这一点在做报表时很重要，导出文件的列序往往由 SELECT 列表决定。星号可以表示全部列，适合临时查看表结构，正式查询里最好显式列出需要的列，这样别人能一眼看出结果包含什么，也不会因为表结构变化而多出意外的字段。FROM 后面接表名，表必须先存在，所以示例先建表、再写入数据、最后查询，三步构成一个完整脚本，顺序颠倒就会报「no such table」错误。"
+      },
+      {
+        "type": "text",
+        "text": "SQL 语句以分号结尾，一条脚本里可以按顺序写多条语句，数据库会依次执行。关键字大小写不敏感，SELECT 和 select 完全等价，但团队通常约定关键字大写、表名与列名小写，读起来层次更清楚。初学者最容易犯的错误是漏写 FROM，或者把表名写在 SELECT 后面；记住顺序口诀「先选列，再选表」，即 SELECT 列表在前、FROM 表名在后，就不会写反。列名和表名不要用保留字，例如 order、group、select，真要用必须加引号，不如一开始就换个名字，省掉后面所有麻烦。写查询时先想清楚要哪些列、来自哪张表，再考虑过滤和排序，顺序理清了，语句自然就写顺了。从数据组织的角度看，一张表就是若干行与若干列组成的二维结构，每一行代表一条记录，每一列代表一个属性。列有类型，SQLite 常用 INTEGER 存整数、TEXT 存文本、REAL 存浮点数，虽然它允许动态类型、同一列可以混放不同种类，但建表时写清类型是给读代码的人看的契约，也能让工具正确推导结果。"
+      },
+      {
+        "type": "text",
+        "text": "id 这类标识列习惯用 INTEGER 并设为主键，名字、地区用 TEXT，等级、分数用INTEGER。把这些基础概念记牢，后面学约束、连接、索引时才知道每一步在保护什么。最后养成一个习惯：每写一条查询，先在纸上或注释里用一句中文说清它要回答什么问题，例如「列出所有玩家及其等级」。如果这句话说不出来，说明需求还没想清楚，写出来的 SQL 大概率会返工。查询写完后，用小数据集手工推演一遍预期结果，再和数据库返回的行数、列名对比，差异出现时先查列名是否拼错、表是否连对、条件是否被 AND 与 OR 的优先级改写。这样的自查能挡掉大部分低级错误，也让后续调试有明确的对照物，而不是靠猜。还有一点值得提前说明：本课程所有示例都在内存库中执行，脚本里写的 CREATE TABLE 和 INSERT 会在同一次运行内生效，运行结束数据库即被销毁。这意味着你不必担心「练习会不会污染环境」，可以大胆修改数值、增删列、故意写错看报错。学习 SQL 最有效的方式就是不断做小实验：改一个条件、看结果差几行；换一种连接方式、看列数怎么变。每一次动手验证，都会比读一遍讲解留下更深的印象。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL,\n  region TEXT,\n  level INTEGER\n);\nINSERT INTO players VALUES\n  (1, 'V', 'Neon', 66),\n  (2, 'Judy', 'Neon', 42),\n  (3, 'Jackie', 'Watson', 30),\n  (4, 'Rogue', 'Watson', 12);\n\nSELECT name, level FROM players;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "name\tlevel\nV\t66\nJudy\t42\nJackie\t30\nRogue\t12"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "子句",
+          "作用",
+          "示例"
+        ],
+        "rows": [
+          [
+            "SELECT",
+            "选择要返回的列",
+            "SELECT name, level"
+          ],
+          [
+            "FROM",
+            "指定数据来源的表",
+            "FROM players"
+          ],
+          [
+            "AS",
+            "给列或表起别名",
+            "SELECT name AS player"
+          ],
+          [
+            ":",
+            "结束一条语句",
+            "SELECT * FROM players;"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL,\n  region TEXT,\n  level INTEGER\n);\nINSERT INTO players VALUES (1, 'V', 'Neon', 66), (2, 'Judy', 'Neon', 42);\n\nSELECT id, name, level FROM players;\n-- 等价写法：SELECT * FROM players;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "id\tname\tlevel\n1\tV\t66\n2\tJudy\t42"
+      },
+      {
+        "type": "tip",
+        "text": "给列起别名用 AS，别名只在结果集中生效，不会改表结构。别名含空格或中文时用双引号包起来，例如 AS \"玩家等级\"，这样导出的表头也好读。"
+      },
+      {
+        "type": "warn",
+        "text": "SELECT * 会返回全部列。表后来新增大字段时，旧查询也会把它们带出来，既浪费带宽又可能暴露不该展示的数据，生产查询应显式列名。"
+      },
+      {
+        "type": "quiz",
+        "question": "要从 players 表只取出 name 和 level 两列，正确写法是？",
+        "options": [
+          "SELECT players FROM name, level",
+          "SELECT name, level FROM players",
+          "FROM players SELECT name, level",
+          "SELECT name AND level FROM players"
+        ],
+        "answer": 1,
+        "explain": "列在前、表在后：SELECT 列 FROM 表，多个列用逗号分隔。"
+      }
+    ],
+    "exercise": {
+      "title": "取出玩家名单",
+      "brief": "从 players 表取出 name 与 level 两列，按 id 升序排列。",
+      "starterCode": "CREATE TABLE players (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL,\n  region TEXT,\n  level INTEGER\n);\nINSERT INTO players VALUES\n  (1, 'V', 'Neon', 66),\n  (2, 'Judy', 'Neon', 42),\n  (3, 'Jackie', 'Watson', 30),\n  (4, 'Rogue', 'Watson', 12);\n\n-- 在这里写查询：取出 name 与 level\n",
+      "hint": "SELECT name, level FROM players ORDER BY id;",
+      "tests": [
+        "assert columns == ['name', 'level'], columns",
+        "assert rows == [['V', 66], ['Judy', 42], ['Jackie', 30], ['Rogue', 12]], rows",
+        "assert len(rows) == 4, rows"
+      ],
+      "stdin": [],
+      "xp": 80,
+      "solution": "CREATE TABLE players (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL,\n  region TEXT,\n  level INTEGER\n);\nINSERT INTO players VALUES\n  (1, 'V', 'Neon', 66),\n  (2, 'Judy', 'Neon', 42),\n  (3, 'Jackie', 'Watson', 30),\n  (4, 'Rogue', 'Watson', 12);\n\nSELECT name, level FROM players ORDER BY id;\n"
+    }
+  },
+  {
+    "id": "sql02",
+    "order": 501,
+    "chapter": 51,
+    "chapterName": "SQL · 基础篇",
+    "lang": "sql",
+    "title": "按条件挑行",
+    "subtitle": "WHERE 与比较运算",
+    "xp": 70,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "只留下符合条件的行"
+      },
+      {
+        "type": "text",
+        "text": "WHERE 子句在 FROM 之后执行，对每一行做一次判断：条件为真就保留，为假或为 NULL 就丢弃。最基本的条件是列与值的比较，支持等于、不等于、大于、小于、大于等于、小于等于。数字直接写，字符串必须用单引号包起来，日期在 SQLite 里通常也写成 ISO 格式的字符串，例如 '2024-03-15'。一行数据是否进入结果集，完全取决于条件表达式的布尔值，而不取决于它排在第几行，这也是声明式语言和手写循环筛选最本质的区别：你定义规则，数据库负责逐行套用。多个条件用 AND、OR、NOT 组合。AND 要求两边都为真，OR 只要一边为真，NOT 取反。AND 的优先级高于 OR，混用时要加括号。例如 mode = 'ranked' OR mode = 'duo' AND score > 80 会先算后半段，实际含义和直觉不同；写成 (mode = 'ranked' OR mode = 'duo') AND score > 80 才清楚。括号不会降低性能，却能消除歧义，复杂条件建议一行写一个条件、用括号分组，让阅读者不必在脑子里背优先级表。"
+      },
+      {
+        "type": "text",
+        "text": "条件写得越清楚，后面排查「为什么少了某一行」时就越省力。BETWEEN a AND b 等价于列大于等于 a 且小于等于 b，包含两端；IN (值一, 值二) 等价于一串 OR 比较，适合枚举几个固定值。LIKE 做模式匹配，百分号代表任意长度字符，下划线代表单个字符。WHERE 只过滤行，不改变返回的列，也不会去重，去重是 DISTINCT 的职责，分组统计是 GROUP BY 的职责。把每个子句的职责分清楚，写复杂查询时才不会互相打架，结果不符合预期时也能快速判断问题出在筛选、分组还是排序环节。先写最小的 WHERE 验证命中几行，再逐步加条件，是排查筛选问题的通用方法。还有一个容易被忽略的细节：文本比较默认区分大小写。SQLite 的 = 与 LIKE 对 ASCII 字母的大小写敏感度并不相同，= 区分大小写，LIKE 默认不区分，这种不一致在跨数据库迁移时经常引发问题。需要忽略大小写时，可以统一用 LOWER(列) = LOWER(值)，或者在建表时给列加 COLLATE NOCASE。"
+      },
+      {
+        "type": "text",
+        "text": "数值与文本混用时，SQLite 会按类型亲和性做转换，'10' 与 10 比较往往相等，但换到其他数据库就会报类型错误，所以列类型要前后一致，不要一会儿存数字一会儿存字符串。日期同理，统一存成 YYYY-MM-DD 的文本，比较和排序才符合预期。练习时可以把 WHERE 当成一个筛子来理解：数据从表中流出，每行经过筛孔，条件为真的留下，其余落下。想验证筛孔是否合适，最简单的办法是先用 SELECT * 加同样的 WHERE 看完整行，确认留下的记录确实符合业务判断，再把列裁剪成需要的那几列。很多看似「SQL 写错」的问题，其实是条件本身写错，比如把「大于」写成「大于等于」，把「或」写成「与」，或者漏掉一个括号导致优先级变化。逐条对照业务描述检查这些边界，比盲目改语法有效得多。最后补充一个常用组合：WHERE 加 IN 做多值筛选。游戏运营经常要查「这几个地区的玩家」，写 region IN ('Neon', 'Watson', 'Arasaka') 比串三个 OR 简洁得多，也不容易漏括号。IN 的列表里可以混放数字和字符串，但类型要统一，混用会让优化器放弃索引。列表过长时（超过几百项）应改用临时表或 JOIN，避免 SQL 文本膨胀、解析变慢。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE matches (\n  id INTEGER PRIMARY KEY,\n  player TEXT,\n  mode TEXT,\n  score INTEGER\n);\nINSERT INTO matches VALUES\n  (1, 'V', 'ranked', 88),\n  (2, 'Judy', 'ranked', 95),\n  (3, 'Jackie', 'casual', 72),\n  (4, 'V', 'casual', 60),\n  (5, 'Rogue', 'ranked', 45);\n\nSELECT player, score\nFROM matches\nWHERE mode = 'ranked' AND score >= 80\nORDER BY score DESC;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\tscore\nJudy\t95\nV\t88"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "运算符",
+          "含义",
+          "示例"
+        ],
+        "rows": [
+          [
+            "=",
+            "等于",
+            "mode = 'ranked'"
+          ],
+          [
+            "<> / !=",
+            "不等于",
+            "mode <> 'casual'"
+          ],
+          [
+            ">= / <=",
+            "大于等于 / 小于等于",
+            "score >= 80"
+          ],
+          [
+            "BETWEEN",
+            "闭区间",
+            "score BETWEEN 60 AND 90"
+          ],
+          [
+            "IN",
+            "属于列表",
+            "mode IN ('ranked', 'duo')"
+          ],
+          [
+            "LIKE",
+            "模式匹配",
+            "name LIKE 'J%'"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE matches (\n  id INTEGER PRIMARY KEY,\n  player TEXT,\n  mode TEXT,\n  score INTEGER\n);\nINSERT INTO matches VALUES\n  (1, 'V', 'ranked', 88),\n  (2, 'Judy', 'ranked', 95),\n  (3, 'Jackie', 'casual', 72),\n  (4, 'V', 'casual', 60),\n  (5, 'Rogue', 'ranked', 45);\n\nSELECT player, mode, score\nFROM matches\nWHERE score BETWEEN 70 AND 90\n  AND mode IN ('ranked', 'casual')\nORDER BY score;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\tmode\tscore\nJackie\tcasual\t72\nV\tranked\t88"
+      },
+      {
+        "type": "tip",
+        "text": "字符串常量用单引号，双引号在标准 SQL 里是标识符。SQLite 对双引号比较宽容，但换到 PostgreSQL 或 MySQL 严格模式就会报错，从一开始就养成单引号的习惯。"
+      },
+      {
+        "type": "warn",
+        "text": "条件里写 name = NULL 永远不成立，因为 NULL 表示未知，任何与它的比较结果还是 NULL。判断空值必须用 IS NULL 或 IS NOT NULL，这一点在 NULL 那一讲会展开。"
+      },
+      {
+        "type": "quiz",
+        "question": "WHERE score BETWEEN 60 AND 90 会保留哪些行？",
+        "options": [
+          "60 到 90 之间，不含 60 和 90",
+          "60 到 90 之间，含 60 和 90",
+          "只保留 60 和 90 两行",
+          "所有大于 90 的行"
+        ],
+        "answer": 1,
+        "explain": "BETWEEN 是闭区间，等价于 score >= 60 AND score <= 90。"
+      }
+    ],
+    "exercise": {
+      "title": "筛选高等级玩家",
+      "brief": "从 players 表选出 level 大于等于 30 且 region 为 'Neon' 的玩家 name，按 level 从高到低排列。",
+      "starterCode": "CREATE TABLE players (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL,\n  region TEXT,\n  level INTEGER\n);\nINSERT INTO players VALUES\n  (1, 'V', 'Neon', 66),\n  (2, 'Judy', 'Neon', 42),\n  (3, 'Jackie', 'Watson', 30),\n  (4, 'Rogue', 'Watson', 12);\n\n-- 在这里写查询\n",
+      "hint": "SELECT name FROM players WHERE level >= 30 AND region = 'Neon' ORDER BY level DESC;",
+      "tests": [
+        "assert columns == ['name'], columns",
+        "assert rows == [['V'], ['Judy']], rows",
+        "assert len(rows) == 2, rows"
+      ],
+      "stdin": [],
+      "xp": 90,
+      "solution": "CREATE TABLE players (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL,\n  region TEXT,\n  level INTEGER\n);\nINSERT INTO players VALUES\n  (1, 'V', 'Neon', 66),\n  (2, 'Judy', 'Neon', 42),\n  (3, 'Jackie', 'Watson', 30),\n  (4, 'Rogue', 'Watson', 12);\n\nSELECT name FROM players\nWHERE level >= 30 AND region = 'Neon'\nORDER BY level DESC;\n"
+    }
+  },
+  {
+    "id": "sql03",
+    "order": 502,
+    "chapter": 51,
+    "chapterName": "SQL · 基础篇",
+    "lang": "sql",
+    "title": "排序与截断",
+    "subtitle": "ORDER BY 与 LIMIT",
+    "xp": 70,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "让结果按规则排队"
+      },
+      {
+        "type": "text",
+        "text": "ORDER BY 决定结果行的顺序，写在 WHERE 之后。默认是 ASC 升序，从小到大；加 DESC 变成降序。可以按多列排序，先按第一列排，第一列相同再按第二列排，例如 ORDER BY score DESC, id ASC。多列排序是保证结果稳定的关键：只按分数排序时，同分的行谁前谁后由数据库决定，换一台机器、换一个版本都可能变，而分页和「取前三名」这类需求恰恰要求顺序确定，否则同一条记录可能在相邻两页各出现一次，也可能一次都不出现。LIMIT n 只返回前 n 行，OFFSET m 跳过前 m 行，它们写在语句最后，常用来做分页：第一页 LIMIT 10 OFFSET 0，第二页 LIMIT 10 OFFSET 10。分页必须配合确定的排序，否则翻页时同一条记录可能出现两次或一次都不出现，因为每次查询的底层顺序并不保证一致。数据量大时 OFFSET 越深越慢，数据库仍要先数过前面所有行，深度翻页通常要改成「记住上一页最后一条的键值」的游标方式，把 OFFSET 换成 WHERE id > 上一页最后一个 id，这样每页都能直接跳到起点附近。SQLite 里 NULL 在排序中被视为最小值：升序时排在最前，降序时排在最后。"
+      },
+      {
+        "type": "text",
+        "text": "如果业务上希望空值永远垫底，可以加 NULLS LAST，或者用 CASE WHEN 列 IS NULL THEN 1 ELSE 0 END 先排一个标记列。排序发生在 SELECT 之后，所以 ORDER BY 里可以使用 SELECT 中定义的别名，这一点和 WHERE 不同，WHERE 不能引用别名，因为那时 SELECT 还没有求值。理解这个求值顺序，能解释很多「别名不生效」的疑问，也能解释为什么 HAVING 可以引用聚合别名而 WHERE 不行。记住大致顺序：FROM、WHERE、GROUP BY、HAVING、SELECT、ORDER BY、LIMIT。分页还有两个实用细节。第一，LIMIT 后面的数字必须是常量或参数，不能是列名，也不能用表达式动态拼进 SQL 字符串，那会带来注入风险，正确做法是使用参数占位符。第二，总数与当前页往往需要两条查询：一条 SELECT COUNT(*) 算总数，一条带 LIMIT OFFSET 取数据，前端据此渲染页码。如果数据经常变化，两次查询之间可能插入新行，页码会轻微漂移，这在社交信息流里可以接受，但在对账类场景里要改用快照或游标，保证翻页过程看到的是同一批数据。"
+      },
+      {
+        "type": "text",
+        "text": "排序还有一个常被忽略的代价：如果排序的列上没有索引，数据库需要把整个结果集读进内存再排，数据量大时会写临时文件，速度明显下降。生产环境里高频的排行榜查询通常会在排序键上建索引，或者把排名结果预计算成一张表定时刷新。作为初学者，先把语义写对，再考虑性能；但心里要清楚ORDER BY 不是免费的，看到慢查询时它是第一个值得检查的子句。同理，LIMIT 只有在排序确定且能提前终止扫描时才是真正的优化，否则它只是截断了输出，底层仍可能扫完所有行。真正要提速，还是得让排序键上有可用的索引，或者缩小参与排序的数据量。另外，ORDER BY 与 GROUP BY 同时出现时，排序发生在分组之后，作用于每组一行。如果想按聚合值排序，直接写 ORDER BY COUNT(*) 或 ORDER BY 别名即可，不需要再套子查询。排序键可以是表达式，例如 ORDER BY ABS(score - 60)，表示离 60 分越近越靠前，这类用法在推荐和匹配场景里很实用。只要保证表达式在每一行上有唯一确定的值，排序结果就是稳定的，不会因为执行计划变化而抖动。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE matches (\n  id INTEGER PRIMARY KEY,\n  player TEXT,\n  score INTEGER\n);\nINSERT INTO matches VALUES\n  (1, 'V', 90),\n  (2, 'Judy', 90),\n  (3, 'Jackie', 75),\n  (4, 'Rogue', 60);\n\nSELECT player, score\nFROM matches\nORDER BY score DESC, id ASC\nLIMIT 3;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\tscore\nV\t90\nJudy\t90\nJackie\t75"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "含义",
+          "说明"
+        ],
+        "rows": [
+          [
+            "ORDER BY score",
+            "按分数升序",
+            "默认 ASC"
+          ],
+          [
+            "ORDER BY score DESC",
+            "按分数降序",
+            "大在前"
+          ],
+          [
+            "ORDER BY score DESC, id",
+            "多列排序",
+            "分数相同按 id 升序"
+          ],
+          [
+            "LIMIT 3",
+            "只取前三行",
+            "必须搭配排序才有意义"
+          ],
+          [
+            "LIMIT 2 OFFSET 2",
+            "跳过两行取两行",
+            "分页常用"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE matches (\n  id INTEGER PRIMARY KEY,\n  player TEXT,\n  score INTEGER\n);\nINSERT INTO matches VALUES\n  (1, 'V', 90),\n  (2, 'Judy', 90),\n  (3, 'Jackie', 75),\n  (4, 'Rogue', 60);\n\nSELECT player, score\nFROM matches\nORDER BY score DESC, id ASC\nLIMIT 2 OFFSET 2;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\tscore\nJackie\t75\nRogue\t60"
+      },
+      {
+        "type": "tip",
+        "text": "ORDER BY 可以写列名、别名、列序号或表达式。列序号 ORDER BY 2 DESC 虽然短，但别人改 SELECT 列表时极易排错，团队代码里建议直接写列名或别名。"
+      },
+      {
+        "type": "warn",
+        "text": "不带 ORDER BY 的 LIMIT 3 只是「随便三行」，不是「前三名」。SQL 不保证默认顺序，同一条语句执行两次也可能拿到不同结果。"
+      },
+      {
+        "type": "quiz",
+        "question": "ORDER BY score DESC, id ASC 的含义是？",
+        "options": [
+          "先按 id 升序，再按 score 降序",
+          "先按 score 降序，分数相同再按 id 升序",
+          "按 score 与 id 的和排序",
+          "只按 score 降序，id 不参与"
+        ],
+        "answer": 1,
+        "explain": "多列排序从左到右依次生效，第一列相同时才比较第二列。"
+      }
+    ],
+    "exercise": {
+      "title": "分数榜前三",
+      "brief": "从 matches 表取出 player 与 score，按 score 降序、id 升序取前 3 行。",
+      "starterCode": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES\n  (1, 'V', 90),\n  (2, 'Judy', 90),\n  (3, 'Jackie', 75),\n  (4, 'Rogue', 60),\n  (5, 'Echo', 75);\n\n-- 在这里写查询\n",
+      "hint": "SELECT player, score FROM matches ORDER BY score DESC, id ASC LIMIT 3;",
+      "tests": [
+        "assert columns == ['player', 'score'], columns",
+        "assert rows == [['V', 90], ['Judy', 90], ['Jackie', 75]], rows",
+        "assert len(rows) == 3, rows"
+      ],
+      "stdin": [],
+      "xp": 90,
+      "solution": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES\n  (1, 'V', 90),\n  (2, 'Judy', 90),\n  (3, 'Jackie', 75),\n  (4, 'Rogue', 60),\n  (5, 'Echo', 75);\n\nSELECT player, score\nFROM matches\nORDER BY score DESC, id ASC\nLIMIT 3;\n"
+    }
+  },
+  {
+    "id": "sql04",
+    "order": 503,
+    "chapter": 51,
+    "chapterName": "SQL · 基础篇",
+    "lang": "sql",
+    "title": "去掉重复",
+    "subtitle": "DISTINCT 与组合去重",
+    "xp": 70,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "一列值只留一份"
+      },
+      {
+        "type": "text",
+        "text": "DISTINCT 紧跟在 SELECT 后面，作用是把结果集中完全相同的行合并成一行。注意它作用于整行，不是只作用于第一列。SELECT DISTINCT player, mode 会把「玩家加模式」这个组合去重：同一个玩家在 ranked 和 casual 各出现一次，两条都会保留；只有玩家和模式都相同才算重复。理解这一点，能避免绝大多数「为什么去重没生效」的困惑，也能解释为什么加了 DISTINCT 行数还是比预期多，因为多出来的行在另一列上并不相同，数据库认为它们本来就是两条不同的记录。DISTINCT 和 GROUP BY 都能去重，区别在目的：DISTINCT 只想拿到不重复的值，GROUP BY 是为了分组做聚合。SELECT DISTINCT mode FROM matches 与 SELECT mode FROM matches GROUP BY mode 结果相同，但后者还能同时算 COUNT(*)、SUM(score)。如果只想去重，DISTINCT 语义更直接；如果还要统计，用 GROUP BY，不要为了去重硬凑分组。"
+      },
+      {
+        "type": "text",
+        "text": "反过来，用 DISTINCT 去重后再算聚合，往往说明你把两件事混在了同一条查询里，应该拆开或改用分组，否则结果会依赖去重前后的行数，很难验证正确性。COUNT(DISTINCT 列) 统计一列里不重复的非 NULL 值个数，和 COUNT(*) 完全不同。例如有 100 场比赛、20 个玩家，COUNT(*) 是 100，COUNT(DISTINCT player_id) 是 20。DISTINCT 会带来排序或哈希开销，数据量大时比普通查询慢，但它通常比在应用层拉回全部数据再手工去重高效得多，因为数据库只传回需要的那几行，网络与内存都省了。判断该不该去重，先问「业务上两行算不算同一件事」，再去决定按哪几列组合。去重条件写错，往往是需求没拆清楚，而不是 SQL 写错了。实际工作里更常见的情形是「按某列去重后取整行」。比如每位玩家只保留分数最高的一场，直接 SELECT DISTINCT player, score 并不能做到，因为它仍然按组合判断。正确做法是用 GROUP BY 配合 MAX(score)，或者用窗口函数给每组编号再筛出第一行，后者还能带回整行所有列。这一讲先把 DISTINCT 的基本语义吃透，等学到窗口函数时，你会发现很多去重需求本质上是分组排序问题。"
+      },
+      {
+        "type": "text",
+        "text": "另外要记住 DISTINCT 对 NULL 的处理：多个 NULL 被视为同一个值，只保留一条，这和 WHERE 里 NULL 不等于任何值并不矛盾，是两个不同层面的规则。最后提醒一个工程习惯：不要在业务查询里依赖 DISTINCT 掩盖连接错误。两表连接条件写错时，常会出现大量重复行，有人顺手加个 DISTINCT 让结果「看起来正常」，实际上数据已经被笛卡尔积放大，统计口径全错。正确顺序是先验证连接键是否唯一、连接后行数是否符合预期，再决定是否需要去重。去重是业务语义的一部分，不是修复查询的万能补丁。把这一点想明白，后面学 JOIN 和聚合时就能少走很多弯路，也更容易向同事解释你的查询为什么这么写。从实现角度看，DISTINCT 通常要对结果排序或建哈希表才能发现重复，因此它和 ORDER BY 常常共享同一份排序结果，写在一起时数据库有机会只排一次。但如果 SELECT 的列很多、行数很大，这份临时结构可能落到磁盘上，查询就会明显变慢。遇到这种情况，先确认是否真的需要整行去重，能否改成按主键分组，或者把去重放到应用层按业务键处理。判断标准不是「哪种写法更高级」，而是「哪种写法用更少的中间数据回答了同一个问题」。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE matches (\n  id INTEGER PRIMARY KEY,\n  player TEXT,\n  mode TEXT\n);\nINSERT INTO matches VALUES\n  (1, 'V', 'ranked'),\n  (2, 'Judy', 'ranked'),\n  (3, 'V', 'casual'),\n  (4, 'Jackie', 'duo'),\n  (5, 'Judy', 'duo');\n\nSELECT DISTINCT mode FROM matches ORDER BY mode;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "mode\ncasual\nduo\nranked"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "写法",
+          "结果",
+          "说明"
+        ],
+        "rows": [
+          [
+            "DISTINCT mode",
+            "casual, duo, ranked",
+            "一列去重"
+          ],
+          [
+            "DISTINCT player, mode",
+            "五行组合去重",
+            "整行比较"
+          ],
+          [
+            "COUNT(DISTINCT player)",
+            "3",
+            "不重复玩家数"
+          ],
+          [
+            "GROUP BY mode",
+            "分组",
+            "可同时聚合"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE matches (\n  id INTEGER PRIMARY KEY,\n  player TEXT,\n  mode TEXT\n);\nINSERT INTO matches VALUES\n  (1, 'V', 'ranked'),\n  (2, 'Judy', 'ranked'),\n  (3, 'V', 'casual'),\n  (4, 'Jackie', 'duo'),\n  (5, 'Judy', 'duo');\n\nSELECT DISTINCT player, mode\nFROM matches\nORDER BY player, mode;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\tmode\nJackie\tduo\nJudy\tduo\nJudy\tranked\nV\tcasual\nV\tranked"
+      },
+      {
+        "type": "tip",
+        "text": "DISTINCT 不是函数，不能写成 DISTINCT(player)。它修饰的是整个 SELECT 列表，写 SELECT DISTINCT a, b 是对 (a, b) 组合去重。"
+      },
+      {
+        "type": "warn",
+        "text": "DISTINCT 和 ORDER BY 一起用时，ORDER BY 的列应当出现在 SELECT 列表里，否则不同数据库的行为不一致，PostgreSQL 会直接报错。"
+      },
+      {
+        "type": "quiz",
+        "question": "SELECT DISTINCT player, mode 去重的最小单位是？",
+        "options": [
+          "player 一列",
+          "mode 一列",
+          "player 与 mode 组成的整行",
+          "所有列加 id"
+        ],
+        "answer": 2,
+        "explain": "DISTINCT 作用于整个选择列表，多列时按组合判断重复。"
+      }
+    ],
+    "exercise": {
+      "title": "买过高价商品的玩家",
+      "brief": "从 purchases 表选出 price 大于等于 50 的玩家 player，去重后按字母升序。",
+      "starterCode": "CREATE TABLE purchases (id INTEGER PRIMARY KEY, player TEXT, item TEXT, price INTEGER);\nINSERT INTO purchases VALUES\n  (1, 'V', 'skin', 80),\n  (2, 'V', 'skin', 80),\n  (3, 'Judy', 'mount', 120),\n  (4, 'Jackie', 'emote', 20),\n  (5, 'Rogue', 'mount', 50);\n\n-- 在这里写查询\n",
+      "hint": "SELECT DISTINCT player FROM purchases WHERE price >= 50 ORDER BY player;",
+      "tests": [
+        "assert columns == ['player'], columns",
+        "assert rows == [['Judy'], ['Rogue'], ['V']], rows",
+        "assert len(rows) == 3, rows"
+      ],
+      "stdin": [],
+      "xp": 90,
+      "solution": "CREATE TABLE purchases (id INTEGER PRIMARY KEY, player TEXT, item TEXT, price INTEGER);\nINSERT INTO purchases VALUES\n  (1, 'V', 'skin', 80),\n  (2, 'V', 'skin', 80),\n  (3, 'Judy', 'mount', 120),\n  (4, 'Jackie', 'emote', 20),\n  (5, 'Rogue', 'mount', 50);\n\nSELECT DISTINCT player\nFROM purchases\nWHERE price >= 50\nORDER BY player;\n"
+    }
+  },
+  {
+    "id": "sql05",
+    "order": 504,
+    "chapter": 51,
+    "chapterName": "SQL · 基础篇",
+    "lang": "sql",
+    "title": "算式与比较",
+    "subtitle": "算术与比较运算符",
+    "xp": 80,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "在查询里做计算"
+      },
+      {
+        "type": "text",
+        "text": "SELECT 的列表里可以写表达式，不只是列名。加、减、乘、除、取余都能用，还可以用括号控制优先级。表达式的结果会作为新列返回，列名通常是表达式原文，建议用 AS 起一个可读的别名。例如 hits * 100.0 / shots AS accuracy 把命中数换算成百分比，结果列就叫 accuracy，前端拿到数据时不需要再猜这一列是什么意思，导出报表时也不会出现一列名为「hits * 100.0 / shots」的奇怪表头。计算尽量放在 SQL 里做，能利用数据库的向量化执行，比拉回应用层逐行算更快。SQLite 的整数除法会截断小数：7 / 2 得到 3，不是 3.5。想要小数结果，至少让一边变成浮点数，写成 7.0 / 2 或 CAST(7 AS REAL) / 2。这个坑在算比率、平均值时特别常见：hits / shots 很可能直接得到 0，正确写法是 hits * 1.0 / shots。乘 100.0 既完成百分比换算，也顺手把类型提升为浮点，是教学代码里最常用的技巧之一。另一种稳妥写法是 CAST(表达式 AS REAL)，意图更明确，团队代码里更容易被审阅者看懂，也不依赖字面量的小数点写法。比较运算符返回的是布尔值，SQLite 用 1 表示真、0 表示假。所以 SELECT 5 > 3 会返回一行一列，值是 1。"
+      },
+      {
+        "type": "text",
+        "text": "比较可以出现在 WHERE 里，也可以出现在 SELECT 里做标记列，例如 SELECT score >= 80 AS is_high FROM matches。算术和比较可以嵌套，但要注意 NULL：任何运算只要碰到 NULL，结果就是 NULL，不会自动当 0 处理，需要兜底时用 COALESCE 包一层，例如 COALESCE(bonus, 0) 加 salary，才能避免整行结果为 NULL。数值精度也要留意，浮点运算可能出现 0.30000000000000004，展示前用 ROUND 控制小数位，比较金额时尽量用整数分而不是浮点元。表达式还能和 CASE WHEN 搭配做条件计算，例如用 CASE WHEN score >= 80 THEN 1 ELSE 0 END 统计高分场次；这在后续聚合篇里会大量出现。运算符也有类型规则：字符串相加在 SQLite 里会被当成数字转换，'a' + 1 得到 1，因为 'a' 转数字失败被当作 0，这种隐式转换既不直观也容易埋雷，拼接字符串请用 || 而不是 +。写表达式时多问一句「这一列是什么类型、结果是什么类型」，能避免大量只在特定数据上才暴露的问题。如果你只记住一句话，记住这个：SQL 里的每个表达式都有类型，类型决定运算规则和比较结果。"
+      },
+      {
+        "type": "text",
+        "text": "整数除整数得整数，字符串拼字符串得字符串，NULL 参与运算得 NULL。把这三条刻进肌肉记忆，再去看那些看似诡异的输出，大多能立刻找到解释。练习时不妨故意写几个错误表达式，观察SQLite 返回什么，例如 '5' + 5、NULL + 1、1 / 0，亲手验证过一遍，比读十遍文档印象更深。这种低成本试探是掌握一门查询语言最快的方式，也符合本课程「每一次运行都从干净内存库开始」的设计初衷。表达式写多了会发现一个规律：SQL 的运算符优先级和数学课基本一致，乘除先于加减，比较先于逻辑运算，括号可以覆盖一切。真正需要额外记忆的只有 AND 与 OR 的高低关系，以及 || 这个字符串拼接符号。把不熟悉的部分用括号包起来，不仅避免歧义，也让代码审查时一眼看出作者的意图。宁可多写两层括号，也不要让读代码的人去查优先级表。补一个类型细节：SQLite 的动态类型允许同一列混放整数、文本和 NULL，但混放会让比较和排序的行为变得难以预测。例如文本 '10' 和整数 9 比较时，SQLite 会按类型亲和性转换，结果可能是 10 > 9，也可能是字典序的 '10' < '9'，取决于列的声明类型。建表时声明 INTEGER 就只存整数，声明 TEXT 就只存文本，这种自律比任何技巧都重要。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE stats (\n  player TEXT,\n  shots INTEGER,\n  hits INTEGER\n);\nINSERT INTO stats VALUES\n  ('V', 50, 40),\n  ('Judy', 40, 30),\n  ('Jackie', 25, 10);\n\nSELECT player,\n       hits * 100.0 / shots AS accuracy\nFROM stats\nORDER BY accuracy DESC;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\taccuracy\nV\t80.0\nJudy\t75.0\nJackie\t40.0"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "运算符",
+          "含义",
+          "注意"
+        ],
+        "rows": [
+          [
+            "+ - * /",
+            "四则运算",
+            "整数相除会截断"
+          ],
+          [
+            "%",
+            "取余",
+            "7 % 2 = 1"
+          ],
+          [
+            "= <> !=",
+            "等于 / 不等于",
+            "NULL 比较要用 IS"
+          ],
+          [
+            "> < >= <=",
+            "大小比较",
+            "返回 1 或 0"
+          ],
+          [
+            "AND OR NOT",
+            "逻辑组合",
+            "AND 优先于 OR"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "SELECT 7 / 2 AS int_div,\n       7 % 2 AS remainder,\n       7.0 / 2 AS real_div,\n       10 BETWEEN 5 AND 15 AS in_range,\n       'V' <> 'Judy' AS not_equal;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "int_div\tremainder\treal_div\tin_range\tnot_equal\n3\t1\t3.5\t1\t1"
+      },
+      {
+        "type": "tip",
+        "text": "SELECT 里可以直接算常量，用来验证表达式语义。写完复杂公式先单独 SELECT 一次看结果，比直接塞进大查询里排查快得多。"
+      },
+      {
+        "type": "warn",
+        "text": "整数除法截断是 SQLite 的既定行为，不是 bug。比率类计算务必先转浮点，否则 1 / 3 得到 0，后续再乘任何数都还是 0。"
+      },
+      {
+        "type": "quiz",
+        "question": "SELECT 7 / 2 在 SQLite 中返回什么？",
+        "options": [
+          "3.5",
+          "3",
+          "4",
+          "NULL"
+        ],
+        "answer": 1,
+        "explain": "两个整数相除会截断小数部分，返回 3；要小数请写 7.0 / 2。"
+      }
+    ],
+    "exercise": {
+      "title": "计算命中率",
+      "brief": "从 stats 表计算每位玩家的命中率：hits * 100.0 / shots，保留一位小数，列名为 name 与 accuracy，按 accuracy 降序排列。",
+      "starterCode": "CREATE TABLE stats (name TEXT, shots INTEGER, hits INTEGER);\nINSERT INTO stats VALUES\n  ('V', 50, 40),\n  ('Judy', 40, 30),\n  ('Jackie', 25, 10);\n\n-- 在这里写查询\n",
+      "hint": "SELECT name, ROUND(hits * 100.0 / shots, 1) AS accuracy FROM stats ORDER BY accuracy DESC;",
+      "tests": [
+        "assert columns == ['name', 'accuracy'], columns",
+        "assert rows == [['V', 80.0], ['Judy', 75.0], ['Jackie', 40.0]], rows",
+        "assert len(rows) == 3, rows"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "CREATE TABLE stats (name TEXT, shots INTEGER, hits INTEGER);\nINSERT INTO stats VALUES\n  ('V', 50, 40),\n  ('Judy', 40, 30),\n  ('Jackie', 25, 10);\n\nSELECT name,\n       ROUND(hits * 100.0 / shots, 1) AS accuracy\nFROM stats\nORDER BY accuracy DESC;\n"
+    }
+  },
+  {
+    "id": "sql06",
+    "order": 505,
+    "chapter": 51,
+    "chapterName": "SQL · 基础篇",
+    "lang": "sql",
+    "title": "空值的脾气",
+    "subtitle": "NULL 与 IS NULL",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "NULL 不是零，也不是空串"
+      },
+      {
+        "type": "text",
+        "text": "NULL 表示「这个值未知或不存在」，它既不是数字 0，也不是空字符串。0 是一个确定的数值，空串是一个长度为零的文本，而 NULL 是「没有值」这个状态本身。这个区别在业务上非常重要：成绩为 0 说明考生考了 0 分，成绩为 NULL 说明这场考试没有记录，两者在统计平均分时的处理完全不同。建表时凡是业务上不允许缺失的列，都应该加 NOT NULL 约束，把「必须有值」这件事交给数据库守住，而不是指望每个写入方都记得填。NULL 最反直觉的地方是它遵循三值逻辑：真、假、未知。任何值与 NULL 做比较，结果都是未知，而不是真或假。因此 WHERE score = NULL 永远筛不出任何行，WHERE score <> NULL 同样一行都筛不出，正确写法是 WHERE score IS NULL 或 WHERE score IS NOT NULL。判断两个值是否相等也不能用 =，要用 IS，例如 NULL IS NULL 返回 1。把 NULL 想成「还没填写的空格」，你就能理解为什么它和任何东西比较都得不到确定答案。三值逻辑还会影响 AND 与 OR。真 OR 未知得到真，假 AND 未知得到假，只有结果无法确定时才返回未知。这意味着 WHERE 里某个条件为 NULL 时，整行可能被过滤掉，哪怕另一个条件已经为真。"
+      },
+      {
+        "type": "text",
+        "text": "排查「明明有数据却查不到」的问题时，先检查条件里有没有可空列参与了比较，再决定用 IS NULL 还是 COALESCE 兜底。COALESCE(a, b, c) 返回第一个非 NULL 的参数，常用于给空值准备默认值；IFNULL(a, b) 是它的两参数版本，NULLIF(a, b) 则在两值相等时返回 NULL，可用来把哨兵值转成真正的空值。聚合函数对 NULL 的处理也值得单独记住：COUNT(*) 数的是行数，包含 NULL；COUNT(列) 只数该列非 NULL 的行；SUM、AVG、MIN、MAX 都会跳过 NULL，若所有值都是 NULL，结果就是 NULL。空表上 COUNT 返回 0，而 SUM 返回 NULL，这个差异经常让报表出现空白单元格。排序时 NULL 被当作最小值，DISTINCT 则把多个 NULL 视为同一个值只保留一条。把这些规则集中记一遍，比每次遇到问题再猜要高效得多。工程上还要区分「空字符串」和 NULL。很多前端表单提交空输入时会传来 ''，如果后端直接写库，这一列就是有值的空串，IS NULL 判断不到，统计非空数量时又会被算进去。稳妥做法是在写入前统一清洗：空串转 NULL，或者明确禁止空串并用 CHECK (col <> '') 约束。"
+      },
+      {
+        "type": "text",
+        "text": "同理，数字 0 和 NULL 混用会让平均值失真，日期列用 '0000-00-00' 当哨兵值也会让排序和区间查询出错。在表设计阶段约定「缺失就用 NULL，不要用魔法值」，比事后写一堆特判要省事得多。最后说说外键列上的 NULL。子表里表示「暂无关联」时，外键列通常允许 NULL，例如玩家还没有战队，team_id 就是 NULL。这时连接查询要特别小心：INNER JOIN 会把这类行整个丢掉，LEFT JOIN 才能保留，而 WHERE team_id = 3 又会把 NULL 行再次过滤掉，必须写成 WHERE team_id = 3 OR team_id IS NULL。NULL 的每个细节单独看都简单，组合起来就容易出错，所以本讲的重点不是背规则，而是建立「先问这一列能不能为空」的思维习惯。还有一个实用函数是 NULLIF(a, b)，两个值相等时返回 NULL，否则返回 a。它可以用来避免除零错误：SUM(x) / NULLIF(COUNT(*), 0) 在表为空时返回 NULL 而不是报错。在报表里这比先判断行数再决定是否相除更简洁，也更适合放进视图或 CTE。把 COALESCE 和 NULLIF 这对搭档记住，大多数空值相关的边界都能优雅处理。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL,\n  sponsor_id INTEGER,\n  score INTEGER\n);\nINSERT INTO players VALUES\n  (1, 'V', NULL, 90),\n  (2, 'Judy', 1, NULL),\n  (3, 'Jackie', 1, 75),\n  (4, 'Rogue', NULL, NULL);\n\nSELECT COUNT(*) AS total,\n       COUNT(sponsor_id) AS with_sponsor,\n       COUNT(score) AS with_score\nFROM players;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "total\twith_sponsor\twith_score\n4\t2\t2"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "表达式",
+          "结果",
+          "说明"
+        ],
+        "rows": [
+          [
+            "NULL = NULL",
+            "NULL",
+            "比较结果未知"
+          ],
+          [
+            "NULL IS NULL",
+            "1",
+            "判断空值用 IS"
+          ],
+          [
+            "COALESCE(NULL, 5)",
+            "5",
+            "取第一个非 NULL"
+          ],
+          [
+            "COUNT(*)",
+            "行数",
+            "包含 NULL 行"
+          ],
+          [
+            "SUM(x)",
+            "跳过 NULL",
+            "全空时返回 NULL"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL,\n  sponsor_id INTEGER,\n  score INTEGER\n);\nINSERT INTO players VALUES\n  (1, 'V', NULL, 90),\n  (2, 'Judy', 1, NULL),\n  (3, 'Jackie', 1, 75),\n  (4, 'Rogue', NULL, NULL);\n\nSELECT name, COALESCE(score, 0) AS score_or_zero\nFROM players\nWHERE score IS NULL\nORDER BY id;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "name\tscore_or_zero\nJudy\t0\nRogue\t0"
+      },
+      {
+        "type": "tip",
+        "text": "给列设置默认值时写 DEFAULT 0，而不是允许 NULL 再在查询里到处 COALESCE。能在建表阶段消除的空值，就不要留到查询阶段补救。"
+      },
+      {
+        "type": "warn",
+        "text": "NULL 参与算术运算的结果永远是 NULL：100 + NULL 是 NULL，不是 100。做金额汇总时先 COALESCE 再相加，否则一条缺失记录会让整列合计变成空白。"
+      },
+      {
+        "type": "quiz",
+        "question": "要筛选出 score 为空的行，正确的条件是？",
+        "options": [
+          "WHERE score = NULL",
+          "WHERE score IS NULL",
+          "WHERE score = ''",
+          "WHERE score <> NULL"
+        ],
+        "answer": 1,
+        "explain": "NULL 表示未知，等号比较永远不成立，必须用 IS NULL 判断。"
+      }
+    ],
+    "exercise": {
+      "title": "为空值兜底",
+      "brief": "从 players 表选出 sponsor_id 为空的玩家 name，并把他们的 score 用 0 兜底，输出 name 与 score，按 id 升序。",
+      "starterCode": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT, sponsor_id INTEGER, score INTEGER);\nINSERT INTO players VALUES\n  (1, 'V', NULL, 90),\n  (2, 'Judy', 1, NULL),\n  (3, 'Jackie', 1, 75),\n  (4, 'Rogue', NULL, NULL);\n\n-- 在这里写查询\n",
+      "hint": "SELECT name, COALESCE(score, 0) AS score FROM players WHERE sponsor_id IS NULL ORDER BY id;",
+      "tests": [
+        "assert columns == ['name', 'score'], columns",
+        "assert rows == [['V', 90], ['Rogue', 0]], rows",
+        "assert len(rows) == 2, rows"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT, sponsor_id INTEGER, score INTEGER);\nINSERT INTO players VALUES\n  (1, 'V', NULL, 90),\n  (2, 'Judy', 1, NULL),\n  (3, 'Jackie', 1, 75),\n  (4, 'Rogue', NULL, NULL);\n\nSELECT name, COALESCE(score, 0) AS score\nFROM players\nWHERE sponsor_id IS NULL\nORDER BY id;\n"
+    }
+  },
+  {
+    "id": "sql07",
+    "order": 506,
+    "chapter": 51,
+    "chapterName": "SQL · 基础篇",
+    "lang": "sql",
+    "title": "从行到数字",
+    "subtitle": "COUNT / SUM / AVG / MIN / MAX",
+    "xp": 80,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "聚合函数把多行压成一个值"
+      },
+      {
+        "type": "text",
+        "text": "聚合函数接收一组行，返回一个汇总值。最常用的五个是 COUNT 计数、SUM 求和、AVG 求平均、MIN 取最小、MAX 取最大。不加 GROUP BY 时，整张表被视为一个组，查询结果只有一行。例如 SELECT COUNT(*) FROM matches 返回比赛总场次，SELECT MAX(score) FROM matches 返回最高分。聚合让「逐行处理」变成「整体概括」，是报表、看板、对账场景最基础的工具，也是后面分组统计和窗口函数的起点。COUNT 有三种常见形态，必须分清楚：COUNT(*) 数所有行，包括含 NULL 的行；COUNT(列) 只数该列不为 NULL 的行；COUNT(DISTINCT 列) 先对非 NULL 值去重再计数。三者结果可能相差很大，写报表时选错会让口径完全变样。SUM 和 AVG 同样会跳过 NULL，AVG 的分母是非 NULL 的行数，不是总行数，所以「平均分」在有缺考记录时往往偏高。需要把空值当 0 参与计算时，先写 SUM(COALESCE(score, 0))，或者 AVG(COALESCE(score, 0))，把口径显式表达出来。MIN 和 MAX 不只用于数字，也能用于文本和日期：文本按字典序比较，ISO 格式的日期字符串按时间先后比较，因此 MAX(played_on) 可以直接取最近一场比赛日期。"
+      },
+      {
+        "type": "text",
+        "text": "聚合结果是一行一列，不能和普通列随意混写：SELECT player, MAX(score) FROM matches 在 SQLite 里不会报错，但 player 取的是哪一行并不确定，标准 SQL 会直接拒绝。正确做法是按 player 分组，或者用窗口函数把聚合值贴回每一行。这个坑在面试和真实项目里都非常常见。聚合和 WHERE 的配合也有顺序：WHERE 先把不满足条件的行去掉，聚合再对剩下的行计算。所以 WHERE 里写 COUNT(*) > 1 会报 misuse of aggregate，因为过滤发生在聚合之前，那时还没有聚合值。过滤聚合结果要用 HAVING，它在下一次课详细讲。空表上的行为也值得记牢：COUNT 返回 0，SUM、AVG、MIN、MAX 返回 NULL，报表代码要能处理这种空结果，而不是默认它一定返回数字。AVG 的口径尤其容易出错。假设三个玩家分数是 90、60、NULL，AVG(score) 得到 75，而如果把 NULL 当成 0 参与，平均分是 50，两种口径都可能有业务依据，但必须明确选一种并告知使用方。"
+      },
+      {
+        "type": "text",
+        "text": "更隐蔽的是手工用 SUM 除以 COUNT(*)：分子跳过 NULL、分母包含全部行，算出来的平均值会偏低，这种错误在手工拼 SQL 的报表里非常常见。建议直接用 AVG，让数据库统一处理口径，需要特殊口径时再显式写 SUM(COALESCE(x, 0)) / COUNT(*)，并在注释里说明为什么这样算。聚合还能和 DISTINCT 组合，例如 COUNT(DISTINCT player) 统计去重玩家数，SUM(DISTINCT amount) 只对不重复金额求和。后者在业务上很少有意义，但语法合法，看到时要立刻意识到它的语义是「先去重再求和」。多列聚合可以写在同一行 SELECT 里，数据库只扫一遍数据就能算出所有指标，比分多条查询分别统计高效。做数据看板时，把同一张表的多个指标合并到一条查询，是降低数据库压力的常用手段。如果查询里同时出现 WHERE 和聚合，请按「先缩范围、再算指标」的思路组织。例如统计本周活跃玩家的平均分，应该先用 WHERE 限定日期区间，再 GROUP BY player 求 AVG，而不是先算全表平均再筛选。前者让数据库只处理一小部分行，后者白白计算了用不上的数据。这条原则在数据量变大后差别非常明显，也是慢查询优化最常调整的地方之一。养成先想「哪些行需要参与计算」的习惯，写出来的 SQL 通常既正确又高效。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE matches (\n  id INTEGER PRIMARY KEY,\n  player TEXT,\n  score INTEGER\n);\nINSERT INTO matches VALUES\n  (1, 'V', 90),\n  (2, 'Judy', 80),\n  (3, 'V', 70),\n  (4, 'Jackie', NULL),\n  (5, 'Judy', 60);\n\nSELECT COUNT(*) AS matches,\n       COUNT(score) AS scored,\n       SUM(score) AS total,\n       ROUND(AVG(score), 1) AS avg_score,\n       MIN(score) AS low, MAX(score) AS high\nFROM matches;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "matches\tscored\ttotal\tavg_score\tlow\thigh\n5\t4\t300\t75.0\t60\t90"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "函数",
+          "作用",
+          "对 NULL 的处理"
+        ],
+        "rows": [
+          [
+            "COUNT(*)",
+            "统计行数",
+            "包含 NULL 行"
+          ],
+          [
+            "COUNT(列)",
+            "统计非空值",
+            "跳过 NULL"
+          ],
+          [
+            "SUM(列)",
+            "求和",
+            "跳过 NULL，全空返回 NULL"
+          ],
+          [
+            "AVG(列)",
+            "求平均",
+            "分母是非空行数"
+          ],
+          [
+            "MIN / MAX",
+            "极值",
+            "跳过 NULL，可用于文本和日期"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE empty_scores (player TEXT, score INTEGER);\n\nSELECT COUNT(*) AS rows_count,\n       SUM(score) AS total,\n       AVG(score) AS average,\n       MAX(score) AS best\nFROM empty_scores;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "rows_count\ttotal\taverage\tbest\n0\tNULL\tNULL\tNULL"
+      },
+      {
+        "type": "tip",
+        "text": "AVG 返回浮点数，报表展示前用 ROUND(AVG(x), 1) 控制小数位。如果业务要求「四舍五入到整数」，写 ROUND 而不是 CAST，CAST 是截断，会把 89.9 变成 89。"
+      },
+      {
+        "type": "warn",
+        "text": "聚合查询里混入非聚合列，在 SQLite 中不一定报错，但取值来自哪一行没有保证。要么把该列放进 GROUP BY，要么改用窗口函数，不要依赖这种「碰巧对」的写法。"
+      },
+      {
+        "type": "quiz",
+        "question": "表中有 5 行，其中 score 列有 2 行为 NULL，COUNT(score) 返回多少？",
+        "options": [
+          "5",
+          "3",
+          "2",
+          "NULL"
+        ],
+        "answer": 1,
+        "explain": "COUNT(列) 只统计非 NULL 值，5 行里 2 行为空，所以返回 3。"
+      }
+    ],
+    "exercise": {
+      "title": "汇总比赛数据",
+      "brief": "从 matches 表统计总场次 matches、有分数的场次 scored、总分 total 与平均分 avg_score（保留一位小数），列名依次为 matches、scored、total、avg_score。",
+      "starterCode": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES\n  (1, 'V', 90),\n  (2, 'Judy', 80),\n  (3, 'V', 70),\n  (4, 'Jackie', NULL),\n  (5, 'Judy', 60);\n\n-- 在这里写查询\n",
+      "hint": "SELECT COUNT(*) AS matches, COUNT(score) AS scored, SUM(score) AS total, ROUND(AVG(score), 1) AS avg_score FROM matches;",
+      "tests": [
+        "assert columns == ['matches', 'scored', 'total', 'avg_score'], columns",
+        "assert rows == [[5, 4, 300, 75.0]], rows",
+        "assert len(rows) == 1, rows"
+      ],
+      "stdin": [],
+      "xp": 100,
+      "solution": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES\n  (1, 'V', 90),\n  (2, 'Judy', 80),\n  (3, 'V', 70),\n  (4, 'Jackie', NULL),\n  (5, 'Judy', 60);\n\nSELECT COUNT(*) AS matches,\n       COUNT(score) AS scored,\n       SUM(score) AS total,\n       ROUND(AVG(score), 1) AS avg_score\nFROM matches;\n"
+    }
+  },
+  {
+    "id": "sql08",
+    "order": 507,
+    "chapter": 51,
+    "chapterName": "SQL · 基础篇",
+    "lang": "sql",
+    "title": "分组与筛选组",
+    "subtitle": "GROUP BY 与 HAVING",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "先分组，再统计"
+      },
+      {
+        "type": "text",
+        "text": "GROUP BY 把行按指定列的值分成若干组，每组内部的行共享同一个分组键，聚合函数对每组各算一次，最终每个组输出一行。SELECT player, COUNT(*) FROM matches GROUP BY player 得到每位玩家的比赛场次，而不是全表一个总数。分组键可以是一列，也可以是多个列的组合，例如按玩家和模式分组，就能得到「某人在某种模式下」的统计。分组键为 NULL 的行会自成一组，这一点在做用户画像时经常需要单独处理。SELECT 列表里的列有两种：分组键和聚合结果。任何没有包在聚合函数里的列，都应该出现在 GROUP BY 中，否则它的取值来自组内哪一行没有定义。SQLite 对此比较宽松，MySQL 旧版本甚至默认允许，但 PostgreSQL 会直接报错，标准 SQL 也要求如此。写代码时按最严格的标准要求自己，迁移数据库时才不会突然冒出一堆错误。如果确实需要组内某一行的其他列，正确工具是窗口函数或者「先排序再取第一行」的子查询，而不是赌数据库的实现细节。HAVING 用来过滤分组后的结果，语义上相当于对每组算完聚合后再判断一次。"
+      },
+      {
+        "type": "text",
+        "text": "WHERE 过滤的是行，HAVING 过滤的是组，两者的执行顺序是 FROM、WHERE、GROUP BY、HAVING、SELECT、ORDER BY。所以 WHERE 里不能写聚合函数，HAVING 里可以。一个常见的组合是 WHERE 先限定时间范围，GROUP BY 再按玩家分组，HAVING 最后只保留场次达到阈值的组，这样能显著减少参与聚合的数据量。写分组查询时建议按固定模板组织：先确定「每组的定义」，再确定「每组要算什么」，最后确定「哪些组不要」。缺了最后一步，报表里常会出现只打过一场的玩家或金额极小的噪声分组。HAVING 的条件里可以直接引用 SELECT 中定义的聚合别名，SQLite 和 MySQL 都支持，PostgreSQL 不支持，跨库代码最好重复写一遍聚合表达式。结果默认无序，需要稳定输出时补 ORDER BY，并且排序键最好包含分组键，避免同值组的顺序漂移。还有一个进阶技巧：GROUP BY 支持按表达式分组，例如按 SUBSTR(played_on, 1, 7) 分组成「年月」，就能做出月度报表；按 CASE WHEN 的结果分组，可以把分数分成 S、A、B 档再统计各档人数。"
+      },
+      {
+        "type": "text",
+        "text": "分组键不要求是原始列，只要表达式在每一行上有确定值即可。不过表达式分组通常无法命中普通索引，数据量大时要考虑增加生成列或预计算字段。更重要的是，分组键一旦变化，结果行的含义就变了，所以改动分组逻辑时要同步更新报表口径文档。分组查询的调试方法也值得单独说：先用 SELECT player, COUNT(*) 看每组行数，确认没有意外的空组或重复；再加上 HAVING 观察被过滤掉的组；最后加 ORDER BY 检查排序是否符合预期。分步验证比一次性写完再看结果更容易定位问题。如果发现某位玩家的场次比实际多，八成是连接了另一张一对多的表导致行数被放大，这时要先把连接后的行数数清楚，再决定是否在聚合前去重。分组的本质是「先把行归堆」，堆分错了，后面算得再准也没有意义。最后提一个常见需求：统计「每个分组里满足某条件的行数」。写 SUM(CASE WHEN score >= 90 THEN 1 ELSE 0 END) 即可，也可以写 COUNT(CASE WHEN ... THEN 1 END)，两者结果相同。这类条件聚合能在一行里同时产出多个口径，是做转化率、留存率报表的核心手法。记得给每个聚合起清楚的别名，否则结果列会变成一长串表达式，交给前端或报表工具时没人看得懂。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE matches (\n  id INTEGER PRIMARY KEY,\n  player TEXT,\n  score INTEGER\n);\nINSERT INTO matches VALUES\n  (1, 'V', 90),\n  (2, 'Judy', 80),\n  (3, 'V', 70),\n  (4, 'Jackie', 60),\n  (5, 'Judy', 95);\n\nSELECT player,\n       COUNT(*) AS games,\n       ROUND(AVG(score), 1) AS avg_score\nFROM matches\nGROUP BY player\nORDER BY avg_score DESC;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\tgames\tavg_score\nJudy\t2\t87.5\nV\t2\t80.0\nJackie\t1\t60.0"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "子句",
+          "作用对象",
+          "执行时机"
+        ],
+        "rows": [
+          [
+            "WHERE",
+            "单行",
+            "分组之前"
+          ],
+          [
+            "GROUP BY",
+            "行到组",
+            "过滤之后"
+          ],
+          [
+            "HAVING",
+            "分组结果",
+            "聚合之后"
+          ],
+          [
+            "ORDER BY",
+            "最终结果",
+            "最后排序"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE matches (\n  id INTEGER PRIMARY KEY,\n  player TEXT,\n  score INTEGER\n);\nINSERT INTO matches VALUES\n  (1, 'V', 90),\n  (2, 'Judy', 80),\n  (3, 'V', 70),\n  (4, 'Jackie', 60),\n  (5, 'Judy', 95);\n\nSELECT player, COUNT(*) AS games\nFROM matches\nGROUP BY player\nHAVING COUNT(*) >= 2\nORDER BY games DESC, player;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "player\tgames\nJudy\t2\nV\t2"
+      },
+      {
+        "type": "tip",
+        "text": "分组查询的结果行数等于分组数，不是原表行数。写之前先想清楚「一行的粒度是什么」，是每位玩家、每天、还是每个玩家每天，粒度决定 GROUP BY 的列。"
+      },
+      {
+        "type": "warn",
+        "text": "WHERE 里写 COUNT(*) > 1 会报 misuse of aggregate。过滤聚合结果必须用 HAVING，因为 WHERE 执行时还没有聚合值。"
+      },
+      {
+        "type": "quiz",
+        "question": "要只保留比赛场次大于等于 2 的玩家，条件应该写在哪里？",
+        "options": [
+          "WHERE COUNT(*) >= 2",
+          "HAVING COUNT(*) >= 2",
+          "ORDER BY COUNT(*) >= 2",
+          "GROUP BY COUNT(*) >= 2"
+        ],
+        "answer": 1,
+        "explain": "过滤分组后的聚合结果用 HAVING；WHERE 在聚合之前执行，不能引用聚合函数。"
+      }
+    ],
+    "exercise": {
+      "title": "活跃玩家",
+      "brief": "从 matches 表按 player 分组，统计每人的场次 games 与平均分 avg_score（保留一位小数），只保留场次大于等于 2 的玩家，按 avg_score 降序。",
+      "starterCode": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES\n  (1, 'V', 90),\n  (2, 'Judy', 80),\n  (3, 'V', 70),\n  (4, 'Jackie', 60),\n  (5, 'Judy', 95);\n\n-- 在这里写查询\n",
+      "hint": "SELECT player, COUNT(*) AS games, ROUND(AVG(score), 1) AS avg_score FROM matches GROUP BY player HAVING COUNT(*) >= 2 ORDER BY avg_score DESC;",
+      "tests": [
+        "assert columns == ['player', 'games', 'avg_score'], columns",
+        "assert rows == [['Judy', 2, 87.5], ['V', 2, 80.0]], rows",
+        "assert len(rows) == 2, rows"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "CREATE TABLE matches (id INTEGER PRIMARY KEY, player TEXT, score INTEGER);\nINSERT INTO matches VALUES\n  (1, 'V', 90),\n  (2, 'Judy', 80),\n  (3, 'V', 70),\n  (4, 'Jackie', 60),\n  (5, 'Judy', 95);\n\nSELECT player,\n       COUNT(*) AS games,\n       ROUND(AVG(score), 1) AS avg_score\nFROM matches\nGROUP BY player\nHAVING COUNT(*) >= 2\nORDER BY avg_score DESC;\n"
+    }
+  },
+  {
+    "id": "sql09",
+    "order": 508,
+    "chapter": 51,
+    "chapterName": "SQL · 基础篇",
+    "lang": "sql",
+    "title": "增删改数据",
+    "subtitle": "INSERT / UPDATE / DELETE",
+    "xp": 90,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "让数据发生变化"
+      },
+      {
+        "type": "text",
+        "text": "INSERT 负责新增行，最完整的写法是 INSERT INTO 表名 (列一, 列二) VALUES (值一, 值二)。列名列表可以省略，此时必须按建表时的列顺序提供全部列的值，一旦表结构变了，这种写法就会悄悄错位，所以生产代码建议总是写列名。一次插入多行用逗号分隔多组 VALUES，比循环执行多条INSERT 快得多，因为只需要一次解析、一次事务开销。配合 SELECT 还能把查询结果直接写入另一张表，这在数据归档和汇总表刷新时非常常用。UPDATE 修改已有行，语法是 UPDATE 表名 SET 列 = 新值 WHERE 条件。SET 后面可以同时写多列，用逗号分隔，所有列基于修改前的同一行计算；也可以用表达式更新，例如把分数整体上调百分之十。WHERE 是 UPDATE 的灵魂：漏写 WHERE 会更新全表，这是生产事故里最常见的一类。执行前先用同样的 WHERE 写一条 SELECT COUNT(*) 数一下会命中多少行，确认数量和预期一致再改成 UPDATE，这个习惯能挡掉绝大部分误操作。DELETE 删除行，语法是 DELETE FROM 表名 WHERE 条件，同样必须带条件。SQLite 没有 TRUNCATE，清空表就是 DELETE FROM 表名，它会逐行删除并写日志，大表上比 TRUNCATE 慢。"
+      },
+      {
+        "type": "text",
+        "text": "删除前最好先备份或把数据复制到归档表，尤其是没有 WHERE 的删除。逻辑删除是常见替代方案：加一列 deleted_at，删除时写时间戳而不是真的删行，查询时过滤掉已删除记录，这样数据可恢复，也方便审计。物理删除与逻辑删除怎么选，取决于业务对可恢复性和存储成本的要求。这三类语句和查询有一个本质区别：它们改变数据库状态，而 SELECT 只读。执行之后，可以用SELECT 立刻验证结果是否符合预期，例如更新后查一下目标行的新值、删除后统计剩余行数。多条写操作如果必须一起成功，就要用事务包起来，这一部分在进阶篇展开。还要注意，写操作的返回值是受影响的行数，Python 的 sqlite3 通过 cursor.rowcount 拿到它，课程运行器会把它显示成 OK (n rows affected)，n 为 -1 表示该语句不返回行数，例如建表语句。INSERT 还有一个实用变体是 INSERT INTO ... SELECT，把一条查询的结果整批写入目标表，例如每晚把当天的订单汇总进日报表。它和普通 INSERT 一样受约束检查，违反唯一键会整批失败，批量导入前最好先确认源数据没有重复键。"
+      },
+      {
+        "type": "text",
+        "text": "另一个常见需求是「不存在才插入」，可以用 INSERT OR IGNORE 配合唯一索引，或者写成 INSERT ... SELECT ... WHERE NOT EXISTS，后者的语义更明确，也方便在插入前做更复杂的判断。UPDATE 里还有一个容易忽略的点：SET 右侧的表达式如果引用本列，用的是修改前的值。所以 UPDATE t SET a = a + 1, b = a 中的 b 拿到的是旧的 a，而不是刚加完 1 的新值。需要基于新值继续计算时，要么拆成两条语句，要么在表达式里重复写完整公式。理解这一点，能避免很多「为什么更新后数据不对」的疑惑。至于 DELETE，执行前先确认是否有外键级联，删掉父表一行可能连带清空子表大量数据，这一类影响面必须在动手前查清楚。写入还有一个常被忽略的细节：UPDATE 和 DELETE 的 WHERE 条件如果涉及子查询，SQLite 会先算出子查询的结果集再逐行匹配，中途修改数据不会影响已经算好的集合。这意味着你可以安全地写 DELETE FROM t WHERE id IN (SELECT id FROM t WHERE ...)，不必担心边删边算导致漏行。但跨表删除时仍要确认外键级联的顺序，先删子表再删父表，或依赖级联，别指望数据库替你猜意图。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL,\n  region TEXT,\n  level INTEGER\n);\nINSERT INTO players VALUES\n  (1, 'V', 'Neon', 66),\n  (2, 'Judy', 'Neon', 42),\n  (3, 'Jackie', 'Watson', 30),\n  (4, 'Rogue', 'Watson', 12);\n\nINSERT INTO players (name, region, level) VALUES ('Echo', 'Neon', 20);\nUPDATE players SET level = level + 10 WHERE region = 'Neon';\nSELECT name, region, level FROM players ORDER BY id;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "name\tregion\tlevel\nV\tNeon\t76\nJudy\tNeon\t52\nJackie\tWatson\t30\nRogue\tWatson\t12\nEcho\tNeon\t30"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "语句",
+          "作用",
+          "关键点"
+        ],
+        "rows": [
+          [
+            "INSERT",
+            "新增行",
+            "写列名，多行用逗号分隔"
+          ],
+          [
+            "UPDATE",
+            "修改行",
+            "必须带 WHERE，否则全表"
+          ],
+          [
+            "DELETE",
+            "删除行",
+            "必须带 WHERE，先备份"
+          ],
+          [
+            "SELECT",
+            "只读验证",
+            "写操作后立刻核对"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE players (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL,\n  region TEXT,\n  level INTEGER\n);\nINSERT INTO players VALUES\n  (1, 'V', 'Neon', 66),\n  (2, 'Judy', 'Neon', 42),\n  (3, 'Jackie', 'Watson', 30),\n  (4, 'Rogue', 'Watson', 12);\n\nDELETE FROM players WHERE level < 30;\nSELECT COUNT(*) AS remaining FROM players;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "remaining\n3"
+      },
+      {
+        "type": "tip",
+        "text": "把 UPDATE 或 DELETE 的 WHERE 条件先放进 SELECT COUNT(*)，确认命中行数再执行，是成本最低的安全检查。多花十秒，能避免一次通宵恢复数据。"
+      },
+      {
+        "type": "warn",
+        "text": "SQLite 默认自动提交：每条写语句执行完就生效。想「要么全成功要么全失败」，必须显式写 BEGIN 与 COMMIT，把多条语句包进同一个事务。"
+      },
+      {
+        "type": "quiz",
+        "question": "UPDATE players SET level = 10; 缺少 WHERE 会发生什么？",
+        "options": [
+          "只更新第一行",
+          "更新所有行",
+          "报语法错误",
+          "什么都不做"
+        ],
+        "answer": 1,
+        "explain": "没有 WHERE 时 UPDATE 作用于整张表，所有行的 level 都会被改成 10。"
+      }
+    ],
+    "exercise": {
+      "title": "注册并升级",
+      "brief": "向 players 表插入 name 为 'Echo'、region 为 'Neon'、level 为 20 的玩家，再把 Echo 的 level 改为 25，最后返回 name 与 level。",
+      "starterCode": "CREATE TABLE players (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL,\n  region TEXT,\n  level INTEGER\n);\nINSERT INTO players VALUES\n  (1, 'V', 'Neon', 66),\n  (2, 'Judy', 'Neon', 42),\n  (3, 'Jackie', 'Watson', 30),\n  (4, 'Rogue', 'Watson', 12);\n\n-- 在这里写 INSERT / UPDATE / SELECT\n",
+      "hint": "INSERT INTO players (name, region, level) VALUES ('Echo', 'Neon', 20); UPDATE players SET level = 25 WHERE name = 'Echo'; SELECT name, level FROM players WHERE name = 'Echo';",
+      "tests": [
+        "assert columns == ['name', 'level'], columns",
+        "assert rows == [['Echo', 25]], rows",
+        "assert len(rows) == 1, rows"
+      ],
+      "stdin": [],
+      "xp": 110,
+      "solution": "CREATE TABLE players (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL,\n  region TEXT,\n  level INTEGER\n);\nINSERT INTO players VALUES\n  (1, 'V', 'Neon', 66),\n  (2, 'Judy', 'Neon', 42),\n  (3, 'Jackie', 'Watson', 30),\n  (4, 'Rogue', 'Watson', 12);\n\nINSERT INTO players (name, region, level) VALUES ('Echo', 'Neon', 20);\nUPDATE players SET level = 25 WHERE name = 'Echo';\nSELECT name, level FROM players WHERE name = 'Echo';\n"
+    }
+  },
+  {
+    "id": "sql10",
+    "order": 509,
+    "chapter": 51,
+    "chapterName": "SQL · 基础篇",
+    "lang": "sql",
+    "title": "把规则写进表里",
+    "subtitle": "主键与约束",
+    "xp": 100,
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "约束是数据库替你守的底线"
+      },
+      {
+        "type": "text",
+        "text": "主键 PRIMARY KEY 唯一标识一行，它有两个硬性要求：全表不重复、不能为 NULL。声明在 INTEGER 列上时，SQLite 会把这一列当作 rowid 的别名，插入 NULL 或省略该列会自动分配一个递增的整数，所以玩家 id 可以不用手写。复合主键用 PRIMARY KEY (列一, 列二) 声明，表示这两列的组合唯一，常见于关联表，例如「玩家 + 成就」的领取记录。主键不仅是约束，也是索引，按主键查找是数据库最快的访问路径之一。除了主键，还有几类常用约束。NOT NULL 要求列必须有值，防止写入方漏填；UNIQUE 保证列值不重复，可以为 NULL（多个 NULL 不算重复）；DEFAULT 指定省略该列时的默认值，例如等级默认 1、创建时间默认当前时间；CHECK 写一个布尔表达式，插入或更新时校验，例如 CHECK (level >= 0) 拦住负数等级。约束在写入的那一刻生效，违反就报错并拒绝整条语句，不需要应用层再写一遍判断逻辑，也不会因为某个写入入口忘了校验而留下脏数据。"
+      },
+      {
+        "type": "text",
+        "text": "约束冲突时可以指定应对策略：INSERT OR IGNORE 遇到唯一冲突就跳过这一行，适合批量导入时容忍重复；INSERT OR REPLACE 先删掉冲突的旧行再插入新行，语义是覆盖；INSERT OR ABORT 是默认行为，直接报错并回滚该语句。UPDATE 也有 OR 子句，用法类似。要注意 OR REPLACE 会真正删除旧行，如果其他表有外键引用它，可能触发级联删除，用之前要确认影响面。约束命名（CONSTRAINT 名字 CHECK ...）能让报错信息更可读，排查问题时能直接定位是哪条规则被违反。设计表时的一个实用原则是：能在数据库层表达的规则，就不要只写在应用层。应用可能有多个写入入口，脚本、后台、运营工具都会改数据，只有数据库约束是所有入口共享的最后一道防线。但约束也不是越多越好：每加一个 UNIQUE 就多一个索引，写入会变慢；CHECK 里的复杂子查询SQLite 并不支持。"
+      },
+      {
+        "type": "text",
+        "text": "把「绝对不能错」的规则放进约束，把「业务流程」的校验留在应用层，两者分工明确，系统才好维护。建表时多花十分钟想清楚约束，能省掉后面几个月的脏数据清理。主键的选型也值得认真对待。用自增整数做主键最简单，索引小、插入快、比较高效；用业务字段做主键则要求它永不变化，例如身份证号、订单号，一旦业务规则调整就会牵动大量关联表。更稳妥的做法是内部用自增整数做主键，业务唯一键另加 UNIQUE 索引，两者分工。另外，复合主键适合纯关联表，但如果关联表本身还要被别的表引用，加一个独立 id 会更方便。选主键没有唯一正确答案，关键是让读写双方都清楚「这一列代表什么、能不能变」。最后用一句话总结这一讲：约束不是限制，而是契约。它把「数据必须满足什么」从口头约定变成数据库可执行的规则，让错误在写入的那一刻暴露，而不是在几个月后的报表里才被发现。练习时不妨故意违反一次 UNIQUE 和 CHECK，看看报错信息长什么样，再想想如果应用层忘了校验会有什么后果。亲手触发过约束，你对它的信任和使用就会自然很多。"
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE accounts (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL UNIQUE,\n  level INTEGER NOT NULL DEFAULT 1 CHECK (level >= 0),\n  active INTEGER NOT NULL DEFAULT 1\n);\nINSERT INTO accounts (name) VALUES ('V');\nINSERT INTO accounts (name, level) VALUES ('Judy', 42);\nINSERT OR IGNORE INTO accounts (name) VALUES ('V');\nSELECT id, name, level, active FROM accounts ORDER BY id;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "id\tname\tlevel\tactive\n1\tV\t1\t1\n2\tJudy\t42\t1"
+      },
+      {
+        "type": "table",
+        "headers": [
+          "约束",
+          "作用",
+          "示例"
+        ],
+        "rows": [
+          [
+            "PRIMARY KEY",
+            "唯一且非空",
+            "id INTEGER PRIMARY KEY"
+          ],
+          [
+            "NOT NULL",
+            "禁止空值",
+            "name TEXT NOT NULL"
+          ],
+          [
+            "UNIQUE",
+            "列值不重复",
+            "name TEXT UNIQUE"
+          ],
+          [
+            "DEFAULT",
+            "省略时填默认值",
+            "level INTEGER DEFAULT 1"
+          ],
+          [
+            "CHECK",
+            "写入时校验表达式",
+            "CHECK (level >= 0)"
+          ]
+        ]
+      },
+      {
+        "type": "code",
+        "code": "CREATE TABLE accounts (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL UNIQUE,\n  level INTEGER NOT NULL DEFAULT 1 CHECK (level >= 0)\n);\nINSERT INTO accounts (name) VALUES ('V'), ('Judy');\nUPDATE accounts SET level = level + 5 WHERE name = 'Judy';\nSELECT name, level FROM accounts ORDER BY level DESC;",
+        "runnable": true
+      },
+      {
+        "type": "output",
+        "text": "name\tlevel\nJudy\t6\nV\t1"
+      },
+      {
+        "type": "tip",
+        "text": "INTEGER PRIMARY KEY 取当前最大 rowid 加一，删除末尾行后这个编号可能被再次分配。要求编号永不复用时再写 AUTOINCREMENT，它会多维护一张内部表，有额外开销。"
+      },
+      {
+        "type": "warn",
+        "text": "UNIQUE 允许多个 NULL，因为 NULL 表示未知，两个未知不算相等。如果业务要求「这一列必须唯一且不能为空」，要同时写 NOT NULL 和 UNIQUE。"
+      },
+      {
+        "type": "quiz",
+        "question": "name TEXT UNIQUE 能否插入两条 name 为 NULL 的记录？",
+        "options": [
+          "不能，UNIQUE 禁止 NULL",
+          "可以，多个 NULL 不算重复",
+          "只能插入一条",
+          "取决于主键类型"
+        ],
+        "answer": 1,
+        "explain": "UNIQUE 只约束非 NULL 值之间的唯一性，多个 NULL 被视为互不相等，可以共存。"
+      }
+    ],
+    "exercise": {
+      "title": "建立会员表",
+      "brief": "创建 members 表：id 为 INTEGER PRIMARY KEY，name 为 TEXT NOT NULL UNIQUE，level 为 INTEGER NOT NULL DEFAULT 1 且 CHECK (level >= 0)。插入 name 为 'Rogue' 的会员（level 用默认值），再把它升级到 25，最后返回 name 与 level。",
+      "starterCode": "CREATE TABLE members (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL UNIQUE,\n  level INTEGER NOT NULL DEFAULT 1 CHECK (level >= 0)\n);\n\n-- 在这里写 INSERT / UPDATE / SELECT\n",
+      "hint": "INSERT INTO members (name) VALUES ('Rogue'); UPDATE members SET level = 25 WHERE name = 'Rogue'; SELECT name, level FROM members;",
+      "tests": [
+        "assert columns == ['name', 'level'], columns",
+        "assert rows == [['Rogue', 25]], rows",
+        "assert len(rows) == 1, rows"
+      ],
+      "stdin": [],
+      "xp": 120,
+      "solution": "CREATE TABLE members (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL UNIQUE,\n  level INTEGER NOT NULL DEFAULT 1 CHECK (level >= 0)\n);\n\nINSERT INTO members (name) VALUES ('Rogue');\nUPDATE members SET level = 25 WHERE name = 'Rogue';\nSELECT name, level FROM members;\n"
+    }
+  }
+]
