@@ -18,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pyneon.academy.ai.CoachEngine
 import com.pyneon.academy.ai.CoachTip
+import com.pyneon.academy.ai.TutorKnowledge
 import com.pyneon.academy.data.Block
 import com.pyneon.academy.data.Clock
 import com.pyneon.academy.data.LessonRepository
@@ -56,6 +58,7 @@ import com.pyneon.academy.lang.RunResult
 import com.pyneon.academy.ui.components.ConsoleResult
 import com.pyneon.academy.ui.components.CodeEditor
 import com.pyneon.academy.ui.components.PythonCodeField
+import com.pyneon.academy.ui.components.SyntaxHintBar
 import com.pyneon.academy.ui.components.NeonButton
 import com.pyneon.academy.ui.effects.GlitchText
 import com.pyneon.academy.ui.effects.NeonCard
@@ -96,6 +99,7 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
     // 判题结果和教练提示不保存，旋转后重判；草稿和提示展开状态会保存。
     var checkResult by remember(lessonId) { mutableStateOf<RunResult?>(null) }
     var coachTip by remember(lessonId) { mutableStateOf<CoachTip?>(null) }
+    var tutorOpen by rememberSaveable(lessonId) { mutableStateOf(false) }
     var checking by remember(lessonId) { mutableStateOf(false) }
     var hintOpen by rememberSaveable(lessonId) { mutableStateOf(false) }
     var rewardXp by remember { mutableStateOf<Int?>(null) }
@@ -142,8 +146,8 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
 
     // 进度按当前课程包（chapterName）算，不按语言。DSA 的 lang 也是 python，
     // 按语言会把 Python 主线算乱。
-    val allLessons = remember(lessonId, lesson?.chapterName) {
-        val chapter = lesson?.chapterName.orEmpty()
+    val allLessons = remember(lessonId, lesson.chapterName) {
+        val chapter = lesson.chapterName
         if (chapter.isBlank()) {
             LessonRepository.mainline(context)
         } else {
@@ -156,6 +160,7 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
     val lessonIdx = allLessons.indexOfFirst { it.id == lessonId }
     // 完成度按已通关讲数算，和「我的」页保持一致。
     val doneCount = allLessons.count { it.id in progress.completedLessons }
+    val tutorSources = remember(lessonId) { TutorKnowledge.fromLessons(LessonRepository.lessons(context)) }
 
     // 第一次通关时生成复习卡。
     androidx.compose.runtime.LaunchedEffect(alreadySolved) {
@@ -221,6 +226,13 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
             Modifier.padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            NeonButton(
+                label = "AI 助教：先讲思路，不代写",
+                accent = NeonMagenta,
+                leadingIcon = Icons.Outlined.AutoAwesome,
+                onClick = { tutorOpen = true },
+                modifier = Modifier.fillMaxWidth()
+            )
             lesson.blocks.forEachIndexed { index, block ->
                 when (block) {
                     is Block.Heading -> SectionHeader(block.text)
@@ -298,6 +310,7 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
                         showLineNumbers = true,
                         language = lesson.lang
                     )
+                    SyntaxHintBar(code = editorValue, language = lesson.lang)
 
                     Spacer(Modifier.height(14.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -345,14 +358,14 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
                                         }
                                     } else {
                                         // 没过就进错题本。
-                                        val errorMsg = r.stdout?.takeIf { it.isNotBlank() } ?: r.stderr ?: "未知错误"
+                                        val errorMsg = if (r.stdout.isNotBlank()) r.stdout else r.stderr.ifBlank { "未知错误" }
                                         mistakeVm.recordMistake(
                                             lessonId = lesson.id,
                                             blockType = "exercise",
                                             blockIndex = -1,
                                             userCode = editorValue,
                                             expected = exercise.tests.joinToString("\n"),
-                                            actual = r.stdout ?: "",
+                                            actual = r.stdout,
                                             error = errorMsg,
                                             conceptTags = extractConceptTags(lesson.id)
                                         )
@@ -439,6 +452,22 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
                 }
             }
         }
+    }
+
+    if (tutorOpen) {
+        TutorDialog(
+            lessonId = lesson.id,
+            lessonTitle = lesson.title,
+            lessonBrief = lesson.exercise?.brief,
+            starterCode = lesson.exercise?.starterCode,
+            tests = lesson.exercise?.tests.orEmpty(),
+            hint = lesson.exercise?.hint,
+            currentCode = editorValue,
+            result = checkResult,
+            nextLessonTitle = allLessons.getOrNull(lessonIdx + 1)?.title,
+            sources = tutorSources,
+            onDismiss = { tutorOpen = false }
+        )
     }
 
     rewardXp?.let { gained ->

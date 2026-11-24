@@ -66,7 +66,7 @@
    至少 5 例，22 道挑战共 131 例。
 7. 修正软著与 README 口径：245 讲、448 个课程代码块（434 个可直接运行）、267 项 / 1,097 条用例、
    22 道挑战 / 131 例。
-8. 质量门禁闭环：Robolectric 改走阿里云镜像后，`testDebugUnitTest` 275 项通过、
+8. 质量门禁闭环：Robolectric 改走阿里云镜像后，`testDebugUnitTest` 292 项通过、
    `lintDebug` 0 Error；同时修掉备份写入失败会留下 pending 空文件、重复启动图标
    资源与 3 处 Compose `Modifier` 参数顺序问题；文件读写课判题改用临时目录，
    不再往仓库根目录写 `note.txt` / `empty.txt` / `unicode.txt`。

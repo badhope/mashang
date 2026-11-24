@@ -67,7 +67,7 @@ Q：怎么本地构建？
 ```bash
 ./gradlew :app:assembleDebug          # Debug APK
 ./gradlew :app:assembleRelease        # 需 KEYSTORE_PATH 等 4 个环境变量
-python -m unittest discover -s tests  # 247 条测试
+python -m unittest discover -s tests  # 249 条测试
 python tests/validate_content.py      # 57 个 Python 判题项、229 用例
 ```
 

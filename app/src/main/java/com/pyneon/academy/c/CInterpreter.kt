@@ -470,7 +470,7 @@ object CInterpreter {
                 // 已有同名字段表时把新字段先收进 temp，再比对是否一致，一致就复用旧定义。
                 val existing = tag?.let { structDefs[it] }
                 val reuse = existing != null && existing.fields.isNotEmpty()
-                val def = if (reuse) existing!! else StructDef(tag)
+                val def = if (reuse) existing ?: StructDef(tag) else StructDef(tag)
                 if (tag != null) structDefs[tag] = def
                 val target = if (reuse) StructDef(tag) else def
                 while (!checkPunct("}") && !atEnd()) {
@@ -1623,7 +1623,7 @@ object CInterpreter {
                     if (lp.cells.isEmpty() && rp.cells.isEmpty()) return true
                     return lp.cells === rp.cells && lp.index == rp.index
                 }
-                val p = lp ?: rp!!
+                val p = lp ?: rp ?: return false
                 val other = if (lp != null) r else l
                 return p.cells.isEmpty() && other.asLong() == 0L
             }
@@ -2002,7 +2002,8 @@ object CInterpreter {
                     if (ft is CType.TArray && ft.dims.any { it < 0 } && v is Value.Arr) {
                         obj.fields[name] = Cell(v, CType.TArray(ft.of, v.dims))
                     } else {
-                        obj.fields[name]!!.value = v
+                        val cell = obj.fields[name] ?: return@forEachIndexed
+                        cell.value = v
                     }
                 }
             } else {

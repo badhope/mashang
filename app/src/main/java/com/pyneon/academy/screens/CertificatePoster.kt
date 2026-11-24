@@ -287,7 +287,7 @@ object CertificatePoster {
 
         val uri: Uri? = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)?.also { insertedUri ->
             resolver.openOutputStream(insertedUri)?.use { outputStream ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream!!)
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
             }
             values.clear()
             values.put(MediaStore.Images.Media.IS_PENDING, 0)

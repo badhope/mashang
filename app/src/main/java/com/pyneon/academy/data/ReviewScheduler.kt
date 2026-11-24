@@ -115,14 +115,14 @@ object ReviewScheduler {
         }
 
         // 练习题也做成复习卡
-        if (lesson.exercise != null) {
+        lesson.exercise?.let { exercise ->
             cards.add(ReviewCard(
                 id = "${lesson.id}:exercise:0",
                 lessonId = lesson.id,
                 blockType = "exercise",
                 blockIndex = -1,
-                question = lesson.exercise!!.title,
-                answer = lesson.exercise!!.hint,
+                question = exercise.title,
+                answer = exercise.hint,
                 nextReviewDate = now
             ))
         }

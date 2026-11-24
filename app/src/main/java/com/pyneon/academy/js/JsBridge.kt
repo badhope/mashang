@@ -157,7 +157,7 @@ object JsBridge : LanguageRuntime {
             val (scope, _) = initScope(sink)
             replScope = scope
         }
-        val scope = replScope!!
+        val scope = replScope ?: error("REPL scope 初始化失败")
         val mainOut = sink.main
         val mark = mainOut.length
 

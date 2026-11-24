@@ -108,6 +108,19 @@
 
 验证：Kotlin 单测 275 项通过，`pytest` 247 项通过，`lintDebug` 0 Error，内容校验结构问题 0。
 
+## 第八批：0.7.3 离线助教与基线
+
+已完成：
+
+- 新增 `TutorEngine`、`TutorDialog`、`SyntaxCheck`、`SyntaxHintBar`，课程页和挑战页共用。
+- 挑战判题补传 `challenge.stdin`；清掉生产代码剩余 7 处 `!!` 和新增文件的编译警告。
+- 新增四模块基线 `docs/PROJECT_BASELINE.md`、竞品矩阵 `docs/COMPETITIVE_MATRIX.md`、缺陷清单 `docs/DEFECT_BACKLOG.md`、代码审查记录 `docs/CODE_REVIEW.md`。
+- 新增 `test_offline_stress.py` 与 `ProgressStressTest`：126 次正常提交 + 12 次坏代码，120 次进度写入与备份恢复。
+- 版本升到 `versionCode 22` / `versionName 0.7.3`，华为商店系统要求改为 Android 10（API 29）。
+- 软著材料按当前源码重算：84 个文件、16,921 行、339 页；源程序册交 60 页，说明书 19 页。
+
+验证：Kotlin 单测 292 项通过，`pytest` 249 项通过，`lintDebug` 0 Error，内容校验结构问题 0，压力测试平均 2.9ms / 峰值 78.0MB。
+
 ## 还没做的
 
 - `tools/` 里的内容生成脚本只清理了明显的横幅注释，课程正文里的 `·`、箭头属于课程排版，不按代码符号处理。

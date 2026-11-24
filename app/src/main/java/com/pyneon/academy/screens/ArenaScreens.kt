@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -34,6 +35,7 @@ import com.pyneon.academy.ui.theme.DarkTokens
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import com.pyneon.academy.ai.TutorKnowledge
 import com.pyneon.academy.data.Clock
 import com.pyneon.academy.data.LessonRepository
 import com.pyneon.academy.data.ProgressStore
@@ -42,6 +44,7 @@ import com.pyneon.academy.lang.RunResult
 import com.pyneon.academy.ui.components.ConsoleResult
 import com.pyneon.academy.ui.components.NeonButton
 import com.pyneon.academy.ui.components.PythonCodeField
+import com.pyneon.academy.ui.components.SyntaxHintBar
 import com.pyneon.academy.ui.effects.GlitchText
 import com.pyneon.academy.ui.effects.NeonCard
 import com.pyneon.academy.ui.effects.cyberGrid
@@ -126,6 +129,7 @@ fun ChallengeDetailScreen(challengeId: String, onBack: () -> Unit) {
     var result by remember(challengeId) { mutableStateOf<RunResult?>(null) }
     var busy by remember(challengeId) { mutableStateOf(false) }
     var hintOpen by remember(challengeId) { mutableStateOf(false) }
+    var tutorOpen by rememberSaveable(challengeId) { mutableStateOf(false) }
 
     if (challenge == null) {
         Column(Modifier.fillMaxSize().statusBarsPadding().padding(20.dp)) {
@@ -169,7 +173,16 @@ fun ChallengeDetailScreen(challengeId: String, onBack: () -> Unit) {
                     minHeight = 160,
                     language = challenge.lang
                 )
+                SyntaxHintBar(code = editorValue.text, language = challenge.lang)
                 Spacer(Modifier.height(12.dp))
+                NeonButton(
+                    label = "AI 助教：先讲思路，不代写",
+                    accent = NeonMagenta,
+                    leadingIcon = Icons.Outlined.AutoAwesome,
+                    onClick = { tutorOpen = true },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     NeonButton(
                         label = "运行判题",
@@ -184,7 +197,7 @@ fun ChallengeDetailScreen(challengeId: String, onBack: () -> Unit) {
                                 val r = try {
                                     withContext(Dispatchers.Default) {
                                         LanguageRegistry.get(challenge.lang)
-                                            .checkExercise(editorValue.text, challenge.tests, emptyList())
+                                            .checkExercise(editorValue.text, challenge.tests, challenge.stdin)
                                     }
                                 } catch (t: Throwable) {
                                     com.pyneon.academy.lang.RunResult(
@@ -237,5 +250,24 @@ fun ChallengeDetailScreen(challengeId: String, onBack: () -> Unit) {
                 }
             }
         }
+    }
+
+    if (tutorOpen) {
+        val tutorSources = remember(challengeId, tutorOpen) {
+            TutorKnowledge.fromLessons(LessonRepository.lessons(context))
+        }
+        TutorDialog(
+            lessonId = challenge.id,
+            lessonTitle = challenge.title,
+            lessonBrief = challenge.brief,
+            starterCode = challenge.starterCode,
+            tests = challenge.tests,
+            hint = challenge.hint,
+            currentCode = editorValue.text,
+            result = result,
+            nextLessonTitle = null,
+            sources = tutorSources,
+            onDismiss = { tutorOpen = false }
+        )
     }
 }
