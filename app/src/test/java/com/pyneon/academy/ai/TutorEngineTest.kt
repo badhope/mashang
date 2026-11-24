@@ -56,6 +56,44 @@ class TutorEngineTest {
     }
 
     @Test
+    fun `generic concept shortcut asks for a concrete term`() {
+        val reply = TutorEngine.reply(request("解释这个知识点"))
+        assertEquals(TutorIntent.CONCEPT, reply.intent)
+        assertTrue(reply.title.contains("哪个知识点"))
+        assertNull(reply.sourceText)
+    }
+
+    @Test
+    fun `start question on a lesson without exercise falls back to summary`() {
+        val source = TutorSource(
+            lessonId = "l01",
+            title = "第1讲 变量与输出",
+            text = "变量是给值起名字。"
+        )
+        val reply = TutorEngine.reply(
+            request("这题怎么开始", sources = listOf(source)).copy(tests = emptyList())
+        )
+        assertEquals(TutorIntent.SUMMARY, reply.intent)
+        assertTrue(reply.sourceText!!.contains("变量"))
+    }
+
+    @Test
+    fun `lesson summary uses current lesson text instead of concept fallback`() {
+        val source = TutorSource(
+            lessonId = "l01",
+            title = "第1讲 变量与输出",
+            text = "变量是给值起名字，print 把值写到屏幕。"
+        )
+        val reply = TutorEngine.reply(
+            request("这一讲的重点是什么", sources = listOf(source))
+        )
+        assertEquals(TutorIntent.SUMMARY, reply.intent)
+        assertTrue(reply.title.contains("变量与输出"))
+        assertNotNull(reply.sourceText)
+        assertTrue(reply.sourceText!!.contains("print"))
+    }
+
+    @Test
     fun `concept question returns lesson source`() {
         val source = TutorSource(
             lessonId = "l20",
@@ -66,6 +104,21 @@ class TutorEngineTest {
         assertEquals(TutorIntent.CONCEPT, reply.intent)
         assertNotNull(reply.sourceText)
         assertTrue(reply.sourceText!!.contains("闭包"))
+    }
+
+    @Test
+    fun `long question keeps its tail keyword`() {
+        val source = TutorSource(
+            lessonId = "l07",
+            title = "第7讲 循环退出",
+            text = "循环要有退出条件，否则会一直执行。"
+        )
+        val reply = TutorEngine.reply(
+            request("为什么我的循环没有退出", sources = listOf(source))
+        )
+        assertEquals(TutorIntent.CONCEPT, reply.intent)
+        assertNotNull(reply.sourceText)
+        assertTrue(reply.sourceText!!.contains("退出"))
     }
 
     @Test
@@ -83,6 +136,27 @@ class TutorEngineTest {
         assertNull(reply.sourceTitle)
         assertNull(reply.sourceText)
         assertNull("没找到时不能编造示例", reply.example)
+    }
+
+    @Test
+    fun `pack lesson without next does not claim mainline is finished`() {
+        val reply = TutorEngine.reply(
+            request("下一步学什么").copy(nextLessonTitle = null, isChallenge = false)
+        )
+        assertEquals(TutorIntent.NEXT_STEP, reply.intent)
+        assertFalse(reply.steps.any { it.contains("已经走完") })
+        assertTrue(reply.steps.any { it.contains("内容包") })
+    }
+
+    @Test
+    fun `challenge next step does not claim mainline is finished`() {
+        val reply = TutorEngine.reply(
+            request("下一步学什么").copy(nextLessonTitle = null, isChallenge = true)
+        )
+        assertEquals(TutorIntent.NEXT_STEP, reply.intent)
+        assertTrue(reply.title.contains("挑战"))
+        assertFalse(reply.steps.any { it.contains("主线已经走完") })
+        assertTrue(reply.steps.any { it.contains("边界") })
     }
 
     @Test

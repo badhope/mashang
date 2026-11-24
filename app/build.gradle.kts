@@ -21,8 +21,8 @@ android {
         // 提升后备份/海报统一走 MediaStore（API 29+ 唯一路径），代码与测试都更简单。
         minSdk = 29
         targetSdk = 35
-        versionCode = 22
-        versionName = "0.7.3"
+        versionCode = 23
+        versionName = "0.7.4"
         // 版本号单一来源：BuildConfig.VERSION_NAME / VERSION_CODE
         buildConfigField("String", "VERSION_NAME", "\"$versionName\"")
         buildConfigField("int", "VERSION_CODE", "$versionCode")

@@ -20,12 +20,15 @@ import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,10 +36,12 @@ import androidx.compose.ui.graphics.Color
 import com.pyneon.academy.ui.theme.TextHi
 import com.pyneon.academy.ui.theme.DarkTokens
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.pyneon.academy.ai.TutorKnowledge
 import com.pyneon.academy.data.Clock
+import com.pyneon.academy.data.DraftStore
 import com.pyneon.academy.data.LessonRepository
 import com.pyneon.academy.data.ProgressStore
 import com.pyneon.academy.lang.LanguageRegistry
@@ -58,6 +63,7 @@ import com.pyneon.academy.ui.theme.SurfaceHigh
 import com.pyneon.academy.ui.theme.TextDim
 import com.pyneon.academy.ui.theme.TextMid
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -123,19 +129,44 @@ fun ChallengeDetailScreen(challengeId: String, onBack: () -> Unit) {
     val challenge = remember(challengeId) { LessonRepository.challenge(context, challengeId) }
     val progress by ProgressStore.flow(context).collectAsState(initial = com.pyneon.academy.data.Progress())
 
+    // 和课程页一样先读落盘草稿，光标放到末尾，避免恢复后从第一行开始敲。
+    val starterCode = challenge?.starterCode.orEmpty()
+    val savedDraft = remember(challengeId) { DraftStore.load(context, "challenge_$challengeId") }
     var editorValue by rememberSaveable(challengeId) {
-        mutableStateOf(TextFieldValue(challenge?.starterCode ?: ""))
+        val text = savedDraft ?: starterCode
+        mutableStateOf(TextFieldValue(text, selection = TextRange(text.length)))
     }
     var result by remember(challengeId) { mutableStateOf<RunResult?>(null) }
     var busy by remember(challengeId) { mutableStateOf(false) }
     var hintOpen by remember(challengeId) { mutableStateOf(false) }
     var tutorOpen by rememberSaveable(challengeId) { mutableStateOf(false) }
+    // 挑战 XP 也可能带每日首练奖励，别拿题目面板值直接当入账值。
+    var gainedXp by remember(challengeId) { mutableStateOf<Int?>(null) }
 
     if (challenge == null) {
         Column(Modifier.fillMaxSize().statusBarsPadding().padding(20.dp)) {
             Text("挑战数据缺失", color = NeonMagenta)
         }
         return
+    }
+
+    LaunchedEffect(challengeId, editorValue.text) {
+        delay(500)
+        if (savedDraft != null || editorValue.text != starterCode) {
+            DraftStore.save(context, "challenge_$challengeId", editorValue.text)
+        } else {
+            DraftStore.save(context, "challenge_$challengeId", "")
+        }
+    }
+    val latestEditor by rememberUpdatedState(editorValue.text)
+    DisposableEffect(challengeId) {
+        onDispose {
+            if (savedDraft != null || latestEditor != starterCode) {
+                DraftStore.saveNow(context, "challenge_$challengeId", latestEditor)
+            } else {
+                DraftStore.saveNow(context, "challenge_$challengeId", "")
+            }
+        }
     }
 
     val solvedKey = "chal_$challengeId"
@@ -174,6 +205,14 @@ fun ChallengeDetailScreen(challengeId: String, onBack: () -> Unit) {
                     language = challenge.lang
                 )
                 SyntaxHintBar(code = editorValue.text, language = challenge.lang)
+                if (savedDraft != null && savedDraft != starterCode && editorValue.text == savedDraft) {
+                    Text(
+                        "已恢复上次未提交的草稿",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextDim,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
                 Spacer(Modifier.height(12.dp))
                 NeonButton(
                     label = "AI 助教：先讲思路，不代写",
@@ -215,7 +254,10 @@ fun ChallengeDetailScreen(challengeId: String, onBack: () -> Unit) {
                                 result = r
                                 busy = false
                                 if (r.ok && r.passed == true && solvedKey !in progress.solvedKeys) {
+                                    val beforeXp = ProgressStore.snapshot(context).xpTotal
                                     ProgressStore.markExerciseSolved(context, solvedKey, challenge.xp, Clock.todayEpochDay())
+                                    val afterXp = ProgressStore.snapshot(context).xpTotal
+                                    gainedXp = (afterXp - beforeXp).coerceAtLeast(0)
                                 }
                             }
                         },
@@ -241,8 +283,9 @@ fun ChallengeDetailScreen(challengeId: String, onBack: () -> Unit) {
                     ConsoleResult(result = result, running = false)
                 }
                 if (alreadySolved) {
+                    val gained = gainedXp
                     Text(
-                        "已通过，${challenge.xp} XP 已入账",
+                        if (gained != null && gained > 0) "已通过，+$gained XP 已入账" else "已通过",
                         style = MaterialTheme.typography.labelMedium,
                         color = NeonGreen,
                         modifier = Modifier.padding(top = 6.dp)
@@ -254,7 +297,9 @@ fun ChallengeDetailScreen(challengeId: String, onBack: () -> Unit) {
 
     if (tutorOpen) {
         val tutorSources = remember(challengeId, tutorOpen) {
-            TutorKnowledge.fromLessons(LessonRepository.lessons(context))
+            TutorKnowledge.fromLessons(
+                LessonRepository.lessons(context).filter { it.lang == challenge.lang }
+            )
         }
         TutorDialog(
             lessonId = challenge.id,
@@ -267,6 +312,7 @@ fun ChallengeDetailScreen(challengeId: String, onBack: () -> Unit) {
             result = result,
             nextLessonTitle = null,
             sources = tutorSources,
+            isChallenge = true,
             onDismiss = { tutorOpen = false }
         )
     }

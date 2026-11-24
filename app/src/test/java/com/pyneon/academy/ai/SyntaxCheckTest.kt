@@ -56,4 +56,16 @@ class SyntaxCheckTest {
     fun `lua length operator is not treated as a comment`() {
         assertTrue(SyntaxCheck.hints("local n = #items\n", "lua").isEmpty())
     }
+
+    @Test
+    fun `sql doubled single quote is an escape not a new string`() {
+        val code = "SELECT 'it''s fine' AS note FROM demo;\n"
+        assertTrue(SyntaxCheck.hints(code, "sql").isEmpty())
+    }
+
+    @Test
+    fun `sql doubled double quote in identifier is ignored`() {
+        val code = "SELECT \"say\"\"hi\" FROM demo;\n"
+        assertTrue(SyntaxCheck.hints(code, "sql").isEmpty())
+    }
 }

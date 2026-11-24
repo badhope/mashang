@@ -14,6 +14,7 @@ enum class TutorIntent {
     ERROR,
     CONCEPT,
     NEXT_STEP,
+    SUMMARY,
     GENERAL
 }
 
@@ -37,6 +38,7 @@ data class TutorRequest(
     val traceback: String? = null,
     val passed: Boolean? = null,
     val nextLessonTitle: String? = null,
+    val isChallenge: Boolean = false,
     val sources: List<TutorSource> = emptyList()
 )
 
@@ -53,16 +55,25 @@ data class TutorReply(
 
 object TutorEngine {
 
-    private val ERROR_HINTS = listOf("报错", "错误", "为什么错", "跑不通", "失败", "异常", "崩溃", "红了")
+    private val ERROR_HINTS = listOf(
+        "报错", "错误", "为什么错", "哪里错", "为什么不对", "结果不对",
+        "跑不通", "没通过", "失败", "异常", "崩溃", "红了", "怎么办"
+    )
     private val THINKING_HINTS = listOf("怎么开始", "怎么做", "没思路", "不会", "卡住", "从哪", "思路", "拆解")
-    private val CONCEPT_HINTS = listOf("什么是", "是什么", "解释", "区别", "原理", "定义")
+    private val CONCEPT_HINTS = listOf("什么是", "是什么", "为什么", "解释", "区别", "原理", "定义")
     private val NEXT_HINTS = listOf("下一步", "接下来", "学什么", "然后学", "下一讲")
+    private val SUMMARY_HINTS = listOf("重点", "总结", "讲了什么", "主要内容")
+    private val GENERIC_CONCEPT_QUESTIONS = setOf(
+        "解释这个知识点", "解释一下这个知识点", "解释知识点", "这个知识点是什么"
+    )
     private val FUNCTION_PATTERN = Regex("""(?:def|fun|function)\s+([A-Za-z_][A-Za-z0-9_]*)""")
 
     // 这些词在课程里到处都是，留着会把“没找到”硬凑成“找到”。
     private val STOP_TERMS = setOf(
         "什么", "么是", "怎么", "为何", "为什么", "如何", "这个", "那个",
-        "一下", "可以", "是否", "介绍", "解释", "区别", "原理", "定义"
+        "一下", "可以", "是否", "介绍", "解释", "区别", "原理", "定义",
+        "我的", "你的", "他的", "她的", "然后", "还是", "就是", "因为",
+        "所以", "如果", "但是", "没有", "一个"
     )
 
     fun reply(request: TutorRequest): TutorReply {
@@ -70,7 +81,10 @@ object TutorEngine {
         val lower = question.lowercase()
         return when {
             request.hasError() && ERROR_HINTS.any { lower.contains(it) } -> diagnose(request)
+            request.tests.isEmpty() && question.startsWith("这题怎么开始") -> summary(request)
+            question in GENERIC_CONCEPT_QUESTIONS -> askForConcept()
             THINKING_HINTS.any { lower.contains(it) } -> thinking(request)
+            SUMMARY_HINTS.any { lower.contains(it) } -> summary(request)
             CONCEPT_HINTS.any { lower.contains(it) } -> concept(request)
             NEXT_HINTS.any { lower.contains(it) } -> nextStep(request)
             question.isBlank() && request.lessonBrief != null -> thinking(request)
@@ -131,6 +145,46 @@ object TutorEngine {
         )
     }
 
+    private fun askForConcept(): TutorReply = TutorReply(
+        intent = TutorIntent.CONCEPT,
+        title = "先告诉我是哪个知识点",
+        lead = "“知识点”范围太大，直接搜会翻出一堆不相关的段落。把具体名词写进输入框。",
+        steps = listOf(
+            "例如：闭包、索引、事务、this、装饰器。一次只问一个。",
+            "如果不知道名字，就先描述它解决什么问题，比如“函数里记住外面的变量”。",
+            "拿到具体名词后，我再按课程原文解释，不凭空补。"
+        ),
+        checkpoint = "能说出一个具体名词，或者一句能定位它的话。"
+    )
+
+    private fun summary(request: TutorRequest): TutorReply {
+        val source = request.sources.firstOrNull { it.lessonId == request.lessonId }
+            ?: return TutorReply(
+                intent = TutorIntent.SUMMARY,
+                title = "这一讲没有可用的正文",
+                lead = "课程包里的这一讲没有可检索的段落，先按标题回忆一遍。",
+                steps = listOf(
+                    "把标题拆成“它解决什么问题、输入是什么、输出是什么”三句。",
+                    "打开这一讲的代码块，挑一个能跑的例子看输入输出。"
+                ),
+                checkpoint = "能说出这一讲大致解决什么问题，再往下学。"
+            )
+        return TutorReply(
+            intent = TutorIntent.SUMMARY,
+            title = "这一讲的重点：${request.lessonTitle.ifBlank { source.title }}",
+            lead = "先把这一讲当成一个整体看，不要只记某个函数名。",
+            steps = listOf(
+                "先读标题和第一段，确认这一讲要解决什么问题。",
+                "从正文里挑一个代码块，跑一次，改一个变量再看输出。",
+                "用三句话总结：解决什么、关键步骤、什么时候不该用。",
+                "把总结写进笔记，不要直接复制原文。"
+            ),
+            checkpoint = "合上这一讲，能用三句话讲清楚它在解决什么问题。",
+            sourceTitle = source.title,
+            sourceText = source.text.take(520).trim()
+        )
+    }
+
     private fun concept(request: TutorRequest): TutorReply {
         val hits = search(request.question, request.sources, request.lessonId)
         if (hits.isEmpty()) {
@@ -170,14 +224,22 @@ object TutorEngine {
             add("去错题本把这讲的失败记录重做一次，确认不是碰巧通过。")
             if (next.isNotBlank()) {
                 add("下一讲是《$next》。先看标题猜它会解决什么问题，再打开，不要直接抄代码。")
+            } else if (request.isChallenge) {
+                add("挑战页没有下一讲。先把边界补齐：空输入、重复值、最大规模各试一组，再决定算不算真通过。")
+                add("如果这题是蒙对的，回错题本把当时的失败记录重做一遍，别急着开下一道。")
             } else {
-                add("主线已经走完，去复习台按到期卡片过一轮，再挑一道挑战题。")
+                add("如果这是这条路径的最后一讲，去复习台按到期卡片过一轮，再挑一道挑战题。")
+                add("如果这是内容包里的课，回课程包目录挑下一讲，别跳到别的语言从头开。")
             }
             add("今天只追一个目标：能讲清楚自己为什么这么写，而不是多刷几题。")
         }
         return TutorReply(
             intent = TutorIntent.NEXT_STEP,
-            title = if (next.isNotBlank()) "下一站：$next" else "主线之后：复习与挑战",
+            title = when {
+                next.isNotBlank() -> "下一站：$next"
+                request.isChallenge -> "挑战收尾：先补边界"
+                else -> "当前路径之后：复习与挑战"
+            },
             lead = "进度不是目的，能独立写出来才是。先把当前这讲收干净。",
             steps = steps,
             checkpoint = "不看答案，能在 10 分钟内重写当前练习并通过判题。"
@@ -237,7 +299,13 @@ object TutorEngine {
         val latin = Regex("[a-z0-9_]{2,}").findAll(cleaned).map { it.value }.toList()
         val chinese = Regex("[\\u4e00-\\u9fa5]{2,}").findAll(cleaned).map { it.value }.toList()
         val grams = chinese.flatMap { word ->
-            if (word.length <= 4) listOf(word) else word.windowed(2).take(8)
+            if (word.length <= 4) {
+                listOf(word)
+            } else {
+                // 长问题只取前八个二字词会漏掉句尾的关键词，头尾各取四个。
+                val pairs = word.windowed(2)
+                (pairs.take(4) + pairs.takeLast(4)).distinct()
+            }
         }
         return (latin + grams)
             .filterNot { it in STOP_TERMS }

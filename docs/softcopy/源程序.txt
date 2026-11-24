@@ -467,6 +467,16 @@ object SyntaxCheck {
                 }
 
 码上多语言编程学习软件 V1.0 第 10 页 [app/src/main/java/com/pyneon/academy/ai/SyntaxCheck.kt 自第 108 行起]
+                // SQL 用两个连续引号表示字符串里的一个引号，不能当成收尾再重开。
+                if (language == "sql" && next != null &&
+                    ((inSingle && c == '\'' && next == '\'') ||
+                        (inDouble && c == '"' && next == '"'))
+                ) {
+                    appendMasked(c)
+                    appendMasked(next)
+                    i += 2
+                    continue
+                }
                 val closes = (inSingle && c == '\'') || (inDouble && c == '"') || (inBacktick && c == '`')
                 if (closes) {
                     inSingle = false
@@ -507,6 +517,8 @@ object SyntaxCheck {
                 c == '"' && next == '"' && code.getOrNull(i + 2) == '"' -> {
                     val end = code.indexOf("\"\"\"", i + 3)
                     if (end < 0) {
+
+码上多语言编程学习软件 V1.0 第 11 页 [app/src/main/java/com/pyneon/academy/ai/SyntaxCheck.kt 自第 158 行起]
                         hints += "第 $line 行的三引号没有闭合"
                         i = code.length
                     } else {
@@ -517,8 +529,6 @@ object SyntaxCheck {
                             } else {
                                 out.append(' ')
                             }
-
-码上多语言编程学习软件 V1.0 第 11 页 [app/src/main/java/com/pyneon/academy/ai/SyntaxCheck.kt 自第 158 行起]
                         }
                         i = end + 3
                         continue
@@ -559,6 +569,8 @@ object SyntaxCheck {
                 }
                 c == '(' || c == '[' || c == '{' -> {
                     stack.addLast(OpenBracket(c, line))
+
+码上多语言编程学习软件 V1.0 第 12 页 [app/src/main/java/com/pyneon/academy/ai/SyntaxCheck.kt 自第 208 行起]
                     out.append(c)
                 }
                 c == ')' || c == ']' || c == '}' -> {
@@ -569,8 +581,6 @@ object SyntaxCheck {
                     }
                     val last = stack.removeLastOrNull()
                     if (last == null) {
-
-码上多语言编程学习软件 V1.0 第 12 页 [app/src/main/java/com/pyneon/academy/ai/SyntaxCheck.kt 自第 208 行起]
                         hints += "第 $line 行多了一个 ${c}，前面没有对应的开括号"
                     } else if (last.char != expected) {
                         hints += "第 $line 行的 ${c} 和第 ${last.line} 行的 ${last.char} 对不上"
@@ -611,6 +621,9 @@ enum class TutorIntent {
     ERROR,
     CONCEPT,
     NEXT_STEP,
+
+码上多语言编程学习软件 V1.0 第 13 页 [app/src/main/java/com/pyneon/academy/ai/TutorEngine.kt 自第 17 行起]
+    SUMMARY,
     GENERAL
 }
 
@@ -621,8 +634,6 @@ data class TutorSource(
 )
 
 data class TutorRequest(
-
-码上多语言编程学习软件 V1.0 第 13 页 [app/src/main/java/com/pyneon/academy/ai/TutorEngine.kt 自第 27 行起]
     val question: String,
     val lessonId: String = "",
     val lessonTitle: String = "",
@@ -636,6 +647,7 @@ data class TutorRequest(
     val traceback: String? = null,
     val passed: Boolean? = null,
     val nextLessonTitle: String? = null,
+    val isChallenge: Boolean = false,
     val sources: List<TutorSource> = emptyList()
 )
 
@@ -652,16 +664,27 @@ data class TutorReply(
 
 object TutorEngine {
 
-    private val ERROR_HINTS = listOf("报错", "错误", "为什么错", "跑不通", "失败", "异常", "崩溃", "红了")
+    private val ERROR_HINTS = listOf(
+        "报错", "错误", "为什么错", "哪里错", "为什么不对", "结果不对",
+        "跑不通", "没通过", "失败", "异常", "崩溃", "红了", "怎么办"
+    )
     private val THINKING_HINTS = listOf("怎么开始", "怎么做", "没思路", "不会", "卡住", "从哪", "思路", "拆解")
-    private val CONCEPT_HINTS = listOf("什么是", "是什么", "解释", "区别", "原理", "定义")
+    private val CONCEPT_HINTS = listOf("什么是", "是什么", "为什么", "解释", "区别", "原理", "定义")
     private val NEXT_HINTS = listOf("下一步", "接下来", "学什么", "然后学", "下一讲")
+    private val SUMMARY_HINTS = listOf("重点", "总结", "讲了什么", "主要内容")
+    private val GENERIC_CONCEPT_QUESTIONS = setOf(
+
+码上多语言编程学习软件 V1.0 第 14 页 [app/src/main/java/com/pyneon/academy/ai/TutorEngine.kt 自第 67 行起]
+        "解释这个知识点", "解释一下这个知识点", "解释知识点", "这个知识点是什么"
+    )
     private val FUNCTION_PATTERN = Regex("""(?:def|fun|function)\s+([A-Za-z_][A-Za-z0-9_]*)""")
 
     // 这些词在课程里到处都是，留着会把“没找到”硬凑成“找到”。
     private val STOP_TERMS = setOf(
         "什么", "么是", "怎么", "为何", "为什么", "如何", "这个", "那个",
-        "一下", "可以", "是否", "介绍", "解释", "区别", "原理", "定义"
+        "一下", "可以", "是否", "介绍", "解释", "区别", "原理", "定义",
+        "我的", "你的", "他的", "她的", "然后", "还是", "就是", "因为",
+        "所以", "如果", "但是", "没有", "一个"
     )
 
     fun reply(request: TutorRequest): TutorReply {
@@ -669,12 +692,13 @@ object TutorEngine {
         val lower = question.lowercase()
         return when {
             request.hasError() && ERROR_HINTS.any { lower.contains(it) } -> diagnose(request)
+            request.tests.isEmpty() && question.startsWith("这题怎么开始") -> summary(request)
+            question in GENERIC_CONCEPT_QUESTIONS -> askForConcept()
             THINKING_HINTS.any { lower.contains(it) } -> thinking(request)
+            SUMMARY_HINTS.any { lower.contains(it) } -> summary(request)
             CONCEPT_HINTS.any { lower.contains(it) } -> concept(request)
             NEXT_HINTS.any { lower.contains(it) } -> nextStep(request)
             question.isBlank() && request.lessonBrief != null -> thinking(request)
-
-码上多语言编程学习软件 V1.0 第 14 页 [app/src/main/java/com/pyneon/academy/ai/TutorEngine.kt 自第 77 行起]
             else -> general(request)
         }
     }
@@ -701,6 +725,8 @@ object TutorEngine {
         )
     }
 
+
+码上多语言编程学习软件 V1.0 第 15 页 [app/src/main/java/com/pyneon/academy/ai/TutorEngine.kt 自第 117 行起]
     private fun thinking(request: TutorRequest): TutorReply {
         val code = request.currentCode.ifBlank { request.starterCode.orEmpty() }
         val functionName = FUNCTION_PATTERN.find(code)?.groupValues?.getOrNull(1)
@@ -725,12 +751,52 @@ object TutorEngine {
             checkpoint = "能在注释里写出三步计划，并且手算出一组最小输入，再开始写。",
             example = """
                 # 先用题目最小样例走一遍
-
-码上多语言编程学习软件 V1.0 第 15 页 [app/src/main/java/com/pyneon/academy/ai/TutorEngine.kt 自第 127 行起]
                 sample = ...
                 # 把处理结果打印出来，确认中间值
                 print(sample)
             """.trimIndent()
+        )
+    }
+
+    private fun askForConcept(): TutorReply = TutorReply(
+        intent = TutorIntent.CONCEPT,
+        title = "先告诉我是哪个知识点",
+        lead = "“知识点”范围太大，直接搜会翻出一堆不相关的段落。把具体名词写进输入框。",
+        steps = listOf(
+            "例如：闭包、索引、事务、this、装饰器。一次只问一个。",
+            "如果不知道名字，就先描述它解决什么问题，比如“函数里记住外面的变量”。",
+            "拿到具体名词后，我再按课程原文解释，不凭空补。"
+        ),
+        checkpoint = "能说出一个具体名词，或者一句能定位它的话。"
+    )
+
+    private fun summary(request: TutorRequest): TutorReply {
+        val source = request.sources.firstOrNull { it.lessonId == request.lessonId }
+            ?: return TutorReply(
+                intent = TutorIntent.SUMMARY,
+                title = "这一讲没有可用的正文",
+                lead = "课程包里的这一讲没有可检索的段落，先按标题回忆一遍。",
+                steps = listOf(
+
+码上多语言编程学习软件 V1.0 第 16 页 [app/src/main/java/com/pyneon/academy/ai/TutorEngine.kt 自第 167 行起]
+                    "把标题拆成“它解决什么问题、输入是什么、输出是什么”三句。",
+                    "打开这一讲的代码块，挑一个能跑的例子看输入输出。"
+                ),
+                checkpoint = "能说出这一讲大致解决什么问题，再往下学。"
+            )
+        return TutorReply(
+            intent = TutorIntent.SUMMARY,
+            title = "这一讲的重点：${request.lessonTitle.ifBlank { source.title }}",
+            lead = "先把这一讲当成一个整体看，不要只记某个函数名。",
+            steps = listOf(
+                "先读标题和第一段，确认这一讲要解决什么问题。",
+                "从正文里挑一个代码块，跑一次，改一个变量再看输出。",
+                "用三句话总结：解决什么、关键步骤、什么时候不该用。",
+                "把总结写进笔记，不要直接复制原文。"
+            ),
+            checkpoint = "合上这一讲，能用三句话讲清楚它在解决什么问题。",
+            sourceTitle = source.title,
+            sourceText = source.text.take(520).trim()
         )
     }
 
@@ -763,6 +829,8 @@ object TutorEngine {
             checkpoint = "能举一个例子，也能举一个反例，才算真的理解。",
             sourceTitle = hit.title,
             sourceText = hit.text.take(520).trim()
+
+码上多语言编程学习软件 V1.0 第 17 页 [app/src/main/java/com/pyneon/academy/ai/TutorEngine.kt 自第 217 行起]
         )
     }
 
@@ -773,16 +841,22 @@ object TutorEngine {
             add("去错题本把这讲的失败记录重做一次，确认不是碰巧通过。")
             if (next.isNotBlank()) {
                 add("下一讲是《$next》。先看标题猜它会解决什么问题，再打开，不要直接抄代码。")
+            } else if (request.isChallenge) {
+                add("挑战页没有下一讲。先把边界补齐：空输入、重复值、最大规模各试一组，再决定算不算真通过。")
+                add("如果这题是蒙对的，回错题本把当时的失败记录重做一遍，别急着开下一道。")
             } else {
-                add("主线已经走完，去复习台按到期卡片过一轮，再挑一道挑战题。")
+                add("如果这是这条路径的最后一讲，去复习台按到期卡片过一轮，再挑一道挑战题。")
+                add("如果这是内容包里的课，回课程包目录挑下一讲，别跳到别的语言从头开。")
             }
             add("今天只追一个目标：能讲清楚自己为什么这么写，而不是多刷几题。")
-
-码上多语言编程学习软件 V1.0 第 16 页 [app/src/main/java/com/pyneon/academy/ai/TutorEngine.kt 自第 177 行起]
         }
         return TutorReply(
             intent = TutorIntent.NEXT_STEP,
-            title = if (next.isNotBlank()) "下一站：$next" else "主线之后：复习与挑战",
+            title = when {
+                next.isNotBlank() -> "下一站：$next"
+                request.isChallenge -> "挑战收尾：先补边界"
+                else -> "当前路径之后：复习与挑战"
+            },
             lead = "进度不是目的，能独立写出来才是。先把当前这讲收干净。",
             steps = steps,
             checkpoint = "不看答案，能在 10 分钟内重写当前练习并通过判题。"
@@ -807,6 +881,8 @@ object TutorEngine {
             title = "先把问题缩小",
             lead = "我没法替你写答案，但可以帮你把问题圈到最小范围。",
             steps = steps,
+
+码上多语言编程学习软件 V1.0 第 18 页 [app/src/main/java/com/pyneon/academy/ai/TutorEngine.kt 自第 267 行起]
             checkpoint = "能用一句话说出“我现在卡在哪个具体步骤”，再继续。"
         )
     }
@@ -829,8 +905,6 @@ object TutorEngine {
                 }
                 if (source.lessonId == currentLessonId) score += 2
                 source to score
-
-码上多语言编程学习软件 V1.0 第 17 页 [app/src/main/java/com/pyneon/academy/ai/TutorEngine.kt 自第 227 行起]
             }
             .filter { it.second > 0 }
             .sortedByDescending { it.second }
@@ -844,7 +918,13 @@ object TutorEngine {
         val latin = Regex("[a-z0-9_]{2,}").findAll(cleaned).map { it.value }.toList()
         val chinese = Regex("[\\u4e00-\\u9fa5]{2,}").findAll(cleaned).map { it.value }.toList()
         val grams = chinese.flatMap { word ->
-            if (word.length <= 4) listOf(word) else word.windowed(2).take(8)
+            if (word.length <= 4) {
+                listOf(word)
+            } else {
+                // 长问题只取前八个二字词会漏掉句尾的关键词，头尾各取四个。
+                val pairs = word.windowed(2)
+                (pairs.take(4) + pairs.takeLast(4)).distinct()
+            }
         }
         return (latin + grams)
             .filterNot { it in STOP_TERMS }
@@ -853,6 +933,8 @@ object TutorEngine {
     }
 
     private fun String.countOccurrences(term: String): Int {
+
+码上多语言编程学习软件 V1.0 第 19 页 [app/src/main/java/com/pyneon/academy/ai/TutorEngine.kt 自第 317 行起]
         if (term.isBlank() || length < term.length) return 0
         var count = 0
         var index = indexOf(term, ignoreCase = true)
@@ -881,8 +963,6 @@ object TutorKnowledge {
         blocks.forEach { block ->
             when (block) {
                 is Block.Heading -> appendLine("标题：${block.text}")
-
-码上多语言编程学习软件 V1.0 第 18 页 [app/src/main/java/com/pyneon/academy/ai/TutorEngine.kt 自第 277 行起]
                 is Block.Paragraph -> appendLine(block.text)
                 is Block.Tip -> appendLine("提示：${block.text}")
                 is Block.Warn -> appendLine("注意：${block.text}")
@@ -905,6 +985,8 @@ object TutorKnowledge {
                 }
                 is Block.Visualize -> {
                     appendLine("图解 ${block.title}：${block.caption}")
+
+码上多语言编程学习软件 V1.0 第 20 页 [app/src/main/java/com/pyneon/academy/ai/TutorEngine.kt 自第 367 行起]
                     block.frames.forEach { appendLine(it.label) }
                 }
             }
@@ -933,8 +1015,6 @@ object CBridge : LanguageRuntime {
     override val id: String = LanguageIds.C
     override val displayName: String = LanguageIds.displayNameOf(LanguageIds.C)
     override val fileExtension: String = "c"
-
-码上多语言编程学习软件 V1.0 第 19 页 [app/src/main/java/com/pyneon/academy/c/CBridge.kt 自第 23 行起]
     override val grammarScope: String = "source.c"
 
     // 标清楚是子集解释器，别让人以为是 gcc。
@@ -957,6 +1037,8 @@ object CBridge : LanguageRuntime {
     override fun checkExercise(
         code: String,
         tests: List<String>,
+
+码上多语言编程学习软件 V1.0 第 21 页 [app/src/main/java/com/pyneon/academy/c/CBridge.kt 自第 45 行起]
         stdinLines: List<String>
     ): RunResult {
         val started = System.nanoTime()
@@ -985,8 +1067,6 @@ object CBridge : LanguageRuntime {
 
     private fun toRunResult(r: CInterpreter.Result, startedAt: Long): RunResult = RunResult(
         ok = r.ok,
-
-码上多语言编程学习软件 V1.0 第 20 页 [app/src/main/java/com/pyneon/academy/c/CBridge.kt 自第 73 行起]
         stdout = r.stdout,
         stderr = "",
         errorType = r.errorType,
@@ -1009,6 +1089,8 @@ package com.pyneon.academy.c
  * 类型只有 int、double、char、void；unsigned/short/long 当 int，const 收下但不管。
  * 数组最多二维，结构体支持 typedef 和一层嵌套。
  * 语句支持声明、赋值、分支、循环、switch、break/continue/return。
+
+码上多语言编程学习软件 V1.0 第 22 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 13 行起]
  * 运算符、单级指针、函数、递归、printf/puts/putchar 和常用字符串数学函数都在。
  * goto、宏、函数指针、二级指针、union/enum、scanf 不支持。
  *
@@ -1037,8 +1119,6 @@ object CInterpreter {
             else -> 0.0
         }
 
-
-码上多语言编程学习软件 V1.0 第 21 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 41 行起]
         fun asLong(): Long = when (this) {
             is Num -> v
             is Real -> v.toLong()
@@ -1061,6 +1141,8 @@ object CInterpreter {
             is Real -> formatDouble(v)
             is Str -> v
             is Arr -> if (elem === CType.TChar) {
+
+码上多语言编程学习软件 V1.0 第 23 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 63 行起]
                 val sb = StringBuilder()
                 for (c in cells) {
                     val n = c.value.asLong()
@@ -1089,8 +1171,6 @@ object CInterpreter {
     )
 
     private sealed class CType {
-
-码上多语言编程学习软件 V1.0 第 22 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 91 行起]
         object TInt : CType()
         object TDouble : CType()
         object TChar : CType()
@@ -1113,6 +1193,8 @@ object CInterpreter {
     /** 与 C 的 %g 接近的默认浮点显示：整数值不带小数点，否则最多 6 位有效小数。 */
     private fun formatDouble(d: Double): String {
         if (d.isNaN()) return "nan"
+
+码上多语言编程学习软件 V1.0 第 24 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 113 行起]
         if (d.isInfinite()) return if (d > 0) "inf" else "-inf"
         if (d == d.toLong().toDouble() && kotlin.math.abs(d) < 1e15) return d.toLong().toString()
         val s = String.format(java.util.Locale.US, "%.6f", d).trimEnd('0').trimEnd('.')
@@ -1141,8 +1223,6 @@ object CInterpreter {
                     }
                     c == '/' && i + 1 < src.length && src[i + 1] == '*' -> {
                         i += 2
-
-码上多语言编程学习软件 V1.0 第 23 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 141 行起]
                         while (i + 1 < src.length && !(src[i] == '*' && src[i + 1] == '/')) {
                             if (src[i] == '\n') line++
                             i++
@@ -1165,6 +1245,8 @@ object CInterpreter {
             val startLine = line
             i++ // skip "
             val sb = StringBuilder()
+
+码上多语言编程学习软件 V1.0 第 25 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 163 行起]
             while (i < src.length && src[i] != '"') {
                 if (src[i] == '\\' && i + 1 < src.length) {
                     sb.append(unescape(src[i + 1])); i += 2
@@ -1193,8 +1275,6 @@ object CInterpreter {
             'n' -> '\n'; 't' -> '\t'; 'r' -> '\r'; '0' -> '\u0000'
             '\\' -> '\\'; '"' -> '"'; '\'' -> '\''
             else -> c
-
-码上多语言编程学习软件 V1.0 第 24 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 191 行起]
         }
 
         private fun readNumber(): Token {
@@ -1217,6 +1297,8 @@ object CInterpreter {
                 if (i >= src.length || src[i] !in '8'..'9') {
                     val text = src.substring(start0 + 1, i)
                     while (i < src.length && (src[i] == 'l' || src[i] == 'L' || src[i] == 'u' || src[i] == 'U')) i++
+
+码上多语言编程学习软件 V1.0 第 26 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 213 行起]
                     return Token(T.NUM, text.toLongOrNull(8)?.toString() ?: "0", startLine)
                 }
                 i = start0
@@ -1245,8 +1327,6 @@ object CInterpreter {
             val text = src.substring(start, i)
             return Token(if (text in KEYWORDS) T.KEYWORD else T.IDENT, text, line)
         }
-
-码上多语言编程学习软件 V1.0 第 25 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 241 行起]
 
         private fun readOp(): Token {
             val three = if (i + 2 < src.length) src.substring(i, i + 3) else ""
@@ -1269,6 +1349,8 @@ object CInterpreter {
         data class Bin(val op: String, val l: Expr, val r: Expr, val line: Int) : Expr()
         data class Un(val op: String, val e: Expr, val line: Int) : Expr()
         data class Assign(val op: String, val target: Expr, val value: Expr, val line: Int) : Expr()
+
+码上多语言编程学习软件 V1.0 第 27 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 263 行起]
         data class Call(val name: String, val args: List<Expr>, val line: Int) : Expr()
         data class Index(val arr: Expr, val idx: Expr, val line: Int) : Expr()
         data class Ternary(val cond: Expr, val a: Expr, val b: Expr) : Expr()
@@ -1297,8 +1379,6 @@ object CInterpreter {
         data class ExprStmt(val e: Expr) : Stmt()
         object Empty : Stmt()
     }
-
-码上多语言编程学习软件 V1.0 第 26 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 291 行起]
 
     private data class SwitchCase(val label: Expr?, val body: List<Stmt>)
     private data class DeclItem(val name: String, val type: CType, val init: Expr?)
@@ -1321,6 +1401,8 @@ object CInterpreter {
         private val typedefs: MutableMap<String, CType> = linkedMapOf(),
         private val structDefs: MutableMap<String, StructDef> = linkedMapOf()
     ) {
+
+码上多语言编程学习软件 V1.0 第 28 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 313 行起]
         private var p = 0
         private val funcs = linkedMapOf<String, FuncDef>()
         private val globals = mutableListOf<DeclItem>()
@@ -1349,8 +1431,6 @@ object CInterpreter {
             }
             return SessionParse(funcs.toMap(), stmts)
         }
-
-码上多语言编程学习软件 V1.0 第 27 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 341 行起]
 
         // 看一段是不是函数声明。原型和定义只差结尾，共用一套扫描，别写两份。
         private fun looksLikeFunctionDecl(): Boolean {
@@ -1373,6 +1453,8 @@ object CInterpreter {
                 } else if (t.type == T.IDENT && typedefs.containsKey(t.text)) {
                     i++; sawType = true; continue
                 }
+
+码上多语言编程学习软件 V1.0 第 29 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 363 行起]
                 break
             }
             if (!sawType) return false
@@ -1401,8 +1483,6 @@ object CInterpreter {
                 val nameTok = expect(T.IDENT, "声明符")
                 if (first && checkPunct("(")) {
                     parseFunction(nameTok, t)
-
-码上多语言编程学习软件 V1.0 第 28 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 391 行起]
                     return
                 }
                 first = false
@@ -1425,6 +1505,8 @@ object CInterpreter {
 
         private fun parseFunction(nameTok: Token, ret: CType) {
             expectPunct("(")
+
+码上多语言编程学习软件 V1.0 第 30 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 413 行起]
             val params = mutableListOf<Pair<String, CType>>()
             if (!checkPunct(")")) {
                 if (checkKeyword("void") && p + 1 < tokens.size && tokens[p + 1].text == ")") {
@@ -1453,8 +1535,6 @@ object CInterpreter {
             // 解析阶段已收集完整个翻译单元，调用不依赖声明顺序。
             if (matchPunct(";")) return
             val body = parseBlock()
-
-码上多语言编程学习软件 V1.0 第 29 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 441 行起]
             if (funcs.containsKey(nameTok.text)) {
                 // 同一翻译单元里不能重定义。用户写个空 main、测试也带 main 时，
                 // 覆盖会让测试的 main 顶掉用户代码，判题就成了假通过。
@@ -1477,88 +1557,9 @@ object CInterpreter {
         }
 
         /** 结构体说明符：struct Tag { ... } 或 struct Tag */
-        private fun parseStructSpec(): CType.TStruct {
-            advance() // struct
-            val tag = if (peek().type == T.IDENT) advance().text else null
-            if (checkPunct("{")) {
-                advance()
-                // 先登记空定义，支持 struct Node { struct Node *next; } 自引用。
-                // 判题会把用户代码与测试拼成一个翻译单元，两边常各自声明同一个 struct：
-                // 已有同名字段表时把新字段先收进 temp，再比对是否一致，一致就复用旧定义。
-                val existing = tag?.let { structDefs[it] }
-                val reuse = existing != null && existing.fields.isNotEmpty()
-                val def = if (reuse) existing ?: StructDef(tag) else StructDef(tag)
-                if (tag != null) structDefs[tag] = def
-                val target = if (reuse) StructDef(tag) else def
-                while (!checkPunct("}") && !atEnd()) {
-                    val ft = parseDeclSpec()
-                    do {
-                        var ct = parsePointerStars(ft, peek().line)
-                        val fn = expect(T.IDENT, "成员名").text
-                        val dims = parseArrayDims()
-                        if (dims.isNotEmpty()) ct = CType.TArray(ct, dims)
-                        target.fields.add(fn to ct)
-                    } while (matchPunct(","))
-                    expectPunct(";")
-                }
-                expectPunct("}")
-                if (target !== def) {
-                    // 字段不一致说明真的是两份不同定义，明确报错而不是悄悄覆盖
-                    val same = target.fields.size == def.fields.size &&
 
-码上多语言编程学习软件 V1.0 第 30 页 [app/src/main/java/com/pyneon/academy/c/CInterpreter.kt 自第 491 行起]
-                        target.fields.zip(def.fields).all { (a, b) ->
-                            a.first == b.first && a.second.display() == b.second.display()
-                        }
-                    if (!same) throw CError("语法错误", "结构体 '$tag' 重复定义且字段不一致")
-                }
-                return CType.TStruct(def)
-            }
-            if (tag == null) throw CError("语法错误", "匿名结构体必须直接定义（第 ${peek().line} 行）")
-            // struct Point; 是前置声明：先登记空定义占位，真正使用时若仍无字段就报
-            // 「不完整类型」，让错误发生在使用点而不是声明点。
-            val def = structDefs.getOrPut(tag) { StructDef(tag) }
-            return CType.TStruct(def)
-        }
-
-        private fun parseDeclSpec(): CType {
-            var base: CType? = null
-            var saw = false
-            var modifier = false
-            while (true) {
-                val t = peek()
-                if (t.type == T.KEYWORD) {
-                    when (t.text) {
-                        "const", "static", "unsigned", "signed", "short", "long",
-                        "extern", "register", "volatile" -> { advance(); modifier = true; continue }
-                        "int" -> { advance(); base = CType.TInt; saw = true; continue }
-                        "double" -> { advance(); base = CType.TDouble; saw = true; continue }
-                        "float" -> { advance(); base = CType.TDouble; saw = true; continue }
-                        "char" -> { advance(); base = CType.TChar; saw = true; continue }
-                        "void" -> { advance(); base = CType.TVoid; saw = true; continue }
-                        "struct" -> { base = parseStructSpec(); saw = true; continue }
-                        else -> break
-                    }
-                } else if (t.type == T.IDENT && typedefs.containsKey(t.text)) {
-                    base = typedefs[t.text]
-                    advance(); saw = true; continue
-                }
-                break
-            }
-            if (base == null && modifier) {
-                // unsigned / short / long 单用：教学模型一律按 int 处理
-                return CType.TInt
-            }
-            if (!saw || base == null) {
-                throw CError("语法错误", "期望类型说明符，实际 '${peek().text}'（第 ${peek().line} 行）")
-            }
-            return base
-        }
-
-
-        /** 解析声明符里的 * 链；二级及以上明确报「不支持」，而不是让类型系统悄悄接受。 */
-
-码上多语言编程学习软件 V1.0 第 31 页 [app/src/main/java/com/pyneon/academy/ui/theme/AppThemes.kt 自第 148 行起]
+码上多语言编程学习软件 V1.0 第 31 页 [app/src/main/java/com/pyneon/academy/ui/theme/AppThemes.kt 自第 147 行起]
+        softEyeCare,
         paperLight
     )
 
@@ -1608,9 +1609,9 @@ object CInterpreter {
             isLight = light
         )
     }
-}
 
-码上多语言编程学习软件 V1.0 第 32 页 [app/src/main/java/com/pyneon/academy/ui/theme/Color.kt 自第 1 行起]
+码上多语言编程学习软件 V1.0 第 32 页 [app/src/main/java/com/pyneon/academy/ui/theme/AppThemes.kt 自第 197 行起]
+}
 package com.pyneon.academy.ui.theme
 
 import androidx.compose.runtime.Composable
@@ -1660,9 +1661,9 @@ val DarkTokens = NeonTokens(
 
 // 白纸主题，颜色按白底重新调过。
 val LightTokens = NeonTokens(
-    bg0 = Color(0xFFF5F7FB),
 
-码上多语言编程学习软件 V1.0 第 33 页 [app/src/main/java/com/pyneon/academy/ui/theme/Color.kt 自第 51 行起]
+码上多语言编程学习软件 V1.0 第 33 页 [app/src/main/java/com/pyneon/academy/ui/theme/Color.kt 自第 50 行起]
+    bg0 = Color(0xFFF5F7FB),
     bg1 = Color(0xFFE9EEF5),
     surfaceDark = Color(0xFFFFFFFF),
     surfaceHigh = Color(0xFFE2E8F2),
@@ -1712,9 +1713,9 @@ val NeonPurple: Color
     @Composable get() = LocalNeonTokens.current.purple
 val DangerRed: Color
     @Composable get() = LocalNeonTokens.current.danger
-package com.pyneon.academy.ui.theme
 
-码上多语言编程学习软件 V1.0 第 34 页 [app/src/main/java/com/pyneon/academy/ui/theme/Shape.kt 自第 2 行起]
+码上多语言编程学习软件 V1.0 第 34 页 [app/src/main/java/com/pyneon/academy/ui/theme/Shape.kt 自第 1 行起]
+package com.pyneon.academy.ui.theme
 
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.material3.Shapes
@@ -1764,9 +1765,9 @@ private fun createColorScheme(theme: AppTheme): ColorScheme {
 
 // 默认赛博霓虹配色。给预览和旧调用点用，直接取深色常量。
 private val PyNeonColorScheme = darkColorScheme(
-    primary = DarkTokens.primary,
 
-码上多语言编程学习软件 V1.0 第 35 页 [app/src/main/java/com/pyneon/academy/ui/theme/Theme.kt 自第 39 行起]
+码上多语言编程学习软件 V1.0 第 35 页 [app/src/main/java/com/pyneon/academy/ui/theme/Theme.kt 自第 38 行起]
+    primary = DarkTokens.primary,
     onPrimary = DarkTokens.bg0,
     primaryContainer = DarkTokens.surfaceHigh,
     onPrimaryContainer = DarkTokens.primary,
@@ -1816,9 +1817,9 @@ fun PyNeonTheme(
             typography = typographyFor(fontScale),
             shapes = AppShapes,
             content = content
-        )
 
-码上多语言编程学习软件 V1.0 第 36 页 [app/src/main/java/com/pyneon/academy/ui/theme/Theme.kt 自第 89 行起]
+码上多语言编程学习软件 V1.0 第 36 页 [app/src/main/java/com/pyneon/academy/ui/theme/Theme.kt 自第 88 行起]
+        )
     }
 }
 package com.pyneon.academy.ui.theme
@@ -1868,9 +1869,9 @@ enum class FontScale(val id: String, val label: String, val factor: Float) {
 // 按档位生成排版，只放大三档正文。标题和标签不动，
 // 不然中文标题在窄屏上会乱换行。
 fun typographyFor(scale: FontScale): Typography {
-    if (scale == FontScale.NORMAL) return AppTypography
 
-码上多语言编程学习软件 V1.0 第 37 页 [app/src/main/java/com/pyneon/academy/ui/theme/Type.kt 自第 49 行起]
+码上多语言编程学习软件 V1.0 第 37 页 [app/src/main/java/com/pyneon/academy/ui/theme/Type.kt 自第 48 行起]
+    if (scale == FontScale.NORMAL) return AppTypography
     val f = scale.factor
     fun TextStyle.scaled(): TextStyle = copy(
         fontSize = (fontSize.value * f).sp,
@@ -1920,9 +1921,9 @@ enum class VisualStyle(
 
     val neonBorderEnabled: Boolean get() = this == CYBER
 
-    val pressAnimationEnabled: Boolean get() = this == CYBER
 
-码上多语言编程学习软件 V1.0 第 38 页 [app/src/main/java/com/pyneon/academy/ui/theme/VisualStyle.kt 自第 39 行起]
+码上多语言编程学习软件 V1.0 第 38 页 [app/src/main/java/com/pyneon/academy/ui/theme/VisualStyle.kt 自第 38 行起]
+    val pressAnimationEnabled: Boolean get() = this == CYBER
 
     // 赛博用切角，简洁用圆角。
     val cardShape: Shape
@@ -1972,9 +1973,9 @@ object AppConstants {
     const val PRIVACY_POLICY_URL = "$REPO_URL/blob/main/PRIVACY_POLICY.md"
     const val TERMS_URL = "$REPO_URL/blob/main/TERMS_OF_SERVICE.md"
 }
-package com.pyneon.academy.utils
 
-码上多语言编程学习软件 V1.0 第 39 页 [app/src/main/java/com/pyneon/academy/utils/AppPrefs.kt 自第 2 行起]
+码上多语言编程学习软件 V1.0 第 39 页 [app/src/main/java/com/pyneon/academy/utils/AppPrefs.kt 自第 1 行起]
+package com.pyneon.academy.utils
 
 import android.content.Context
 
@@ -2024,9 +2025,9 @@ object HttpText {
     private const val DEFAULT_MAX_BYTES = 5 * 1024 * 1024
 
     fun getText(
-        url: String,
 
-码上多语言编程学习软件 V1.0 第 40 页 [app/src/main/java/com/pyneon/academy/utils/HttpText.kt 自第 20 行起]
+码上多语言编程学习软件 V1.0 第 40 页 [app/src/main/java/com/pyneon/academy/utils/HttpText.kt 自第 19 行起]
+        url: String,
         timeoutMs: Int = DEFAULT_TIMEOUT_MS,
         maxBytes: Int = DEFAULT_MAX_BYTES,
         accept: String = "application/json",
@@ -2076,9 +2077,9 @@ object HttpText {
 package com.pyneon.academy.utils
 
 import android.content.Context
-import java.util.Locale
 
-码上多语言编程学习软件 V1.0 第 41 页 [app/src/main/java/com/pyneon/academy/utils/I18n.kt 自第 5 行起]
+码上多语言编程学习软件 V1.0 第 41 页 [app/src/main/java/com/pyneon/academy/utils/I18n.kt 自第 4 行起]
+import java.util.Locale
 
 // 简单文案表。中文为主，英文和日文有基础版本。
 object I18n {
@@ -2128,9 +2129,9 @@ object I18n {
             "button.start" -> "Start Learning"
             else -> key
         }
-    }
 
-码上多语言编程学习软件 V1.0 第 42 页 [app/src/main/java/com/pyneon/academy/utils/I18n.kt 自第 55 行起]
+码上多语言编程学习软件 V1.0 第 42 页 [app/src/main/java/com/pyneon/academy/utils/I18n.kt 自第 54 行起]
+    }
     
     private fun getJaString(key: String): String {
         return when (key) {
@@ -2180,9 +2181,9 @@ object ShareHelper {
             appendLine()
             appendLine("XP：$xp")
             appendLine("连击：$streak 天")
-            appendLine("段位：$rank")
 
-码上多语言编程学习软件 V1.0 第 43 页 [app/src/main/java/com/pyneon/academy/utils/ShareHelper.kt 自第 39 行起]
+码上多语言编程学习软件 V1.0 第 43 页 [app/src/main/java/com/pyneon/academy/utils/ShareHelper.kt 自第 38 行起]
+            appendLine("段位：$rank")
             appendLine()
             appendLine("完全离线，随时能练。")
             appendLine(AppConstants.REPO_URL)
@@ -2232,9 +2233,9 @@ object ThemePreference {
     fun unregisterListener(context: Context, listener: SharedPreferences.OnSharedPreferenceChangeListener) {
         getPrefs(context).unregisterOnSharedPreferenceChangeListener(listener)
     }
-
 
-码上多语言编程学习软件 V1.0 第 44 页 [app/src/main/java/com/pyneon/academy/utils/ThemePreference.kt 自第 30 行起]
+码上多语言编程学习软件 V1.0 第 44 页 [app/src/main/java/com/pyneon/academy/utils/ThemePreference.kt 自第 29 行起]
+
     // 自定义主题按用户给的主色现算，其余按 id 查表。
     fun getCurrentTheme(context: Context): AppTheme {
         val themeId = getCurrentThemeId(context)
@@ -2284,9 +2285,9 @@ object ThemePreference {
 
     // 没设置过就用标准档。
     fun getFontScale(context: Context): FontScale =
-        FontScale.fromId(getPrefs(context).getString(KEY_FONT_SCALE, null))
 
-码上多语言编程学习软件 V1.0 第 45 页 [app/src/main/java/com/pyneon/academy/utils/ThemePreference.kt 自第 80 行起]
+码上多语言编程学习软件 V1.0 第 45 页 [app/src/main/java/com/pyneon/academy/utils/ThemePreference.kt 自第 79 行起]
+        FontScale.fromId(getPrefs(context).getString(KEY_FONT_SCALE, null))
 
     fun saveFontScale(context: Context, scale: FontScale) {
         getPrefs(context).edit().putString(KEY_FONT_SCALE, scale.id).apply()
@@ -2336,9 +2337,9 @@ object UpdateChecker {
                     continue
                 }
                 return@withContext Result.success(
-                    ReleaseInfo(tag, url, json.optString("published_at"))
 
-码上多语言编程学习软件 V1.0 第 46 页 [app/src/main/java/com/pyneon/academy/utils/UpdateChecker.kt 自第 46 行起]
+码上多语言编程学习软件 V1.0 第 46 页 [app/src/main/java/com/pyneon/academy/utils/UpdateChecker.kt 自第 45 行起]
+                    ReleaseInfo(tag, url, json.optString("published_at"))
                 )
             } catch (e: Exception) {
                 lastError = e
@@ -2388,9 +2389,9 @@ class NeonConsole(code_module.InteractiveConsole):
         super().__init__(locals={"__name__": "__neon_console__", "__doc__": None})
         self.capture = io.StringIO()
         # 每条语句的预算，push 时更新。
-        self._timeout = REPL_TIMEOUT
 
-码上多语言编程学习软件 V1.0 第 47 页 [app/src/main/python/repl.py 自第 28 行起]
+码上多语言编程学习软件 V1.0 第 47 页 [app/src/main/python/repl.py 自第 27 行起]
+        self._timeout = REPL_TIMEOUT
 
     def write(self, data):
         self.capture.write(data)
@@ -2440,9 +2441,9 @@ def _active_console() -> NeonConsole:
         return _console
 
 
-def start():
 
-码上多语言编程学习软件 V1.0 第 48 页 [app/src/main/python/repl.py 自第 78 行起]
+码上多语言编程学习软件 V1.0 第 48 页 [app/src/main/python/repl.py 自第 77 行起]
+def start():
     global _console
     with _console_lock:
         _console = NeonConsole()
@@ -2492,9 +2493,9 @@ MAX_VAR_BYTES = 1_000_000
 EXEC_LOCK = threading.RLock()
 
 
-class SandboxTimeout(Exception):
 
-码上多语言编程学习软件 V1.0 第 49 页 [app/src/main/python/runner.py 自第 27 行起]
+码上多语言编程学习软件 V1.0 第 49 页 [app/src/main/python/runner.py 自第 26 行起]
+class SandboxTimeout(Exception):
     pass
 
 
@@ -2544,9 +2545,9 @@ def _truncate(text):
         return "[输出过长已截断]\n" + text[-MAX_OUTPUT:]
     return text
 
-
 
-码上多语言编程学习软件 V1.0 第 50 页 [app/src/main/python/runner.py 自第 77 行起]
+码上多语言编程学习软件 V1.0 第 50 页 [app/src/main/python/runner.py 自第 76 行起]
+
 class OutputTooLong(Exception):
     """输出超过硬上限，立即中断执行（防 OOM）。"""
 
@@ -2596,9 +2597,9 @@ def _run_protected(code, namespace, stdin_lines, timeout):
                 "traceback": "",
             }
         except OutputTooLong:
-            state["error"] = {
 
-码上多语言编程学习软件 V1.0 第 51 页 [app/src/main/python/runner.py 自第 127 行起]
+码上多语言编程学习软件 V1.0 第 51 页 [app/src/main/python/runner.py 自第 126 行起]
+            state["error"] = {
                 "type": "OutputTooLong",
                 "message": "输出超过 %d KB 上限，已中断（疑似死循环打印）"
                 % (_BoundedBuffer.HARD_LIMIT // 1024),
@@ -2648,9 +2649,9 @@ def _run_protected(code, namespace, stdin_lines, timeout):
         None
         if state["finished"] and state["error"] is None
         else (
-            state["error"]
 
-码上多语言编程学习软件 V1.0 第 52 页 [app/src/main/python/runner.py 自第 177 行起]
+码上多语言编程学习软件 V1.0 第 52 页 [app/src/main/python/runner.py 自第 176 行起]
+            state["error"]
             or {
                 "type": "Timeout",
                 "message": "代码运行超过 %.1f 秒，已被强制中断（可能是死循环）"
@@ -2700,9 +2701,9 @@ def _snapshot(namespace):
         except BaseException:
             # 自定义 __repr__ 抛异常或递归太深，也不能把整个快照带崩。
             rendered = "<无法显示>"
-        if len(rendered) > MAX_REPR:
 
-码上多语言编程学习软件 V1.0 第 53 页 [app/src/main/python/runner.py 自第 227 行起]
+码上多语言编程学习软件 V1.0 第 53 页 [app/src/main/python/runner.py 自第 226 行起]
+        if len(rendered) > MAX_REPR:
             rendered = rendered[:MAX_REPR] + "…"
         items.append({"name": key, "type": type(value).__name__, "value": rendered})
         if len(items) >= MAX_VARS:
@@ -2752,9 +2753,9 @@ def _check_exercise_locked(code, tests, stdin_lines, namespace):
     # 判题把用户 stdout 交给用例，允许 assert 输出内容。
     # 不然只赋值不打印也能过，l01 就出过这个漏洞。stderr 同样处理。
     test_ns["__stdout__"] = core["stdout"]
-    test_ns["__stderr__"] = core["stderr"]
 
-码上多语言编程学习软件 V1.0 第 54 页 [app/src/main/python/runner.py 自第 277 行起]
+码上多语言编程学习软件 V1.0 第 54 页 [app/src/main/python/runner.py 自第 276 行起]
+    test_ns["__stderr__"] = core["stderr"]
     for index, test in enumerate(tests, start=1):
         test_state = {"finished": False, "error": None}
         test_out = io.StringIO()
@@ -2804,9 +2805,9 @@ def _check_exercise_locked(code, tests, stdin_lines, namespace):
     message = (
         ""
         if passed
-        else "共 %d 个用例，%d 个未通过；首个失败：%s"
 
-码上多语言编程学习软件 V1.0 第 55 页 [app/src/main/python/runner.py 自第 327 行起]
+码上多语言编程学习软件 V1.0 第 55 页 [app/src/main/python/runner.py 自第 326 行起]
+        else "共 %d 个用例，%d 个未通过；首个失败：%s"
         % (len(tests), len(failures), failures[0]["reason"])
     )
     return {
@@ -2856,9 +2857,9 @@ SQLite 的 execute 是同步阻塞的，死循环 CTE（比如漏了终止条件
 会把线程占死，界面一直转。这里用 set_progress_handler 做指令级看门狗：
 每 1000 条虚拟机指令看一眼时间，超了返回非 0，SQLite 自己中断并抛错。
 """
-import json
 
-码上多语言编程学习软件 V1.0 第 56 页 [app/src/main/python/sql_runner.py 自第 8 行起]
+码上多语言编程学习软件 V1.0 第 56 页 [app/src/main/python/sql_runner.py 自第 7 行起]
+import json
 import sqlite3
 import time
 import traceback
@@ -2908,9 +2909,9 @@ def _split_statements(sql):
         if ch == "-" and i + 1 < len(sql) and sql[i + 1] == "-":
             while i < len(sql) and sql[i] != "\n":
                 i += 1
-            continue
 
-码上多语言编程学习软件 V1.0 第 57 页 [app/src/main/python/sql_runner.py 自第 58 行起]
+码上多语言编程学习软件 V1.0 第 57 页 [app/src/main/python/sql_runner.py 自第 57 行起]
+            continue
         if ch == ";":
             text = "".join(buf).strip()
             if text:
@@ -2960,9 +2961,9 @@ def _execute(sql, timeout=None):
     last = None
     try:
         for statement in _split_statements(sql):
-            cursor = conn.execute(statement)
 
-码上多语言编程学习软件 V1.0 第 58 页 [app/src/main/python/sql_runner.py 自第 108 行起]
+码上多语言编程学习软件 V1.0 第 58 页 [app/src/main/python/sql_runner.py 自第 107 行起]
+            cursor = conn.execute(statement)
             if cursor.description:
                 columns, rows, text = _format_table(cursor)
                 last = {
@@ -3012,9 +3013,9 @@ def _execute(sql, timeout=None):
 def run_sql(sql, timeout=None):
     core = _execute(sql, timeout)
     return {
-        "ok": core["ok"],
 
-码上多语言编程学习软件 V1.0 第 59 页 [app/src/main/python/sql_runner.py 自第 158 行起]
+码上多语言编程学习软件 V1.0 第 59 页 [app/src/main/python/sql_runner.py 自第 157 行起]
+        "ok": core["ok"],
         "stdout": core["stdout"],
         "stderr": core["stderr"],
         "error": core["error"],
@@ -3064,9 +3065,9 @@ def check_sql(sql, tests, timeout=None):
         "test_output": "",
         "error": None if passed else {"type": "TestFailed", "message": message, "traceback": ""},
         "duration_ms": core["duration_ms"],
-        "variables": [],
 
-码上多语言编程学习软件 V1.0 第 60 页 [app/src/main/python/sql_runner.py 自第 208 行起]
+码上多语言编程学习软件 V1.0 第 60 页 [app/src/main/python/sql_runner.py 自第 207 行起]
+        "variables": [],
     }
 
 

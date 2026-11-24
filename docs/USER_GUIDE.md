@@ -1,6 +1,6 @@
 # CodeLearning（码上）用户手册
 
-> 适用于 v0.7.3（versionCode 22）及后续版本。
+> 适用于 v0.7.4（versionCode 23）及后续版本。
 > 项目主页：<https://gitcode.com/badhope/mashang>  
 > 官网：<https://badhope.github.io/mashang/>
 
@@ -34,7 +34,7 @@ C / TypeScript 是教学子集：C 不支持预处理指令、`goto` 与函数�
 
 ## 2. 下载与安装
 
-从任一官方 Release 下载 `mashang-v0.7.3.apk`：
+从任一官方 Release 下载 `mashang-v0.7.4.apk`：
 
 - GitHub：<https://github.com/badhope/mashang/releases/latest>
 - GitCode：<https://gitcode.com/badhope/mashang/releases>

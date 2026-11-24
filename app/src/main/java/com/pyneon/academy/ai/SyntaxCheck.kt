@@ -105,6 +105,16 @@ object SyntaxCheck {
                     i += 2
                     continue
                 }
+                // SQL 用两个连续引号表示字符串里的一个引号，不能当成收尾再重开。
+                if (language == "sql" && next != null &&
+                    ((inSingle && c == '\'' && next == '\'') ||
+                        (inDouble && c == '"' && next == '"'))
+                ) {
+                    appendMasked(c)
+                    appendMasked(next)
+                    i += 2
+                    continue
+                }
                 val closes = (inSingle && c == '\'') || (inDouble && c == '"') || (inBacktick && c == '`')
                 if (closes) {
                     inSingle = false

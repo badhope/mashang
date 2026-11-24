@@ -258,6 +258,7 @@ object ProgressStore {
     suspend fun reset(context: Context) {
         val app = context.applicationContext
         app.progressDataStore.edit { it.clear() }
+        DraftStore.clearAll(app)
         val failures = withContext(Dispatchers.IO) { UserDataFiles.deleteAll(app.filesDir) }
         if (failures.isNotEmpty()) {
             Log.w("ProgressStore", "reset 未能删除：${failures.joinToString()}")

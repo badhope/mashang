@@ -505,7 +505,17 @@ object&nbsp;SyntaxCheck&nbsp;{</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">10 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;closes&nbsp;=&nbsp;(inSingle&nbsp;&amp;&amp;&nbsp;c&nbsp;==&nbsp;&#x27;\&#x27;&#x27;)&nbsp;||&nbsp;(inDouble&nbsp;&amp;&amp;&nbsp;c&nbsp;==&nbsp;&#x27;&quot;&#x27;)&nbsp;||&nbsp;(inBacktick&nbsp;&amp;&amp;&nbsp;c&nbsp;==&nbsp;&#x27;`&#x27;)
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;SQL&nbsp;用两个连续引号表示字符串里的一个引号，不能当成收尾再重开。
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(language&nbsp;==&nbsp;&quot;sql&quot;&nbsp;&amp;&amp;&nbsp;next&nbsp;!=&nbsp;null&nbsp;&amp;&amp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;((inSingle&nbsp;&amp;&amp;&nbsp;c&nbsp;==&nbsp;&#x27;\&#x27;&#x27;&nbsp;&amp;&amp;&nbsp;next&nbsp;==&nbsp;&#x27;\&#x27;&#x27;)&nbsp;||
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(inDouble&nbsp;&amp;&amp;&nbsp;c&nbsp;==&nbsp;&#x27;&quot;&#x27;&nbsp;&amp;&amp;&nbsp;next&nbsp;==&nbsp;&#x27;&quot;&#x27;))
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendMasked(c)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendMasked(next)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i&nbsp;+=&nbsp;2
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;closes&nbsp;=&nbsp;(inSingle&nbsp;&amp;&amp;&nbsp;c&nbsp;==&nbsp;&#x27;\&#x27;&#x27;)&nbsp;||&nbsp;(inDouble&nbsp;&amp;&amp;&nbsp;c&nbsp;==&nbsp;&#x27;&quot;&#x27;)&nbsp;||&nbsp;(inBacktick&nbsp;&amp;&amp;&nbsp;c&nbsp;==&nbsp;&#x27;`&#x27;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(closes)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inSingle&nbsp;=&nbsp;false
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inDouble&nbsp;=&nbsp;false
@@ -544,8 +554,11 @@ object&nbsp;SyntaxCheck&nbsp;{</div>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;c&nbsp;==&nbsp;&#x27;&quot;&#x27;&nbsp;&amp;&amp;&nbsp;next&nbsp;==&nbsp;&#x27;&quot;&#x27;&nbsp;&amp;&amp;&nbsp;code.getOrNull(i&nbsp;+&nbsp;2)&nbsp;==&nbsp;&#x27;&quot;&#x27;&nbsp;-&gt;&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;end&nbsp;=&nbsp;code.indexOf(&quot;\&quot;\&quot;\&quot;&quot;,&nbsp;i&nbsp;+&nbsp;3)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(end&nbsp;&lt;&nbsp;0)&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;hints&nbsp;+=&nbsp;&quot;第&nbsp;$line&nbsp;行的三引号没有闭合&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(end&nbsp;&lt;&nbsp;0)&nbsp;{</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">11 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;hints&nbsp;+=&nbsp;&quot;第&nbsp;$line&nbsp;行的三引号没有闭合&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i&nbsp;=&nbsp;code.length
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(j&nbsp;in&nbsp;i&nbsp;until&nbsp;end&nbsp;+&nbsp;3)&nbsp;{
@@ -554,11 +567,8 @@ object&nbsp;SyntaxCheck&nbsp;{</div>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;line&nbsp;+=&nbsp;1
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;out.append(&#x27;&nbsp;&#x27;)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">11 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i&nbsp;=&nbsp;end&nbsp;+&nbsp;3
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
@@ -597,8 +607,11 @@ object&nbsp;SyntaxCheck&nbsp;{</div>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendMasked(c)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;c&nbsp;==&nbsp;&#x27;(&#x27;&nbsp;||&nbsp;c&nbsp;==&nbsp;&#x27;[&#x27;&nbsp;||&nbsp;c&nbsp;==&nbsp;&#x27;{&#x27;&nbsp;-&gt;&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stack.addLast(OpenBracket(c,&nbsp;line))
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;out.append(c)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stack.addLast(OpenBracket(c,&nbsp;line))</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">12 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;out.append(c)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;c&nbsp;==&nbsp;&#x27;)&#x27;&nbsp;||&nbsp;c&nbsp;==&nbsp;&#x27;]&#x27;&nbsp;||&nbsp;c&nbsp;==&nbsp;&#x27;}&#x27;&nbsp;-&gt;&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;expected&nbsp;=&nbsp;when&nbsp;(c)&nbsp;{
@@ -607,11 +620,8 @@ object&nbsp;SyntaxCheck&nbsp;{</div>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;-&gt;&nbsp;&#x27;{&#x27;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;last&nbsp;=&nbsp;stack.removeLastOrNull()
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(last&nbsp;==&nbsp;null)&nbsp;{</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">12 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;hints&nbsp;+=&nbsp;&quot;第&nbsp;$line&nbsp;行多了一个&nbsp;${c}，前面没有对应的开括号&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(last&nbsp;==&nbsp;null)&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;hints&nbsp;+=&nbsp;&quot;第&nbsp;$line&nbsp;行多了一个&nbsp;${c}，前面没有对应的开括号&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;if&nbsp;(last.char&nbsp;!=&nbsp;expected)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;hints&nbsp;+=&nbsp;&quot;第&nbsp;$line&nbsp;行的&nbsp;${c}&nbsp;和第&nbsp;${last.line}&nbsp;行的&nbsp;${last.char}&nbsp;对不上&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
@@ -650,7 +660,11 @@ enum&nbsp;class&nbsp;TutorIntent&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;THINKING,
 &nbsp;&nbsp;&nbsp;&nbsp;ERROR,
 &nbsp;&nbsp;&nbsp;&nbsp;CONCEPT,
-&nbsp;&nbsp;&nbsp;&nbsp;NEXT_STEP,
+&nbsp;&nbsp;&nbsp;&nbsp;NEXT_STEP,</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">13 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;SUMMARY,
 &nbsp;&nbsp;&nbsp;&nbsp;GENERAL
 }
 
@@ -660,11 +674,8 @@ data&nbsp;class&nbsp;TutorSource(
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;text:&nbsp;String
 )
 
-data&nbsp;class&nbsp;TutorRequest(</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">13 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;question:&nbsp;String,
+data&nbsp;class&nbsp;TutorRequest(
+&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;question:&nbsp;String,
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;lessonId:&nbsp;String&nbsp;=&nbsp;&quot;&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;lessonTitle:&nbsp;String&nbsp;=&nbsp;&quot;&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;lessonBrief:&nbsp;String?&nbsp;=&nbsp;null,
@@ -677,6 +688,7 @@ data&nbsp;class&nbsp;TutorRequest(</div>
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;traceback:&nbsp;String?&nbsp;=&nbsp;null,
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;passed:&nbsp;Boolean?&nbsp;=&nbsp;null,
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;nextLessonTitle:&nbsp;String?&nbsp;=&nbsp;null,
+&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;isChallenge:&nbsp;Boolean&nbsp;=&nbsp;false,
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;sources:&nbsp;List&lt;TutorSource&gt;&nbsp;=&nbsp;emptyList()
 )
 
@@ -693,16 +705,28 @@ data&nbsp;class&nbsp;TutorReply(
 
 object&nbsp;TutorEngine&nbsp;{
 
-&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;val&nbsp;ERROR_HINTS&nbsp;=&nbsp;listOf(&quot;报错&quot;,&nbsp;&quot;错误&quot;,&nbsp;&quot;为什么错&quot;,&nbsp;&quot;跑不通&quot;,&nbsp;&quot;失败&quot;,&nbsp;&quot;异常&quot;,&nbsp;&quot;崩溃&quot;,&nbsp;&quot;红了&quot;)
+&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;val&nbsp;ERROR_HINTS&nbsp;=&nbsp;listOf(
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;报错&quot;,&nbsp;&quot;错误&quot;,&nbsp;&quot;为什么错&quot;,&nbsp;&quot;哪里错&quot;,&nbsp;&quot;为什么不对&quot;,&nbsp;&quot;结果不对&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;跑不通&quot;,&nbsp;&quot;没通过&quot;,&nbsp;&quot;失败&quot;,&nbsp;&quot;异常&quot;,&nbsp;&quot;崩溃&quot;,&nbsp;&quot;红了&quot;,&nbsp;&quot;怎么办&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;)
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;val&nbsp;THINKING_HINTS&nbsp;=&nbsp;listOf(&quot;怎么开始&quot;,&nbsp;&quot;怎么做&quot;,&nbsp;&quot;没思路&quot;,&nbsp;&quot;不会&quot;,&nbsp;&quot;卡住&quot;,&nbsp;&quot;从哪&quot;,&nbsp;&quot;思路&quot;,&nbsp;&quot;拆解&quot;)
-&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;val&nbsp;CONCEPT_HINTS&nbsp;=&nbsp;listOf(&quot;什么是&quot;,&nbsp;&quot;是什么&quot;,&nbsp;&quot;解释&quot;,&nbsp;&quot;区别&quot;,&nbsp;&quot;原理&quot;,&nbsp;&quot;定义&quot;)
+&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;val&nbsp;CONCEPT_HINTS&nbsp;=&nbsp;listOf(&quot;什么是&quot;,&nbsp;&quot;是什么&quot;,&nbsp;&quot;为什么&quot;,&nbsp;&quot;解释&quot;,&nbsp;&quot;区别&quot;,&nbsp;&quot;原理&quot;,&nbsp;&quot;定义&quot;)
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;val&nbsp;NEXT_HINTS&nbsp;=&nbsp;listOf(&quot;下一步&quot;,&nbsp;&quot;接下来&quot;,&nbsp;&quot;学什么&quot;,&nbsp;&quot;然后学&quot;,&nbsp;&quot;下一讲&quot;)
+&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;val&nbsp;SUMMARY_HINTS&nbsp;=&nbsp;listOf(&quot;重点&quot;,&nbsp;&quot;总结&quot;,&nbsp;&quot;讲了什么&quot;,&nbsp;&quot;主要内容&quot;)
+&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;val&nbsp;GENERIC_CONCEPT_QUESTIONS&nbsp;=&nbsp;setOf(</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">14 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;解释这个知识点&quot;,&nbsp;&quot;解释一下这个知识点&quot;,&nbsp;&quot;解释知识点&quot;,&nbsp;&quot;这个知识点是什么&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;)
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;val&nbsp;FUNCTION_PATTERN&nbsp;=&nbsp;Regex(&quot;&quot;&quot;(?:def|fun|function)\s+([A-Za-z_][A-Za-z0-9_]*)&quot;&quot;&quot;)
 
 &nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;这些词在课程里到处都是，留着会把“没找到”硬凑成“找到”。
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;val&nbsp;STOP_TERMS&nbsp;=&nbsp;setOf(
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;什么&quot;,&nbsp;&quot;么是&quot;,&nbsp;&quot;怎么&quot;,&nbsp;&quot;为何&quot;,&nbsp;&quot;为什么&quot;,&nbsp;&quot;如何&quot;,&nbsp;&quot;这个&quot;,&nbsp;&quot;那个&quot;,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;一下&quot;,&nbsp;&quot;可以&quot;,&nbsp;&quot;是否&quot;,&nbsp;&quot;介绍&quot;,&nbsp;&quot;解释&quot;,&nbsp;&quot;区别&quot;,&nbsp;&quot;原理&quot;,&nbsp;&quot;定义&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;一下&quot;,&nbsp;&quot;可以&quot;,&nbsp;&quot;是否&quot;,&nbsp;&quot;介绍&quot;,&nbsp;&quot;解释&quot;,&nbsp;&quot;区别&quot;,&nbsp;&quot;原理&quot;,&nbsp;&quot;定义&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;我的&quot;,&nbsp;&quot;你的&quot;,&nbsp;&quot;他的&quot;,&nbsp;&quot;她的&quot;,&nbsp;&quot;然后&quot;,&nbsp;&quot;还是&quot;,&nbsp;&quot;就是&quot;,&nbsp;&quot;因为&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;所以&quot;,&nbsp;&quot;如果&quot;,&nbsp;&quot;但是&quot;,&nbsp;&quot;没有&quot;,&nbsp;&quot;一个&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;)
 
 &nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;reply(request:&nbsp;TutorRequest):&nbsp;TutorReply&nbsp;{
@@ -710,14 +734,14 @@ object&nbsp;TutorEngine&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;lower&nbsp;=&nbsp;question.lowercase()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;when&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;request.hasError()&nbsp;&amp;&amp;&nbsp;ERROR_HINTS.any&nbsp;{&nbsp;lower.contains(it)&nbsp;}&nbsp;-&gt;&nbsp;diagnose(request)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;request.tests.isEmpty()&nbsp;&amp;&amp;&nbsp;question.startsWith(&quot;这题怎么开始&quot;)&nbsp;-&gt;&nbsp;summary(request)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;question&nbsp;in&nbsp;GENERIC_CONCEPT_QUESTIONS&nbsp;-&gt;&nbsp;askForConcept()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;THINKING_HINTS.any&nbsp;{&nbsp;lower.contains(it)&nbsp;}&nbsp;-&gt;&nbsp;thinking(request)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SUMMARY_HINTS.any&nbsp;{&nbsp;lower.contains(it)&nbsp;}&nbsp;-&gt;&nbsp;summary(request)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CONCEPT_HINTS.any&nbsp;{&nbsp;lower.contains(it)&nbsp;}&nbsp;-&gt;&nbsp;concept(request)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NEXT_HINTS.any&nbsp;{&nbsp;lower.contains(it)&nbsp;}&nbsp;-&gt;&nbsp;nextStep(request)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;question.isBlank()&nbsp;&amp;&amp;&nbsp;request.lessonBrief&nbsp;!=&nbsp;null&nbsp;-&gt;&nbsp;thinking(request)</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">14 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;-&gt;&nbsp;general(request)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;question.isBlank()&nbsp;&amp;&amp;&nbsp;request.lessonBrief&nbsp;!=&nbsp;null&nbsp;-&gt;&nbsp;thinking(request)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;-&gt;&nbsp;general(request)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;}
 
@@ -742,8 +766,11 @@ object&nbsp;TutorEngine&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;example&nbsp;=&nbsp;tip.example
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
 &nbsp;&nbsp;&nbsp;&nbsp;}
-
-&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;thinking(request:&nbsp;TutorRequest):&nbsp;TutorReply&nbsp;{
+</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">15 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;thinking(request:&nbsp;TutorRequest):&nbsp;TutorReply&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;code&nbsp;=&nbsp;request.currentCode.ifBlank&nbsp;{&nbsp;request.starterCode.orEmpty()&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;functionName&nbsp;=&nbsp;FUNCTION_PATTERN.find(code)?.groupValues?.getOrNull(1)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;firstTest&nbsp;=&nbsp;request.tests.firstOrNull()?.trim()?.take(100)
@@ -766,14 +793,54 @@ object&nbsp;TutorEngine&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;steps&nbsp;=&nbsp;steps,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;checkpoint&nbsp;=&nbsp;&quot;能在注释里写出三步计划，并且手算出一组最小输入，再开始写。&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;example&nbsp;=&nbsp;&quot;&quot;&quot;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;先用题目最小样例走一遍</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">15 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sample&nbsp;=&nbsp;...
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;先用题目最小样例走一遍
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sample&nbsp;=&nbsp;...
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;把处理结果打印出来，确认中间值
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print(sample)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;&quot;&quot;.trimIndent()
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
+&nbsp;&nbsp;&nbsp;&nbsp;}
+
+&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;askForConcept():&nbsp;TutorReply&nbsp;=&nbsp;TutorReply(
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;intent&nbsp;=&nbsp;TutorIntent.CONCEPT,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;title&nbsp;=&nbsp;&quot;先告诉我是哪个知识点&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lead&nbsp;=&nbsp;&quot;“知识点”范围太大，直接搜会翻出一堆不相关的段落。把具体名词写进输入框。&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;steps&nbsp;=&nbsp;listOf(
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;例如：闭包、索引、事务、this、装饰器。一次只问一个。&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;如果不知道名字，就先描述它解决什么问题，比如“函数里记住外面的变量”。&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;拿到具体名词后，我再按课程原文解释，不凭空补。&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;),
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;checkpoint&nbsp;=&nbsp;&quot;能说出一个具体名词，或者一句能定位它的话。&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;)
+
+&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;summary(request:&nbsp;TutorRequest):&nbsp;TutorReply&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;source&nbsp;=&nbsp;request.sources.firstOrNull&nbsp;{&nbsp;it.lessonId&nbsp;==&nbsp;request.lessonId&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;?:&nbsp;return&nbsp;TutorReply(
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;intent&nbsp;=&nbsp;TutorIntent.SUMMARY,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;title&nbsp;=&nbsp;&quot;这一讲没有可用的正文&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lead&nbsp;=&nbsp;&quot;课程包里的这一讲没有可检索的段落，先按标题回忆一遍。&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;steps&nbsp;=&nbsp;listOf(</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">16 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;把标题拆成“它解决什么问题、输入是什么、输出是什么”三句。&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;打开这一讲的代码块，挑一个能跑的例子看输入输出。&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;),
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;checkpoint&nbsp;=&nbsp;&quot;能说出这一讲大致解决什么问题，再往下学。&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;TutorReply(
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;intent&nbsp;=&nbsp;TutorIntent.SUMMARY,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;title&nbsp;=&nbsp;&quot;这一讲的重点：${request.lessonTitle.ifBlank&nbsp;{&nbsp;source.title&nbsp;}}&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lead&nbsp;=&nbsp;&quot;先把这一讲当成一个整体看，不要只记某个函数名。&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;steps&nbsp;=&nbsp;listOf(
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;先读标题和第一段，确认这一讲要解决什么问题。&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;从正文里挑一个代码块，跑一次，改一个变量再看输出。&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;用三句话总结：解决什么、关键步骤、什么时候不该用。&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;把总结写进笔记，不要直接复制原文。&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;),
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;checkpoint&nbsp;=&nbsp;&quot;合上这一讲，能用三句话讲清楚它在解决什么问题。&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sourceTitle&nbsp;=&nbsp;source.title,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sourceText&nbsp;=&nbsp;source.text.take(520).trim()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
 &nbsp;&nbsp;&nbsp;&nbsp;}
 
@@ -805,8 +872,11 @@ object&nbsp;TutorEngine&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;),
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;checkpoint&nbsp;=&nbsp;&quot;能举一个例子，也能举一个反例，才算真的理解。&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sourceTitle&nbsp;=&nbsp;hit.title,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sourceText&nbsp;=&nbsp;hit.text.take(520).trim()
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sourceText&nbsp;=&nbsp;hit.text.take(520).trim()</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">17 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
 &nbsp;&nbsp;&nbsp;&nbsp;}
 
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;nextStep(request:&nbsp;TutorRequest):&nbsp;TutorReply&nbsp;{
@@ -816,17 +886,22 @@ object&nbsp;TutorEngine&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;add(&quot;去错题本把这讲的失败记录重做一次，确认不是碰巧通过。&quot;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(next.isNotBlank())&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;add(&quot;下一讲是《$next》。先看标题猜它会解决什么问题，再打开，不要直接抄代码。&quot;)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;if&nbsp;(request.isChallenge)&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;add(&quot;挑战页没有下一讲。先把边界补齐：空输入、重复值、最大规模各试一组，再决定算不算真通过。&quot;)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;add(&quot;如果这题是蒙对的，回错题本把当时的失败记录重做一遍，别急着开下一道。&quot;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;add(&quot;主线已经走完，去复习台按到期卡片过一轮，再挑一道挑战题。&quot;)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;add(&quot;如果这是这条路径的最后一讲，去复习台按到期卡片过一轮，再挑一道挑战题。&quot;)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;add(&quot;如果这是内容包里的课，回课程包目录挑下一讲，别跳到别的语言从头开。&quot;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;add(&quot;今天只追一个目标：能讲清楚自己为什么这么写，而不是多刷几题。&quot;)</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">16 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;add(&quot;今天只追一个目标：能讲清楚自己为什么这么写，而不是多刷几题。&quot;)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;TutorReply(
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;intent&nbsp;=&nbsp;TutorIntent.NEXT_STEP,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;title&nbsp;=&nbsp;if&nbsp;(next.isNotBlank())&nbsp;&quot;下一站：$next&quot;&nbsp;else&nbsp;&quot;主线之后：复习与挑战&quot;,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;title&nbsp;=&nbsp;when&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;next.isNotBlank()&nbsp;-&gt;&nbsp;&quot;下一站：$next&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;request.isChallenge&nbsp;-&gt;&nbsp;&quot;挑战收尾：先补边界&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;-&gt;&nbsp;&quot;当前路径之后：复习与挑战&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lead&nbsp;=&nbsp;&quot;进度不是目的，能独立写出来才是。先把当前这讲收干净。&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;steps&nbsp;=&nbsp;steps,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;checkpoint&nbsp;=&nbsp;&quot;不看答案，能在&nbsp;10&nbsp;分钟内重写当前练习并通过判题。&quot;
@@ -850,8 +925,11 @@ object&nbsp;TutorEngine&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;intent&nbsp;=&nbsp;TutorIntent.GENERAL,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;title&nbsp;=&nbsp;&quot;先把问题缩小&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lead&nbsp;=&nbsp;&quot;我没法替你写答案，但可以帮你把问题圈到最小范围。&quot;,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;steps&nbsp;=&nbsp;steps,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;checkpoint&nbsp;=&nbsp;&quot;能用一句话说出“我现在卡在哪个具体步骤”，再继续。&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;steps&nbsp;=&nbsp;steps,</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">18 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;checkpoint&nbsp;=&nbsp;&quot;能用一句话说出“我现在卡在哪个具体步骤”，再继续。&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
 &nbsp;&nbsp;&nbsp;&nbsp;}
 
@@ -872,11 +950,8 @@ object&nbsp;TutorEngine&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;score&nbsp;+=&nbsp;source.text.countOccurrences(term)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(source.lessonId&nbsp;==&nbsp;currentLessonId)&nbsp;score&nbsp;+=&nbsp;2
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;source&nbsp;to&nbsp;score</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">17 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;source&nbsp;to&nbsp;score
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.filter&nbsp;{&nbsp;it.second&nbsp;&gt;&nbsp;0&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.sortedByDescending&nbsp;{&nbsp;it.second&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.map&nbsp;{&nbsp;it.first&nbsp;}
@@ -889,7 +964,13 @@ object&nbsp;TutorEngine&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;latin&nbsp;=&nbsp;Regex(&quot;[a-z0-9_]{2,}&quot;).findAll(cleaned).map&nbsp;{&nbsp;it.value&nbsp;}.toList()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;chinese&nbsp;=&nbsp;Regex(&quot;[\\u4e00-\\u9fa5]{2,}&quot;).findAll(cleaned).map&nbsp;{&nbsp;it.value&nbsp;}.toList()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;grams&nbsp;=&nbsp;chinese.flatMap&nbsp;{&nbsp;word&nbsp;-&gt;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(word.length&nbsp;&lt;=&nbsp;4)&nbsp;listOf(word)&nbsp;else&nbsp;word.windowed(2).take(8)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(word.length&nbsp;&lt;=&nbsp;4)&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;listOf(word)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;长问题只取前八个二字词会漏掉句尾的关键词，头尾各取四个。
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;pairs&nbsp;=&nbsp;word.windowed(2)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(pairs.take(4)&nbsp;+&nbsp;pairs.takeLast(4)).distinct()
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;(latin&nbsp;+&nbsp;grams)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.filterNot&nbsp;{&nbsp;it&nbsp;in&nbsp;STOP_TERMS&nbsp;}
@@ -897,8 +978,11 @@ object&nbsp;TutorEngine&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.take(16)
 &nbsp;&nbsp;&nbsp;&nbsp;}
 
-&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;String.countOccurrences(term:&nbsp;String):&nbsp;Int&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(term.isBlank()&nbsp;||&nbsp;length&nbsp;&lt;&nbsp;term.length)&nbsp;return&nbsp;0
+&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;String.countOccurrences(term:&nbsp;String):&nbsp;Int&nbsp;{</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">19 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(term.isBlank()&nbsp;||&nbsp;length&nbsp;&lt;&nbsp;term.length)&nbsp;return&nbsp;0
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;var&nbsp;count&nbsp;=&nbsp;0
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;var&nbsp;index&nbsp;=&nbsp;indexOf(term,&nbsp;ignoreCase&nbsp;=&nbsp;true)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(index&nbsp;&gt;=&nbsp;0)&nbsp;{
@@ -925,11 +1009,8 @@ object&nbsp;TutorKnowledge&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;blocksToText(blocks:&nbsp;List&lt;Block&gt;):&nbsp;String&nbsp;=&nbsp;buildString&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;blocks.forEach&nbsp;{&nbsp;block&nbsp;-&gt;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;when&nbsp;(block)&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Block.Heading&nbsp;-&gt;&nbsp;appendLine(&quot;标题：${block.text}&quot;)</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">18 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Block.Paragraph&nbsp;-&gt;&nbsp;appendLine(block.text)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Block.Heading&nbsp;-&gt;&nbsp;appendLine(&quot;标题：${block.text}&quot;)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Block.Paragraph&nbsp;-&gt;&nbsp;appendLine(block.text)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Block.Tip&nbsp;-&gt;&nbsp;appendLine(&quot;提示：${block.text}&quot;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Block.Warn&nbsp;-&gt;&nbsp;appendLine(&quot;注意：${block.text}&quot;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Block.CodeBlock&nbsp;-&gt;&nbsp;appendLine(&quot;代码：\n${block.code.take(320)}&quot;)
@@ -950,8 +1031,11 @@ object&nbsp;TutorKnowledge&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;block.columns.forEach&nbsp;{&nbsp;appendLine(&quot;${it.lang}&nbsp;${it.note}&quot;)&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Block.Visualize&nbsp;-&gt;&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;图解&nbsp;${block.title}：${block.caption}&quot;)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;block.frames.forEach&nbsp;{&nbsp;appendLine(it.label)&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;图解&nbsp;${block.title}：${block.caption}&quot;)</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">20 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;block.frames.forEach&nbsp;{&nbsp;appendLine(it.label)&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
@@ -978,11 +1062,8 @@ object&nbsp;CBridge&nbsp;:&nbsp;LanguageRuntime&nbsp;{
 
 &nbsp;&nbsp;&nbsp;&nbsp;override&nbsp;val&nbsp;id:&nbsp;String&nbsp;=&nbsp;LanguageIds.C
 &nbsp;&nbsp;&nbsp;&nbsp;override&nbsp;val&nbsp;displayName:&nbsp;String&nbsp;=&nbsp;LanguageIds.displayNameOf(LanguageIds.C)
-&nbsp;&nbsp;&nbsp;&nbsp;override&nbsp;val&nbsp;fileExtension:&nbsp;String&nbsp;=&nbsp;&quot;c&quot;</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">19 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;override&nbsp;val&nbsp;grammarScope:&nbsp;String&nbsp;=&nbsp;&quot;source.c&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;override&nbsp;val&nbsp;fileExtension:&nbsp;String&nbsp;=&nbsp;&quot;c&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;override&nbsp;val&nbsp;grammarScope:&nbsp;String&nbsp;=&nbsp;&quot;source.c&quot;
 
 &nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;标清楚是子集解释器，别让人以为是&nbsp;gcc。
 &nbsp;&nbsp;&nbsp;&nbsp;override&nbsp;val&nbsp;version:&nbsp;String&nbsp;get()&nbsp;=&nbsp;&quot;教学子集（解释执行）&quot;
@@ -1003,8 +1084,11 @@ object&nbsp;CBridge&nbsp;:&nbsp;LanguageRuntime&nbsp;{
 
 &nbsp;&nbsp;&nbsp;&nbsp;override&nbsp;fun&nbsp;checkExercise(
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;code:&nbsp;String,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tests:&nbsp;List&lt;String&gt;,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stdinLines:&nbsp;List&lt;String&gt;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tests:&nbsp;List&lt;String&gt;,</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">21 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stdinLines:&nbsp;List&lt;String&gt;
 &nbsp;&nbsp;&nbsp;&nbsp;):&nbsp;RunResult&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;started&nbsp;=&nbsp;System.nanoTime()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;r&nbsp;=&nbsp;CInterpreter.check(code,&nbsp;tests)
@@ -1031,11 +1115,8 @@ object&nbsp;CBridge&nbsp;:&nbsp;LanguageRuntime&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;synchronized(this)&nbsp;{&nbsp;sessionLocked().push(line)&nbsp;}
 
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;toRunResult(r:&nbsp;CInterpreter.Result,&nbsp;startedAt:&nbsp;Long):&nbsp;RunResult&nbsp;=&nbsp;RunResult(
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ok&nbsp;=&nbsp;r.ok,</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">20 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stdout&nbsp;=&nbsp;r.stdout,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ok&nbsp;=&nbsp;r.ok,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stdout&nbsp;=&nbsp;r.stdout,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stderr&nbsp;=&nbsp;&quot;&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errorType&nbsp;=&nbsp;r.errorType,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errorMessage&nbsp;=&nbsp;r.errorMessage,
@@ -1056,8 +1137,11 @@ package&nbsp;com.pyneon.academy.c
 &nbsp;*
 &nbsp;*&nbsp;类型只有&nbsp;int、double、char、void；unsigned/short/long&nbsp;当&nbsp;int，const&nbsp;收下但不管。
 &nbsp;*&nbsp;数组最多二维，结构体支持&nbsp;typedef&nbsp;和一层嵌套。
-&nbsp;*&nbsp;语句支持声明、赋值、分支、循环、switch、break/continue/return。
-&nbsp;*&nbsp;运算符、单级指针、函数、递归、printf/puts/putchar&nbsp;和常用字符串数学函数都在。
+&nbsp;*&nbsp;语句支持声明、赋值、分支、循环、switch、break/continue/return。</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">22 / 60</span></div>
+  <div class="src">&nbsp;*&nbsp;运算符、单级指针、函数、递归、printf/puts/putchar&nbsp;和常用字符串数学函数都在。
 &nbsp;*&nbsp;goto、宏、函数指针、二级指针、union/enum、scanf&nbsp;不支持。
 &nbsp;*
 &nbsp;*&nbsp;sizeof&nbsp;按教学模型算，不是宿主机的&nbsp;ABI：int&nbsp;4、double&nbsp;8、char&nbsp;1、指针&nbsp;8，
@@ -1084,11 +1168,8 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Str&nbsp;-&gt;&nbsp;v.toDoubleOrNull()&nbsp;?:&nbsp;0.0
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;-&gt;&nbsp;0.0
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">21 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;asLong():&nbsp;Long&nbsp;=&nbsp;when&nbsp;(this)&nbsp;{
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;asLong():&nbsp;Long&nbsp;=&nbsp;when&nbsp;(this)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Num&nbsp;-&gt;&nbsp;v
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Real&nbsp;-&gt;&nbsp;v.toLong()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Str&nbsp;-&gt;&nbsp;v.toLongOrNull()&nbsp;?:&nbsp;0L
@@ -1109,8 +1190,11 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Num&nbsp;-&gt;&nbsp;v.toString()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Real&nbsp;-&gt;&nbsp;formatDouble(v)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Str&nbsp;-&gt;&nbsp;v
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Arr&nbsp;-&gt;&nbsp;if&nbsp;(elem&nbsp;===&nbsp;CType.TChar)&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;sb&nbsp;=&nbsp;StringBuilder()
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is&nbsp;Arr&nbsp;-&gt;&nbsp;if&nbsp;(elem&nbsp;===&nbsp;CType.TChar)&nbsp;{</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">23 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;sb&nbsp;=&nbsp;StringBuilder()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;(c&nbsp;in&nbsp;cells)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;n&nbsp;=&nbsp;c.value.asLong()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(n&nbsp;==&nbsp;0L)&nbsp;break
@@ -1137,11 +1221,8 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;fields:&nbsp;MutableList&lt;Pair&lt;String,&nbsp;CType&gt;&gt;&nbsp;=&nbsp;mutableListOf()
 &nbsp;&nbsp;&nbsp;&nbsp;)
 
-&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;sealed&nbsp;class&nbsp;CType&nbsp;{</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">22 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;object&nbsp;TInt&nbsp;:&nbsp;CType()
+&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;sealed&nbsp;class&nbsp;CType&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;object&nbsp;TInt&nbsp;:&nbsp;CType()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;object&nbsp;TDouble&nbsp;:&nbsp;CType()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;object&nbsp;TChar&nbsp;:&nbsp;CType()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;object&nbsp;TVoid&nbsp;:&nbsp;CType()
@@ -1162,8 +1243,11 @@ object&nbsp;CInterpreter&nbsp;{
 
 &nbsp;&nbsp;&nbsp;&nbsp;/**&nbsp;与&nbsp;C&nbsp;的&nbsp;%g&nbsp;接近的默认浮点显示：整数值不带小数点，否则最多&nbsp;6&nbsp;位有效小数。&nbsp;*/
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;formatDouble(d:&nbsp;Double):&nbsp;String&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(d.isNaN())&nbsp;return&nbsp;&quot;nan&quot;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(d.isInfinite())&nbsp;return&nbsp;if&nbsp;(d&nbsp;&gt;&nbsp;0)&nbsp;&quot;inf&quot;&nbsp;else&nbsp;&quot;-inf&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(d.isNaN())&nbsp;return&nbsp;&quot;nan&quot;</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">24 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(d.isInfinite())&nbsp;return&nbsp;if&nbsp;(d&nbsp;&gt;&nbsp;0)&nbsp;&quot;inf&quot;&nbsp;else&nbsp;&quot;-inf&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(d&nbsp;==&nbsp;d.toLong().toDouble()&nbsp;&amp;&amp;&nbsp;kotlin.math.abs(d)&nbsp;&lt;&nbsp;1e15)&nbsp;return&nbsp;d.toLong().toString()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;s&nbsp;=&nbsp;String.format(java.util.Locale.US,&nbsp;&quot;%.6f&quot;,&nbsp;d).trimEnd(&#x27;0&#x27;).trimEnd(&#x27;.&#x27;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;s
@@ -1190,11 +1274,8 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(i&nbsp;&lt;&nbsp;src.length&nbsp;&amp;&amp;&nbsp;src[i]&nbsp;!=&nbsp;&#x27;\n&#x27;)&nbsp;i++
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;c&nbsp;==&nbsp;&#x27;/&#x27;&nbsp;&amp;&amp;&nbsp;i&nbsp;+&nbsp;1&nbsp;&lt;&nbsp;src.length&nbsp;&amp;&amp;&nbsp;src[i&nbsp;+&nbsp;1]&nbsp;==&nbsp;&#x27;*&#x27;&nbsp;-&gt;&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i&nbsp;+=&nbsp;2</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">23 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(i&nbsp;+&nbsp;1&nbsp;&lt;&nbsp;src.length&nbsp;&amp;&amp;&nbsp;!(src[i]&nbsp;==&nbsp;&#x27;*&#x27;&nbsp;&amp;&amp;&nbsp;src[i&nbsp;+&nbsp;1]&nbsp;==&nbsp;&#x27;/&#x27;))&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i&nbsp;+=&nbsp;2
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(i&nbsp;+&nbsp;1&nbsp;&lt;&nbsp;src.length&nbsp;&amp;&amp;&nbsp;!(src[i]&nbsp;==&nbsp;&#x27;*&#x27;&nbsp;&amp;&amp;&nbsp;src[i&nbsp;+&nbsp;1]&nbsp;==&nbsp;&#x27;/&#x27;))&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(src[i]&nbsp;==&nbsp;&#x27;\n&#x27;)&nbsp;line++
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i++
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
@@ -1215,8 +1296,11 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;readString():&nbsp;Token&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;startLine&nbsp;=&nbsp;line
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i++&nbsp;//&nbsp;skip&nbsp;&quot;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;sb&nbsp;=&nbsp;StringBuilder()
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(i&nbsp;&lt;&nbsp;src.length&nbsp;&amp;&amp;&nbsp;src[i]&nbsp;!=&nbsp;&#x27;&quot;&#x27;)&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;sb&nbsp;=&nbsp;StringBuilder()</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">25 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(i&nbsp;&lt;&nbsp;src.length&nbsp;&amp;&amp;&nbsp;src[i]&nbsp;!=&nbsp;&#x27;&quot;&#x27;)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(src[i]&nbsp;==&nbsp;&#x27;\\&#x27;&nbsp;&amp;&amp;&nbsp;i&nbsp;+&nbsp;1&nbsp;&lt;&nbsp;src.length)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sb.append(unescape(src[i&nbsp;+&nbsp;1]));&nbsp;i&nbsp;+=&nbsp;2
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;{
@@ -1243,11 +1327,8 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;unescape(c:&nbsp;Char):&nbsp;Char&nbsp;=&nbsp;when&nbsp;(c)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#x27;n&#x27;&nbsp;-&gt;&nbsp;&#x27;\n&#x27;;&nbsp;&#x27;t&#x27;&nbsp;-&gt;&nbsp;&#x27;\t&#x27;;&nbsp;&#x27;r&#x27;&nbsp;-&gt;&nbsp;&#x27;\r&#x27;;&nbsp;&#x27;0&#x27;&nbsp;-&gt;&nbsp;&#x27;\u0000&#x27;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#x27;\\&#x27;&nbsp;-&gt;&nbsp;&#x27;\\&#x27;;&nbsp;&#x27;&quot;&#x27;&nbsp;-&gt;&nbsp;&#x27;&quot;&#x27;;&nbsp;&#x27;\&#x27;&#x27;&nbsp;-&gt;&nbsp;&#x27;\&#x27;&#x27;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;-&gt;&nbsp;c</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">24 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;-&gt;&nbsp;c
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;readNumber():&nbsp;Token&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;startLine&nbsp;=&nbsp;line
@@ -1268,8 +1349,11 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(i&nbsp;&lt;&nbsp;src.length&nbsp;&amp;&amp;&nbsp;src[i]&nbsp;in&nbsp;&#x27;0&#x27;..&#x27;7&#x27;)&nbsp;i++
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(i&nbsp;&gt;=&nbsp;src.length&nbsp;||&nbsp;src[i]&nbsp;!in&nbsp;&#x27;8&#x27;..&#x27;9&#x27;)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;text&nbsp;=&nbsp;src.substring(start0&nbsp;+&nbsp;1,&nbsp;i)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(i&nbsp;&lt;&nbsp;src.length&nbsp;&amp;&amp;&nbsp;(src[i]&nbsp;==&nbsp;&#x27;l&#x27;&nbsp;||&nbsp;src[i]&nbsp;==&nbsp;&#x27;L&#x27;&nbsp;||&nbsp;src[i]&nbsp;==&nbsp;&#x27;u&#x27;&nbsp;||&nbsp;src[i]&nbsp;==&nbsp;&#x27;U&#x27;))&nbsp;i++
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;Token(T.NUM,&nbsp;text.toLongOrNull(8)?.toString()&nbsp;?:&nbsp;&quot;0&quot;,&nbsp;startLine)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(i&nbsp;&lt;&nbsp;src.length&nbsp;&amp;&amp;&nbsp;(src[i]&nbsp;==&nbsp;&#x27;l&#x27;&nbsp;||&nbsp;src[i]&nbsp;==&nbsp;&#x27;L&#x27;&nbsp;||&nbsp;src[i]&nbsp;==&nbsp;&#x27;u&#x27;&nbsp;||&nbsp;src[i]&nbsp;==&nbsp;&#x27;U&#x27;))&nbsp;i++</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">26 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;Token(T.NUM,&nbsp;text.toLongOrNull(8)?.toString()&nbsp;?:&nbsp;&quot;0&quot;,&nbsp;startLine)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i&nbsp;=&nbsp;start0
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
@@ -1296,11 +1380,8 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(i&nbsp;&lt;&nbsp;src.length&nbsp;&amp;&amp;&nbsp;(src[i].isLetterOrDigit()&nbsp;||&nbsp;src[i]&nbsp;==&nbsp;&#x27;_&#x27;))&nbsp;i++
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;text&nbsp;=&nbsp;src.substring(start,&nbsp;i)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;Token(if&nbsp;(text&nbsp;in&nbsp;KEYWORDS)&nbsp;T.KEYWORD&nbsp;else&nbsp;T.IDENT,&nbsp;text,&nbsp;line)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">25 / 60</span></div>
-  <div class="src">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;readOp():&nbsp;Token&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;three&nbsp;=&nbsp;if&nbsp;(i&nbsp;+&nbsp;2&nbsp;&lt;&nbsp;src.length)&nbsp;src.substring(i,&nbsp;i&nbsp;+&nbsp;3)&nbsp;else&nbsp;&quot;&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(three&nbsp;in&nbsp;THREE_CHAR_OPS)&nbsp;{&nbsp;i&nbsp;+=&nbsp;3;&nbsp;return&nbsp;Token(T.OP,&nbsp;three,&nbsp;line)&nbsp;}
@@ -1321,8 +1402,11 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;class&nbsp;Var(val&nbsp;name:&nbsp;String,&nbsp;val&nbsp;line:&nbsp;Int)&nbsp;:&nbsp;Expr()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;class&nbsp;Bin(val&nbsp;op:&nbsp;String,&nbsp;val&nbsp;l:&nbsp;Expr,&nbsp;val&nbsp;r:&nbsp;Expr,&nbsp;val&nbsp;line:&nbsp;Int)&nbsp;:&nbsp;Expr()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;class&nbsp;Un(val&nbsp;op:&nbsp;String,&nbsp;val&nbsp;e:&nbsp;Expr,&nbsp;val&nbsp;line:&nbsp;Int)&nbsp;:&nbsp;Expr()
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;class&nbsp;Assign(val&nbsp;op:&nbsp;String,&nbsp;val&nbsp;target:&nbsp;Expr,&nbsp;val&nbsp;value:&nbsp;Expr,&nbsp;val&nbsp;line:&nbsp;Int)&nbsp;:&nbsp;Expr()
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;class&nbsp;Call(val&nbsp;name:&nbsp;String,&nbsp;val&nbsp;args:&nbsp;List&lt;Expr&gt;,&nbsp;val&nbsp;line:&nbsp;Int)&nbsp;:&nbsp;Expr()
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;class&nbsp;Assign(val&nbsp;op:&nbsp;String,&nbsp;val&nbsp;target:&nbsp;Expr,&nbsp;val&nbsp;value:&nbsp;Expr,&nbsp;val&nbsp;line:&nbsp;Int)&nbsp;:&nbsp;Expr()</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">27 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;class&nbsp;Call(val&nbsp;name:&nbsp;String,&nbsp;val&nbsp;args:&nbsp;List&lt;Expr&gt;,&nbsp;val&nbsp;line:&nbsp;Int)&nbsp;:&nbsp;Expr()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;class&nbsp;Index(val&nbsp;arr:&nbsp;Expr,&nbsp;val&nbsp;idx:&nbsp;Expr,&nbsp;val&nbsp;line:&nbsp;Int)&nbsp;:&nbsp;Expr()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;class&nbsp;Ternary(val&nbsp;cond:&nbsp;Expr,&nbsp;val&nbsp;a:&nbsp;Expr,&nbsp;val&nbsp;b:&nbsp;Expr)&nbsp;:&nbsp;Expr()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;class&nbsp;PreInc(val&nbsp;op:&nbsp;String,&nbsp;val&nbsp;target:&nbsp;Expr,&nbsp;val&nbsp;line:&nbsp;Int)&nbsp;:&nbsp;Expr()
@@ -1349,11 +1433,8 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;object&nbsp;Continue&nbsp;:&nbsp;Stmt()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;class&nbsp;ExprStmt(val&nbsp;e:&nbsp;Expr)&nbsp;:&nbsp;Stmt()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;object&nbsp;Empty&nbsp;:&nbsp;Stmt()
-&nbsp;&nbsp;&nbsp;&nbsp;}</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">26 / 60</span></div>
-  <div class="src">
+&nbsp;&nbsp;&nbsp;&nbsp;}
+
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;data&nbsp;class&nbsp;SwitchCase(val&nbsp;label:&nbsp;Expr?,&nbsp;val&nbsp;body:&nbsp;List&lt;Stmt&gt;)
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;data&nbsp;class&nbsp;DeclItem(val&nbsp;name:&nbsp;String,&nbsp;val&nbsp;type:&nbsp;CType,&nbsp;val&nbsp;init:&nbsp;Expr?)
 
@@ -1374,8 +1455,11 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;val&nbsp;tokens:&nbsp;List&lt;Token&gt;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;val&nbsp;typedefs:&nbsp;MutableMap&lt;String,&nbsp;CType&gt;&nbsp;=&nbsp;linkedMapOf(),
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;val&nbsp;structDefs:&nbsp;MutableMap&lt;String,&nbsp;StructDef&gt;&nbsp;=&nbsp;linkedMapOf()
-&nbsp;&nbsp;&nbsp;&nbsp;)&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;var&nbsp;p&nbsp;=&nbsp;0
+&nbsp;&nbsp;&nbsp;&nbsp;)&nbsp;{</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">28 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;var&nbsp;p&nbsp;=&nbsp;0
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;val&nbsp;funcs&nbsp;=&nbsp;linkedMapOf&lt;String,&nbsp;FuncDef&gt;()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;val&nbsp;globals&nbsp;=&nbsp;mutableListOf&lt;DeclItem&gt;()
 
@@ -1402,11 +1486,8 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;SessionParse(funcs.toMap(),&nbsp;stmts)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">27 / 60</span></div>
-  <div class="src">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;看一段是不是函数声明。原型和定义只差结尾，共用一套扫描，别写两份。
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;looksLikeFunctionDecl():&nbsp;Boolean&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;var&nbsp;i&nbsp;=&nbsp;p
@@ -1427,8 +1508,11 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;if&nbsp;(t.type&nbsp;==&nbsp;T.IDENT&nbsp;&amp;&amp;&nbsp;typedefs.containsKey(t.text))&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i++;&nbsp;sawType&nbsp;=&nbsp;true;&nbsp;continue
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">29 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(!sawType)&nbsp;return&nbsp;false
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(i&nbsp;&lt;&nbsp;tokens.size&nbsp;&amp;&amp;&nbsp;tokens[i].text&nbsp;==&nbsp;&quot;*&quot;)&nbsp;i++
@@ -1455,11 +1539,8 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;t&nbsp;=&nbsp;parsePointerStars(base,&nbsp;peek().line)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;nameTok&nbsp;=&nbsp;expect(T.IDENT,&nbsp;&quot;声明符&quot;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(first&nbsp;&amp;&amp;&nbsp;checkPunct(&quot;(&quot;))&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;parseFunction(nameTok,&nbsp;t)</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">28 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;parseFunction(nameTok,&nbsp;t)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;first&nbsp;=&nbsp;false
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;var&nbsp;full&nbsp;=&nbsp;t
@@ -1480,8 +1561,11 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;parseFunction(nameTok:&nbsp;Token,&nbsp;ret:&nbsp;CType)&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;expectPunct(&quot;(&quot;)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;params&nbsp;=&nbsp;mutableListOf&lt;Pair&lt;String,&nbsp;CType&gt;&gt;()
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;expectPunct(&quot;(&quot;)</div>
+</section>
+<section class="page">
+  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">30 / 60</span></div>
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;params&nbsp;=&nbsp;mutableListOf&lt;Pair&lt;String,&nbsp;CType&gt;&gt;()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(!checkPunct(&quot;)&quot;))&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(checkKeyword(&quot;void&quot;)&nbsp;&amp;&amp;&nbsp;p&nbsp;+&nbsp;1&nbsp;&lt;&nbsp;tokens.size&nbsp;&amp;&amp;&nbsp;tokens[p&nbsp;+&nbsp;1].text&nbsp;==&nbsp;&quot;)&quot;)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;advance()
@@ -1508,11 +1592,8 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;函数原型声明（以&nbsp;&#x27;;&#x27;&nbsp;结尾）：参数与返回类型已记录，函数体稍后定义即可。
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;解析阶段已收集完整个翻译单元，调用不依赖声明顺序。
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(matchPunct(&quot;;&quot;))&nbsp;return
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;body&nbsp;=&nbsp;parseBlock()</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">29 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(funcs.containsKey(nameTok.text))&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;body&nbsp;=&nbsp;parseBlock()
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(funcs.containsKey(nameTok.text))&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;同一翻译单元里不能重定义。用户写个空&nbsp;main、测试也带&nbsp;main&nbsp;时，
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;覆盖会让测试的&nbsp;main&nbsp;顶掉用户代码，判题就成了假通过。
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;throw&nbsp;CError(&quot;语法错误&quot;,&nbsp;&quot;函数&nbsp;&#x27;${nameTok.text}&#x27;&nbsp;重复定义（第&nbsp;${nameTok.line}&nbsp;行）&quot;)
@@ -1533,92 +1614,12 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;expectPunct(&quot;;&quot;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/**&nbsp;结构体说明符：struct&nbsp;Tag&nbsp;{&nbsp;...&nbsp;}&nbsp;或&nbsp;struct&nbsp;Tag&nbsp;*/
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;parseStructSpec():&nbsp;CType.TStruct&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;advance()&nbsp;//&nbsp;struct
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;tag&nbsp;=&nbsp;if&nbsp;(peek().type&nbsp;==&nbsp;T.IDENT)&nbsp;advance().text&nbsp;else&nbsp;null
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(checkPunct(&quot;{&quot;))&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;advance()
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;先登记空定义，支持&nbsp;struct&nbsp;Node&nbsp;{&nbsp;struct&nbsp;Node&nbsp;*next;&nbsp;}&nbsp;自引用。
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;判题会把用户代码与测试拼成一个翻译单元，两边常各自声明同一个&nbsp;struct：
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;已有同名字段表时把新字段先收进&nbsp;temp，再比对是否一致，一致就复用旧定义。
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;existing&nbsp;=&nbsp;tag?.let&nbsp;{&nbsp;structDefs[it]&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;reuse&nbsp;=&nbsp;existing&nbsp;!=&nbsp;null&nbsp;&amp;&amp;&nbsp;existing.fields.isNotEmpty()
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;def&nbsp;=&nbsp;if&nbsp;(reuse)&nbsp;existing&nbsp;?:&nbsp;StructDef(tag)&nbsp;else&nbsp;StructDef(tag)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(tag&nbsp;!=&nbsp;null)&nbsp;structDefs[tag]&nbsp;=&nbsp;def
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;target&nbsp;=&nbsp;if&nbsp;(reuse)&nbsp;StructDef(tag)&nbsp;else&nbsp;def
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(!checkPunct(&quot;}&quot;)&nbsp;&amp;&amp;&nbsp;!atEnd())&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;ft&nbsp;=&nbsp;parseDeclSpec()
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;do&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;var&nbsp;ct&nbsp;=&nbsp;parsePointerStars(ft,&nbsp;peek().line)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;fn&nbsp;=&nbsp;expect(T.IDENT,&nbsp;&quot;成员名&quot;).text
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;dims&nbsp;=&nbsp;parseArrayDims()
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(dims.isNotEmpty())&nbsp;ct&nbsp;=&nbsp;CType.TArray(ct,&nbsp;dims)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;target.fields.add(fn&nbsp;to&nbsp;ct)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;while&nbsp;(matchPunct(&quot;,&quot;))
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;expectPunct(&quot;;&quot;)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;expectPunct(&quot;}&quot;)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(target&nbsp;!==&nbsp;def)&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;字段不一致说明真的是两份不同定义，明确报错而不是悄悄覆盖
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;same&nbsp;=&nbsp;target.fields.size&nbsp;==&nbsp;def.fields.size&nbsp;&amp;&amp;</div>
-</section>
-<section class="page">
-  <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">30 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;target.fields.zip(def.fields).all&nbsp;{&nbsp;(a,&nbsp;b)&nbsp;-&gt;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a.first&nbsp;==&nbsp;b.first&nbsp;&amp;&amp;&nbsp;a.second.display()&nbsp;==&nbsp;b.second.display()
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(!same)&nbsp;throw&nbsp;CError(&quot;语法错误&quot;,&nbsp;&quot;结构体&nbsp;&#x27;$tag&#x27;&nbsp;重复定义且字段不一致&quot;)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;CType.TStruct(def)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(tag&nbsp;==&nbsp;null)&nbsp;throw&nbsp;CError(&quot;语法错误&quot;,&nbsp;&quot;匿名结构体必须直接定义（第&nbsp;${peek().line}&nbsp;行）&quot;)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;struct&nbsp;Point;&nbsp;是前置声明：先登记空定义占位，真正使用时若仍无字段就报
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;「不完整类型」，让错误发生在使用点而不是声明点。
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;def&nbsp;=&nbsp;structDefs.getOrPut(tag)&nbsp;{&nbsp;StructDef(tag)&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;CType.TStruct(def)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;parseDeclSpec():&nbsp;CType&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;var&nbsp;base:&nbsp;CType?&nbsp;=&nbsp;null
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;var&nbsp;saw&nbsp;=&nbsp;false
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;var&nbsp;modifier&nbsp;=&nbsp;false
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;(true)&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;t&nbsp;=&nbsp;peek()
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(t.type&nbsp;==&nbsp;T.KEYWORD)&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;when&nbsp;(t.text)&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;const&quot;,&nbsp;&quot;static&quot;,&nbsp;&quot;unsigned&quot;,&nbsp;&quot;signed&quot;,&nbsp;&quot;short&quot;,&nbsp;&quot;long&quot;,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;extern&quot;,&nbsp;&quot;register&quot;,&nbsp;&quot;volatile&quot;&nbsp;-&gt;&nbsp;{&nbsp;advance();&nbsp;modifier&nbsp;=&nbsp;true;&nbsp;continue&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;int&quot;&nbsp;-&gt;&nbsp;{&nbsp;advance();&nbsp;base&nbsp;=&nbsp;CType.TInt;&nbsp;saw&nbsp;=&nbsp;true;&nbsp;continue&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;double&quot;&nbsp;-&gt;&nbsp;{&nbsp;advance();&nbsp;base&nbsp;=&nbsp;CType.TDouble;&nbsp;saw&nbsp;=&nbsp;true;&nbsp;continue&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;float&quot;&nbsp;-&gt;&nbsp;{&nbsp;advance();&nbsp;base&nbsp;=&nbsp;CType.TDouble;&nbsp;saw&nbsp;=&nbsp;true;&nbsp;continue&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;char&quot;&nbsp;-&gt;&nbsp;{&nbsp;advance();&nbsp;base&nbsp;=&nbsp;CType.TChar;&nbsp;saw&nbsp;=&nbsp;true;&nbsp;continue&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;void&quot;&nbsp;-&gt;&nbsp;{&nbsp;advance();&nbsp;base&nbsp;=&nbsp;CType.TVoid;&nbsp;saw&nbsp;=&nbsp;true;&nbsp;continue&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;struct&quot;&nbsp;-&gt;&nbsp;{&nbsp;base&nbsp;=&nbsp;parseStructSpec();&nbsp;saw&nbsp;=&nbsp;true;&nbsp;continue&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;-&gt;&nbsp;break
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;if&nbsp;(t.type&nbsp;==&nbsp;T.IDENT&nbsp;&amp;&amp;&nbsp;typedefs.containsKey(t.text))&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;base&nbsp;=&nbsp;typedefs[t.text]
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;advance();&nbsp;saw&nbsp;=&nbsp;true;&nbsp;continue
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(base&nbsp;==&nbsp;null&nbsp;&amp;&amp;&nbsp;modifier)&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;unsigned&nbsp;/&nbsp;short&nbsp;/&nbsp;long&nbsp;单用：教学模型一律按&nbsp;int&nbsp;处理
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;CType.TInt
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(!saw&nbsp;||&nbsp;base&nbsp;==&nbsp;null)&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;throw&nbsp;CError(&quot;语法错误&quot;,&nbsp;&quot;期望类型说明符，实际&nbsp;&#x27;${peek().text}&#x27;（第&nbsp;${peek().line}&nbsp;行）&quot;)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;base
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-
-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/**&nbsp;解析声明符里的&nbsp;*&nbsp;链；二级及以上明确报「不支持」，而不是让类型系统悄悄接受。&nbsp;*/</div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/**&nbsp;结构体说明符：struct&nbsp;Tag&nbsp;{&nbsp;...&nbsp;}&nbsp;或&nbsp;struct&nbsp;Tag&nbsp;*/</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">31 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;paperLight
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;softEyeCare,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;paperLight
 &nbsp;&nbsp;&nbsp;&nbsp;)
 
 &nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;按&nbsp;id&nbsp;找主题，找不到就回赛博霓虹。
@@ -1666,12 +1667,12 @@ object&nbsp;CInterpreter&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;textDim&nbsp;=&nbsp;baseTheme.textDim,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;isLight&nbsp;=&nbsp;light
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
-&nbsp;&nbsp;&nbsp;&nbsp;}
-}</div>
+&nbsp;&nbsp;&nbsp;&nbsp;}</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">32 / 60</span></div>
-  <div class="src">package&nbsp;com.pyneon.academy.ui.theme
+  <div class="src">}
+package&nbsp;com.pyneon.academy.ui.theme
 
 import&nbsp;androidx.compose.runtime.Composable
 import&nbsp;androidx.compose.runtime.staticCompositionLocalOf
@@ -1719,12 +1720,12 @@ val&nbsp;DarkTokens&nbsp;=&nbsp;NeonTokens(
 )
 
 //&nbsp;白纸主题，颜色按白底重新调过。
-val&nbsp;LightTokens&nbsp;=&nbsp;NeonTokens(
-&nbsp;&nbsp;&nbsp;&nbsp;bg0&nbsp;=&nbsp;Color(0xFFF5F7FB),</div>
+val&nbsp;LightTokens&nbsp;=&nbsp;NeonTokens(</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">33 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;bg1&nbsp;=&nbsp;Color(0xFFE9EEF5),
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;bg0&nbsp;=&nbsp;Color(0xFFF5F7FB),
+&nbsp;&nbsp;&nbsp;&nbsp;bg1&nbsp;=&nbsp;Color(0xFFE9EEF5),
 &nbsp;&nbsp;&nbsp;&nbsp;surfaceDark&nbsp;=&nbsp;Color(0xFFFFFFFF),
 &nbsp;&nbsp;&nbsp;&nbsp;surfaceHigh&nbsp;=&nbsp;Color(0xFFE2E8F2),
 &nbsp;&nbsp;&nbsp;&nbsp;textHi&nbsp;=&nbsp;Color(0xFF10151F),
@@ -1772,12 +1773,12 @@ val&nbsp;NeonYellow:&nbsp;Color
 val&nbsp;NeonPurple:&nbsp;Color
 &nbsp;&nbsp;&nbsp;&nbsp;@Composable&nbsp;get()&nbsp;=&nbsp;LocalNeonTokens.current.purple
 val&nbsp;DangerRed:&nbsp;Color
-&nbsp;&nbsp;&nbsp;&nbsp;@Composable&nbsp;get()&nbsp;=&nbsp;LocalNeonTokens.current.danger
-package&nbsp;com.pyneon.academy.ui.theme</div>
+&nbsp;&nbsp;&nbsp;&nbsp;@Composable&nbsp;get()&nbsp;=&nbsp;LocalNeonTokens.current.danger</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">34 / 60</span></div>
-  <div class="src">
+  <div class="src">package&nbsp;com.pyneon.academy.ui.theme
+
 import&nbsp;androidx.compose.foundation.shape.CutCornerShape
 import&nbsp;androidx.compose.material3.Shapes
 import&nbsp;androidx.compose.ui.unit.dp
@@ -1825,12 +1826,12 @@ private&nbsp;fun&nbsp;createColorScheme(theme:&nbsp;AppTheme):&nbsp;ColorScheme&
 }
 
 //&nbsp;默认赛博霓虹配色。给预览和旧调用点用，直接取深色常量。
-private&nbsp;val&nbsp;PyNeonColorScheme&nbsp;=&nbsp;darkColorScheme(
-&nbsp;&nbsp;&nbsp;&nbsp;primary&nbsp;=&nbsp;DarkTokens.primary,</div>
+private&nbsp;val&nbsp;PyNeonColorScheme&nbsp;=&nbsp;darkColorScheme(</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">35 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;onPrimary&nbsp;=&nbsp;DarkTokens.bg0,
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;primary&nbsp;=&nbsp;DarkTokens.primary,
+&nbsp;&nbsp;&nbsp;&nbsp;onPrimary&nbsp;=&nbsp;DarkTokens.bg0,
 &nbsp;&nbsp;&nbsp;&nbsp;primaryContainer&nbsp;=&nbsp;DarkTokens.surfaceHigh,
 &nbsp;&nbsp;&nbsp;&nbsp;onPrimaryContainer&nbsp;=&nbsp;DarkTokens.primary,
 &nbsp;&nbsp;&nbsp;&nbsp;secondary&nbsp;=&nbsp;DarkTokens.secondary,
@@ -1878,12 +1879,12 @@ fun&nbsp;PyNeonTheme(
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;colorScheme&nbsp;=&nbsp;createColorScheme(appTheme),
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;typography&nbsp;=&nbsp;typographyFor(fontScale),
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;shapes&nbsp;=&nbsp;AppShapes,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;content&nbsp;=&nbsp;content
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)</div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;content&nbsp;=&nbsp;content</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">36 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;}
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
+&nbsp;&nbsp;&nbsp;&nbsp;}
 }
 package&nbsp;com.pyneon.academy.ui.theme
 
@@ -1931,12 +1932,12 @@ enum&nbsp;class&nbsp;FontScale(val&nbsp;id:&nbsp;String,&nbsp;val&nbsp;label:&nb
 
 //&nbsp;按档位生成排版，只放大三档正文。标题和标签不动，
 //&nbsp;不然中文标题在窄屏上会乱换行。
-fun&nbsp;typographyFor(scale:&nbsp;FontScale):&nbsp;Typography&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(scale&nbsp;==&nbsp;FontScale.NORMAL)&nbsp;return&nbsp;AppTypography</div>
+fun&nbsp;typographyFor(scale:&nbsp;FontScale):&nbsp;Typography&nbsp;{</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">37 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;f&nbsp;=&nbsp;scale.factor
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(scale&nbsp;==&nbsp;FontScale.NORMAL)&nbsp;return&nbsp;AppTypography
+&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;f&nbsp;=&nbsp;scale.factor
 &nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;TextStyle.scaled():&nbsp;TextStyle&nbsp;=&nbsp;copy(
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fontSize&nbsp;=&nbsp;(fontSize.value&nbsp;*&nbsp;f).sp,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lineHeight&nbsp;=&nbsp;(lineHeight.value&nbsp;*&nbsp;f).sp
@@ -1984,12 +1985,12 @@ enum&nbsp;class&nbsp;VisualStyle(
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;backdropEnabled:&nbsp;Boolean&nbsp;get()&nbsp;=&nbsp;this&nbsp;==&nbsp;CYBER
 
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;neonBorderEnabled:&nbsp;Boolean&nbsp;get()&nbsp;=&nbsp;this&nbsp;==&nbsp;CYBER
-
-&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;pressAnimationEnabled:&nbsp;Boolean&nbsp;get()&nbsp;=&nbsp;this&nbsp;==&nbsp;CYBER</div>
+</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">38 / 60</span></div>
-  <div class="src">
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;pressAnimationEnabled:&nbsp;Boolean&nbsp;get()&nbsp;=&nbsp;this&nbsp;==&nbsp;CYBER
+
 &nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;赛博用切角，简洁用圆角。
 &nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;cardShape:&nbsp;Shape
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;get()&nbsp;=&nbsp;if&nbsp;(this&nbsp;==&nbsp;CYBER)&nbsp;CutCornerShape(14.dp)&nbsp;else&nbsp;RoundedCornerShape(12.dp)
@@ -2037,12 +2038,12 @@ object&nbsp;AppConstants&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;隐私政策也走&nbsp;GitCode，审核员那边打开更稳。
 &nbsp;&nbsp;&nbsp;&nbsp;const&nbsp;val&nbsp;PRIVACY_POLICY_URL&nbsp;=&nbsp;&quot;$REPO_URL/blob/main/PRIVACY_POLICY.md&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;const&nbsp;val&nbsp;TERMS_URL&nbsp;=&nbsp;&quot;$REPO_URL/blob/main/TERMS_OF_SERVICE.md&quot;
-}
-package&nbsp;com.pyneon.academy.utils</div>
+}</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">39 / 60</span></div>
-  <div class="src">
+  <div class="src">package&nbsp;com.pyneon.academy.utils
+
 import&nbsp;android.content.Context
 
 object&nbsp;AppPrefs&nbsp;{
@@ -2090,12 +2091,12 @@ object&nbsp;HttpText&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;const&nbsp;val&nbsp;DEFAULT_TIMEOUT_MS&nbsp;=&nbsp;6000
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;const&nbsp;val&nbsp;DEFAULT_MAX_BYTES&nbsp;=&nbsp;5&nbsp;*&nbsp;1024&nbsp;*&nbsp;1024
 
-&nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;getText(
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;url:&nbsp;String,</div>
+&nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;getText(</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">40 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;timeoutMs:&nbsp;Int&nbsp;=&nbsp;DEFAULT_TIMEOUT_MS,
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;url:&nbsp;String,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;timeoutMs:&nbsp;Int&nbsp;=&nbsp;DEFAULT_TIMEOUT_MS,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;maxBytes:&nbsp;Int&nbsp;=&nbsp;DEFAULT_MAX_BYTES,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;accept:&nbsp;String&nbsp;=&nbsp;&quot;application/json&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;userAgent:&nbsp;String&nbsp;=&nbsp;DEFAULT_USER_AGENT
@@ -2143,12 +2144,12 @@ object&nbsp;HttpText&nbsp;{
 }
 package&nbsp;com.pyneon.academy.utils
 
-import&nbsp;android.content.Context
-import&nbsp;java.util.Locale</div>
+import&nbsp;android.content.Context</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">41 / 60</span></div>
-  <div class="src">
+  <div class="src">import&nbsp;java.util.Locale
+
 //&nbsp;简单文案表。中文为主，英文和日文有基础版本。
 object&nbsp;I18n&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;
@@ -2196,12 +2197,12 @@ object&nbsp;I18n&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;button.skip&quot;&nbsp;-&gt;&nbsp;&quot;Skip&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;button.start&quot;&nbsp;-&gt;&nbsp;&quot;Start&nbsp;Learning&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;-&gt;&nbsp;key
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;}</div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">42 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;private&nbsp;fun&nbsp;getJaString(key:&nbsp;String):&nbsp;String&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;when&nbsp;(key)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;welcome.title&quot;&nbsp;-&gt;&nbsp;&quot;CodeLearning&nbsp;へようこそ&quot;
@@ -2249,12 +2250,12 @@ object&nbsp;ShareHelper&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;我在码上学的编程&quot;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;XP：$xp&quot;)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;连击：$streak&nbsp;天&quot;)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;段位：$rank&quot;)</div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;连击：$streak&nbsp;天&quot;)</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">43 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine()
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;段位：$rank&quot;)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(&quot;完全离线，随时能练。&quot;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;appendLine(AppConstants.REPO_URL)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
@@ -2302,12 +2303,12 @@ object&nbsp;ThemePreference&nbsp;{
 
 &nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;unregisterListener(context:&nbsp;Context,&nbsp;listener:&nbsp;SharedPreferences.OnSharedPreferenceChangeListener)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;getPrefs(context).unregisterOnSharedPreferenceChangeListener(listener)
-&nbsp;&nbsp;&nbsp;&nbsp;}
-</div>
+&nbsp;&nbsp;&nbsp;&nbsp;}</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">44 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;自定义主题按用户给的主色现算，其余按&nbsp;id&nbsp;查表。
+  <div class="src">
+&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;自定义主题按用户给的主色现算，其余按&nbsp;id&nbsp;查表。
 &nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;getCurrentTheme(context:&nbsp;Context):&nbsp;AppTheme&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;val&nbsp;themeId&nbsp;=&nbsp;getCurrentThemeId(context)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;if&nbsp;(themeId&nbsp;==&nbsp;AppThemes.CUSTOM_THEME_ID)&nbsp;{
@@ -2355,12 +2356,12 @@ object&nbsp;ThemePreference&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;字号缩放。
 
 &nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;没设置过就用标准档。
-&nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;getFontScale(context:&nbsp;Context):&nbsp;FontScale&nbsp;=
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FontScale.fromId(getPrefs(context).getString(KEY_FONT_SCALE,&nbsp;null))</div>
+&nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;getFontScale(context:&nbsp;Context):&nbsp;FontScale&nbsp;=</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">45 / 60</span></div>
-  <div class="src">
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FontScale.fromId(getPrefs(context).getString(KEY_FONT_SCALE,&nbsp;null))
+
 &nbsp;&nbsp;&nbsp;&nbsp;fun&nbsp;saveFontScale(context:&nbsp;Context,&nbsp;scale:&nbsp;FontScale)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;getPrefs(context).edit().putString(KEY_FONT_SCALE,&nbsp;scale.id).apply()
 &nbsp;&nbsp;&nbsp;&nbsp;}
@@ -2408,12 +2409,12 @@ object&nbsp;UpdateChecker&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lastError&nbsp;=&nbsp;IllegalStateException(&quot;返回内容缺少版本信息&quot;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return@withContext&nbsp;Result.success(
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ReleaseInfo(tag,&nbsp;url,&nbsp;json.optString(&quot;published_at&quot;))</div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return@withContext&nbsp;Result.success(</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">46 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ReleaseInfo(tag,&nbsp;url,&nbsp;json.optString(&quot;published_at&quot;))
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;catch&nbsp;(e:&nbsp;Exception)&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lastError&nbsp;=&nbsp;e
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
@@ -2461,12 +2462,12 @@ class&nbsp;NeonConsole(code_module.InteractiveConsole):
 &nbsp;&nbsp;&nbsp;&nbsp;def&nbsp;__init__(self):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;super().__init__(locals={&quot;__name__&quot;:&nbsp;&quot;__neon_console__&quot;,&nbsp;&quot;__doc__&quot;:&nbsp;None})
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self.capture&nbsp;=&nbsp;io.StringIO()
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;每条语句的预算，push&nbsp;时更新。
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self._timeout&nbsp;=&nbsp;REPL_TIMEOUT</div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;每条语句的预算，push&nbsp;时更新。</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">47 / 60</span></div>
-  <div class="src">
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self._timeout&nbsp;=&nbsp;REPL_TIMEOUT
+
 &nbsp;&nbsp;&nbsp;&nbsp;def&nbsp;write(self,&nbsp;data):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self.capture.write(data)
 
@@ -2514,12 +2515,12 @@ def&nbsp;_active_console()&nbsp;-&gt;&nbsp;NeonConsole:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_console&nbsp;=&nbsp;NeonConsole()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;_console
 
-
-def&nbsp;start():</div>
+</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">48 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;global&nbsp;_console
+  <div class="src">def&nbsp;start():
+&nbsp;&nbsp;&nbsp;&nbsp;global&nbsp;_console
 &nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;_console_lock:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_console&nbsp;=&nbsp;NeonConsole()
 &nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;json.dumps({&quot;ok&quot;:&nbsp;True})
@@ -2567,12 +2568,12 @@ MAX_VAR_BYTES&nbsp;=&nbsp;1_000_000
 #&nbsp;用&nbsp;RLock&nbsp;是允许同线程嵌套，比如&nbsp;push&nbsp;里再调&nbsp;runcode。
 EXEC_LOCK&nbsp;=&nbsp;threading.RLock()
 
-
-class&nbsp;SandboxTimeout(Exception):</div>
+</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">49 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;pass
+  <div class="src">class&nbsp;SandboxTimeout(Exception):
+&nbsp;&nbsp;&nbsp;&nbsp;pass
 
 
 class&nbsp;InputExhausted(Exception):
@@ -2620,12 +2621,12 @@ def&nbsp;_truncate(text):
 &nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;text&nbsp;and&nbsp;len(text)&nbsp;&gt;&nbsp;MAX_OUTPUT:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;&quot;[输出过长已截断]\n&quot;&nbsp;+&nbsp;text[-MAX_OUTPUT:]
 &nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;text
-
 </div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">50 / 60</span></div>
-  <div class="src">class&nbsp;OutputTooLong(Exception):
+  <div class="src">
+class&nbsp;OutputTooLong(Exception):
 &nbsp;&nbsp;&nbsp;&nbsp;&quot;&quot;&quot;输出超过硬上限，立即中断执行（防&nbsp;OOM）。&quot;&quot;&quot;
 
 
@@ -2673,12 +2674,12 @@ def&nbsp;_run_protected(code,&nbsp;namespace,&nbsp;stdin_lines,&nbsp;timeout):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;%&nbsp;timeout,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;traceback&quot;:&nbsp;&quot;&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;except&nbsp;OutputTooLong:
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;state[&quot;error&quot;]&nbsp;=&nbsp;{</div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;except&nbsp;OutputTooLong:</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">51 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;type&quot;:&nbsp;&quot;OutputTooLong&quot;,
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;state[&quot;error&quot;]&nbsp;=&nbsp;{
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;type&quot;:&nbsp;&quot;OutputTooLong&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;message&quot;:&nbsp;&quot;输出超过&nbsp;%d&nbsp;KB&nbsp;上限，已中断（疑似死循环打印）&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;%&nbsp;(_BoundedBuffer.HARD_LIMIT&nbsp;//&nbsp;1024),
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;traceback&quot;:&nbsp;&quot;&quot;,
@@ -2726,12 +2727,12 @@ def&nbsp;_run_protected(code,&nbsp;namespace,&nbsp;stdin_lines,&nbsp;timeout):
 &nbsp;&nbsp;&nbsp;&nbsp;error&nbsp;=&nbsp;(
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;None
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;state[&quot;finished&quot;]&nbsp;and&nbsp;state[&quot;error&quot;]&nbsp;is&nbsp;None
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;(
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;state[&quot;error&quot;]</div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;(</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">52 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;or&nbsp;{
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;state[&quot;error&quot;]
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;or&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;type&quot;:&nbsp;&quot;Timeout&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;message&quot;:&nbsp;&quot;代码运行超过&nbsp;%.1f&nbsp;秒，已被强制中断（可能是死循环）&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;%&nbsp;timeout,
@@ -2779,12 +2780,12 @@ def&nbsp;_snapshot(namespace):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rendered&nbsp;=&nbsp;repr(value)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;except&nbsp;BaseException:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;自定义&nbsp;__repr__&nbsp;抛异常或递归太深，也不能把整个快照带崩。
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rendered&nbsp;=&nbsp;&quot;&lt;无法显示&gt;&quot;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;len(rendered)&nbsp;&gt;&nbsp;MAX_REPR:</div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rendered&nbsp;=&nbsp;&quot;&lt;无法显示&gt;&quot;</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">53 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rendered&nbsp;=&nbsp;rendered[:MAX_REPR]&nbsp;+&nbsp;&quot;…&quot;
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;len(rendered)&nbsp;&gt;&nbsp;MAX_REPR:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rendered&nbsp;=&nbsp;rendered[:MAX_REPR]&nbsp;+&nbsp;&quot;…&quot;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;items.append({&quot;name&quot;:&nbsp;key,&nbsp;&quot;type&quot;:&nbsp;type(value).__name__,&nbsp;&quot;value&quot;:&nbsp;rendered})
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;len(items)&nbsp;&gt;=&nbsp;MAX_VARS:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break
@@ -2832,12 +2833,12 @@ def&nbsp;_check_exercise_locked(code,&nbsp;tests,&nbsp;stdin_lines,&nbsp;namespa
 &nbsp;&nbsp;&nbsp;&nbsp;test_ns&nbsp;=&nbsp;namespace.copy()
 &nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;判题把用户&nbsp;stdout&nbsp;交给用例，允许&nbsp;assert&nbsp;输出内容。
 &nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;不然只赋值不打印也能过，l01&nbsp;就出过这个漏洞。stderr&nbsp;同样处理。
-&nbsp;&nbsp;&nbsp;&nbsp;test_ns[&quot;__stdout__&quot;]&nbsp;=&nbsp;core[&quot;stdout&quot;]
-&nbsp;&nbsp;&nbsp;&nbsp;test_ns[&quot;__stderr__&quot;]&nbsp;=&nbsp;core[&quot;stderr&quot;]</div>
+&nbsp;&nbsp;&nbsp;&nbsp;test_ns[&quot;__stdout__&quot;]&nbsp;=&nbsp;core[&quot;stdout&quot;]</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">54 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;index,&nbsp;test&nbsp;in&nbsp;enumerate(tests,&nbsp;start=1):
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;test_ns[&quot;__stderr__&quot;]&nbsp;=&nbsp;core[&quot;stderr&quot;]
+&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;index,&nbsp;test&nbsp;in&nbsp;enumerate(tests,&nbsp;start=1):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;test_state&nbsp;=&nbsp;{&quot;finished&quot;:&nbsp;False,&nbsp;&quot;error&quot;:&nbsp;None}
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;test_out&nbsp;=&nbsp;io.StringIO()
 
@@ -2885,12 +2886,12 @@ def&nbsp;_check_exercise_locked(code,&nbsp;tests,&nbsp;stdin_lines,&nbsp;namespa
 &nbsp;&nbsp;&nbsp;&nbsp;passed&nbsp;=&nbsp;not&nbsp;failures
 &nbsp;&nbsp;&nbsp;&nbsp;message&nbsp;=&nbsp;(
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;&quot;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;passed
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;&quot;共&nbsp;%d&nbsp;个用例，%d&nbsp;个未通过；首个失败：%s&quot;</div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;passed</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">55 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;%&nbsp;(len(tests),&nbsp;len(failures),&nbsp;failures[0][&quot;reason&quot;])
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else&nbsp;&quot;共&nbsp;%d&nbsp;个用例，%d&nbsp;个未通过；首个失败：%s&quot;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;%&nbsp;(len(tests),&nbsp;len(failures),&nbsp;failures[0][&quot;reason&quot;])
 &nbsp;&nbsp;&nbsp;&nbsp;)
 &nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;ok&quot;:&nbsp;True,
@@ -2938,12 +2939,12 @@ def&nbsp;check_exercise_json(payload_json):
 SQLite&nbsp;的&nbsp;execute&nbsp;是同步阻塞的，死循环&nbsp;CTE（比如漏了终止条件的&nbsp;WITH&nbsp;RECURSIVE）
 会把线程占死，界面一直转。这里用&nbsp;set_progress_handler&nbsp;做指令级看门狗：
 每&nbsp;1000&nbsp;条虚拟机指令看一眼时间，超了返回非&nbsp;0，SQLite&nbsp;自己中断并抛错。
-&quot;&quot;&quot;
-import&nbsp;json</div>
+&quot;&quot;&quot;</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">56 / 60</span></div>
-  <div class="src">import&nbsp;sqlite3
+  <div class="src">import&nbsp;json
+import&nbsp;sqlite3
 import&nbsp;time
 import&nbsp;traceback
 
@@ -2991,12 +2992,12 @@ def&nbsp;_split_statements(sql):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;ch&nbsp;==&nbsp;&quot;-&quot;&nbsp;and&nbsp;i&nbsp;+&nbsp;1&nbsp;&lt;&nbsp;len(sql)&nbsp;and&nbsp;sql[i&nbsp;+&nbsp;1]&nbsp;==&nbsp;&quot;-&quot;:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;i&nbsp;&lt;&nbsp;len(sql)&nbsp;and&nbsp;sql[i]&nbsp;!=&nbsp;&quot;\n&quot;:
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i&nbsp;+=&nbsp;1
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue</div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i&nbsp;+=&nbsp;1</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">57 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;ch&nbsp;==&nbsp;&quot;;&quot;:
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;ch&nbsp;==&nbsp;&quot;;&quot;:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;text&nbsp;=&nbsp;&quot;&quot;.join(buf).strip()
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;text:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;statements.append(text)
@@ -3044,12 +3045,12 @@ def&nbsp;_execute(sql,&nbsp;timeout=None):
 &nbsp;&nbsp;&nbsp;&nbsp;error&nbsp;=&nbsp;None
 &nbsp;&nbsp;&nbsp;&nbsp;last&nbsp;=&nbsp;None
 &nbsp;&nbsp;&nbsp;&nbsp;try:
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;statement&nbsp;in&nbsp;_split_statements(sql):
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cursor&nbsp;=&nbsp;conn.execute(statement)</div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;statement&nbsp;in&nbsp;_split_statements(sql):</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">58 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;cursor.description:
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cursor&nbsp;=&nbsp;conn.execute(statement)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;cursor.description:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;columns,&nbsp;rows,&nbsp;text&nbsp;=&nbsp;_format_table(cursor)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;last&nbsp;=&nbsp;{
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;columns&quot;:&nbsp;columns,
@@ -3097,12 +3098,12 @@ def&nbsp;_execute(sql,&nbsp;timeout=None):
 
 def&nbsp;run_sql(sql,&nbsp;timeout=None):
 &nbsp;&nbsp;&nbsp;&nbsp;core&nbsp;=&nbsp;_execute(sql,&nbsp;timeout)
-&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;{
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;ok&quot;:&nbsp;core[&quot;ok&quot;],</div>
+&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;{</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">59 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;stdout&quot;:&nbsp;core[&quot;stdout&quot;],
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;ok&quot;:&nbsp;core[&quot;ok&quot;],
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;stdout&quot;:&nbsp;core[&quot;stdout&quot;],
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;stderr&quot;:&nbsp;core[&quot;stderr&quot;],
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;error&quot;:&nbsp;core[&quot;error&quot;],
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;duration_ms&quot;:&nbsp;core[&quot;duration_ms&quot;],
@@ -3150,12 +3151,12 @@ def&nbsp;check_sql(sql,&nbsp;tests,&nbsp;timeout=None):
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;stderr&quot;:&nbsp;&quot;&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;test_output&quot;:&nbsp;&quot;&quot;,
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;error&quot;:&nbsp;None&nbsp;if&nbsp;passed&nbsp;else&nbsp;{&quot;type&quot;:&nbsp;&quot;TestFailed&quot;,&nbsp;&quot;message&quot;:&nbsp;message,&nbsp;&quot;traceback&quot;:&nbsp;&quot;&quot;},
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;duration_ms&quot;:&nbsp;core[&quot;duration_ms&quot;],
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;variables&quot;:&nbsp;[],</div>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;duration_ms&quot;:&nbsp;core[&quot;duration_ms&quot;],</div>
 </section>
 <section class="page">
   <div class="hd"><span>码上多语言编程学习软件 V1.0</span><span class="pg">60 / 60</span></div>
-  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;}
+  <div class="src">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;variables&quot;:&nbsp;[],
+&nbsp;&nbsp;&nbsp;&nbsp;}
 
 
 def&nbsp;run_sql_json(payload_json):
@@ -3176,7 +3177,6 @@ def&nbsp;check_sql_json(payload_json):
 
 def&nbsp;info_json():
 &nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;json.dumps({&quot;sqlite_version&quot;:&nbsp;sqlite3.sqlite_version,&nbsp;&quot;platform&quot;:&nbsp;&quot;sqlite3&quot;})
-&nbsp;
 &nbsp;
 &nbsp;
 &nbsp;

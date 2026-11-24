@@ -27,6 +27,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -34,6 +36,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -47,6 +50,7 @@ import com.pyneon.academy.ai.CoachTip
 import com.pyneon.academy.ai.TutorKnowledge
 import com.pyneon.academy.data.Block
 import com.pyneon.academy.data.Clock
+import com.pyneon.academy.data.DraftStore
 import com.pyneon.academy.data.LessonRepository
 import com.pyneon.academy.debug.DebugLog
 import com.pyneon.academy.data.MistakeViewModel
@@ -75,6 +79,7 @@ import com.pyneon.academy.ui.theme.TextDim
 import com.pyneon.academy.ui.theme.TextHi
 import com.pyneon.academy.ui.theme.TextMid
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -92,9 +97,11 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
     var runningKey by remember(lessonId) { mutableStateOf<Int?>(null) }
 
     val exercise = lesson?.exercise
-    // 没写完的答案要能扛住旋转和切后台，key 带 lessonId，换课就换草稿。
+    // 没写完的答案要能扛住旋转、切后台和被系统杀掉。先读落盘草稿，再退回起始代码。
+    val starterCode = exercise?.starterCode.orEmpty()
+    val savedDraft = remember(lessonId) { DraftStore.load(context, "lesson_$lessonId") }
     var editorValue by rememberSaveable(lessonId) {
-        mutableStateOf(exercise?.starterCode ?: "")
+        mutableStateOf(savedDraft ?: starterCode)
     }
     // 判题结果和教练提示不保存，旋转后重判；草稿和提示展开状态会保存。
     var checkResult by remember(lessonId) { mutableStateOf<RunResult?>(null) }
@@ -102,7 +109,29 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
     var tutorOpen by rememberSaveable(lessonId) { mutableStateOf(false) }
     var checking by remember(lessonId) { mutableStateOf(false) }
     var hintOpen by rememberSaveable(lessonId) { mutableStateOf(false) }
-    var rewardXp by remember { mutableStateOf<Int?>(null) }
+    var rewardXp by remember(lessonId) { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(lessonId, editorValue) {
+        // 每敲一个字就写盘太吵，停半秒再落一次；进程被杀最多丢半秒输入。
+        // 没改过的起始代码不落盘，免得每次打开都假装“恢复了草稿”。
+        delay(500)
+        if (savedDraft != null || editorValue != starterCode) {
+            DraftStore.save(context, "lesson_$lessonId", editorValue)
+        } else {
+            // 用户把代码改回起始状态，旧草稿要清掉，不然下次还会恢复成改过的版本。
+            DraftStore.save(context, "lesson_$lessonId", "")
+        }
+    }
+    val latestEditor by rememberUpdatedState(editorValue)
+    DisposableEffect(lessonId) {
+        onDispose {
+            if (savedDraft != null || latestEditor != starterCode) {
+                DraftStore.saveNow(context, "lesson_$lessonId", latestEditor)
+            } else {
+                DraftStore.saveNow(context, "lesson_$lessonId", "")
+            }
+        }
+    }
 
     val solvedKey = "les_$lessonId"
     val alreadySolved = solvedKey in progress.solvedKeys
@@ -158,10 +187,10 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
         }
     }
     val lessonIdx = allLessons.indexOfFirst { it.id == lessonId }
+    // 内容包里的课可能不在当前章节列表里，找不到就别硬推第一讲当“下一课”。
+    val nextInTrack = if (lessonIdx >= 0) allLessons.getOrNull(lessonIdx + 1) else null
     // 完成度按已通关讲数算，和「我的」页保持一致。
     val doneCount = allLessons.count { it.id in progress.completedLessons }
-    val tutorSources = remember(lessonId) { TutorKnowledge.fromLessons(LessonRepository.lessons(context)) }
-
     // 第一次通关时生成复习卡。
     androidx.compose.runtime.LaunchedEffect(alreadySolved) {
         if (alreadySolved) {
@@ -311,6 +340,14 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
                         language = lesson.lang
                     )
                     SyntaxHintBar(code = editorValue, language = lesson.lang)
+                    if (savedDraft != null && savedDraft != starterCode && editorValue == savedDraft) {
+                        Text(
+                            "已恢复上次未提交的草稿",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextDim,
+                            modifier = Modifier.padding(top = 6.dp)
+                        )
+                    }
 
                     Spacer(Modifier.height(14.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -348,9 +385,13 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
                                     recordSideEffects(context, r)
                                     if (r.passed == true) {
                                         if (solvedKey !in progress.solvedKeys) {
+                                            // 以真实入账差值为准：每日首练奖励、已完成的课
+                                            // 都可能让“题目 XP + 课程 XP”和实际对不上。
+                                            val beforeXp = ProgressStore.snapshot(context).xpTotal
                                             ProgressStore.markExerciseSolved(context, solvedKey, exercise.xp, Clock.todayEpochDay())
                                             ProgressStore.markLessonDone(context, lesson.id, lesson.xp)
-                                            rewardXp = exercise.xp + lesson.xp
+                                            val afterXp = ProgressStore.snapshot(context).xpTotal
+                                            rewardXp = (afterXp - beforeXp).coerceAtLeast(0)
                                             // 第一次通关才生成复习卡。
                                             reviewVm.generateCardsForLesson(lesson)
                                         } else {
@@ -455,6 +496,13 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
     }
 
     if (tutorOpen) {
+        // 只检索当前语言的课，别让 JS 的闭包问题翻出 Python 的旧解释。
+        // 放在弹窗分支里，没点助教就不建索引。
+        val tutorSources = remember(lessonId, tutorOpen) {
+            TutorKnowledge.fromLessons(
+                LessonRepository.lessons(context).filter { it.lang == lesson.lang }
+            )
+        }
         TutorDialog(
             lessonId = lesson.id,
             lessonTitle = lesson.title,
@@ -464,7 +512,7 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
             hint = lesson.exercise?.hint,
             currentCode = editorValue,
             result = checkResult,
-            nextLessonTitle = allLessons.getOrNull(lessonIdx + 1)?.title,
+            nextLessonTitle = nextInTrack?.title,
             sources = tutorSources,
             onDismiss = { tutorOpen = false }
         )
@@ -472,7 +520,7 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
 
     rewardXp?.let { gained ->
         // 学完弹「下一课」，别把人卡在结果页。
-        val nextLesson = allLessons.getOrNull(lessonIdx + 1)
+        val nextLesson = nextInTrack
         AlertDialog(
             onDismissRequest = { rewardXp = null },
             title = { GlitchText(if (gained > 0) "任务完成" else "已通关", style = MaterialTheme.typography.headlineSmall, color = NeonGreen) },
@@ -480,7 +528,12 @@ fun LessonDetailScreen(lessonId: String, onBack: () -> Unit, onNextLesson: ((Str
                 Column {
                     if (gained > 0) {
                         Text("+$gained XP 已记录", style = MaterialTheme.typography.bodyLarge, color = NeonYellow)
-                        Text("课程进度已同步，下一课解锁。", style = MaterialTheme.typography.bodyMedium, color = TextMid)
+                        Text(
+                            if (nextLesson != null) "课程进度已同步，下一课解锁。"
+                            else "这门课已经收尾，去复习台过一轮到期卡片。",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextMid
+                        )
                     } else {
                         Text("本练习此前已完成，继续保持连击吧。", style = MaterialTheme.typography.bodyMedium, color = TextMid)
                     }

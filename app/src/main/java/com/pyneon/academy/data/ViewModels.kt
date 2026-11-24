@@ -47,6 +47,9 @@ data class ReviewCard(
 
 private const val TAG = "ViewModels"
 
+// 错题本不是运行日志：同一个空位反复失败只留最新一次，整体也有上限。
+private const val MAX_MISTAKES = 300
+
 class StreakViewModel(app: Application) : AndroidViewModel(app) {
     private val _streak = MutableStateFlow(StreakData())
     val streak: StateFlow<StreakData> = _streak.asStateFlow()
@@ -219,7 +222,7 @@ class MistakeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             val mistakes = readMistakes(getApplication())
             val newId = (mistakes.maxOfOrNull { it.id } ?: 0) + 1
-            val mistake = MistakeRecord(
+            val incoming = MistakeRecord(
                 id = newId,
                 lessonId = lessonId,
                 blockType = blockType,
@@ -230,8 +233,10 @@ class MistakeViewModel(app: Application) : AndroidViewModel(app) {
                 errorMessage = error,
                 conceptTags = conceptTags
             )
-            writeMistakes(getApplication(), mistakes + mistake)
-            _allMistakes.value = mistakes + mistake
+            // 同一课同一个空位反复失败，保留最新一次代码和报错，别把错题本刷成流水账。
+            val updated = mergeMistake(mistakes, incoming)
+            writeMistakes(getApplication(), updated)
+            _allMistakes.value = updated
         }
     }
 
@@ -265,6 +270,22 @@ class MistakeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             _allMistakes.value = readMistakes(getApplication())
         }
+    }
+}
+
+internal fun mergeMistake(
+    existing: List<MistakeRecord>,
+    incoming: MistakeRecord
+): List<MistakeRecord> {
+    val index = existing.indexOfFirst {
+        it.lessonId == incoming.lessonId &&
+            it.blockType == incoming.blockType &&
+            it.blockIndex == incoming.blockIndex
+    }
+    return if (index >= 0) {
+        existing.toMutableList().also { it[index] = incoming.copy(id = existing[index].id) }
+    } else {
+        (existing + incoming).takeLast(MAX_MISTAKES)
     }
 }
 
