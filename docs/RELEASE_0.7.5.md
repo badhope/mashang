@@ -1,6 +1,6 @@
 # 0.7.5 发布说明
 
-**状态：准备发布。** 2026-11-24，`v0.7.5`，版本 `versionCode 24`。
+**状态：已发布。** 2026-11-24，`v0.7.5`，版本 `versionCode 24`。GitHub Actions run [45337504632](https://github.com/badhope/mashang/actions/runs/45337504632) 全绿，正式包由 tag 流水线签名产出。
 
 0.7.5 是离线边界收口版本：把 Python 运行时的网络/命令操作关进沙箱，把 24 个课程包全部预装，245 讲全新安装、断网也能学。
 
@@ -33,6 +33,7 @@
 | 内容校验 | 245 讲、22 挑战、267 判题项、1,097 用例，结构问题 0 |
 | APK 探针 | 24 个预装包、离线 catalog、245 讲 JSON、六套语法齐全 |
 | 软著 | 85 个源文件、17,443 行；源程序册总 349 页，交 60 页；说明书 20 页 |
+| tag 流水线 | run 45337504632：Python 校验、Android 构建、Release 打包三个 job 全绿 |
 
 ## 安装包
 
@@ -40,8 +41,9 @@
 - 包名：`com.pyneon.academy`
 - 最低系统：Android 10（API 29）
 - ABI：`arm64-v8a`
-- 大小与 SHA-256：以 GitHub Release 附件和 `.sha256` 文件为准
-- 签名：由 GitHub Actions tag 流水线用 `ANDROID_KEYSTORE_BASE64` 还原的正式 keystore 签名，证书 `CN=Mashang`，SHA-256 `9721440afcdb2b830159af84a8c7cb436cd89c891c18f1819f491d749beac610e`，可覆盖 0.7.3/0.7.4
+- 大小：26,863,453 字节（25.62 MiB）；比 0.7.4 的 26,324,182 字节增加 539,271 字节（约 0.51 MB）
+- SHA-256：`53672b13506156b5ca12056dc362711affc51235199ee41e2cb571b2df63027b`
+- 签名：由 GitHub Actions tag 流水线用 `ANDROID_KEYSTORE_BASE64` 还原的正式 keystore 签名，证书 `CN=Mashang`，SHA-256 `9721440afcdb2b830159af84a8c7cb436cd89c891c18f1819f491d749beac610e`，可覆盖 0.7.3/0.7.4；已用 `apksigner verify --print-certs` 复核
 
 ## 下载
 

@@ -21,6 +21,8 @@
 | 内容结构校验 | 245 讲、22 道挑战、267 个判题项、1,097 条用例，结构问题 0，判题失败 0 |
 | 网页端语法 | `node --check web/app.js`、`web/data.js`、`web/engine.js` 通过 |
 | 官网结构 | HTML 标签检查无错误、无未闭合标签 |
+| 正式 APK | tag CI 产出 26,863,453 字节，SHA-256 `53672b13…3027b`；`apksigner` 验签为 `CN=Mashang`，与 0.7.3/0.7.4 同一证书 |
+| 正式包探针 | `ci_apk_probe.py --require-release` 全部通过（24 个预装包、离线 catalog、六套语法、非 debuggable） |
 
 ## 0.7.5 修正与验证
 
