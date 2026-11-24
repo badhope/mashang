@@ -18,19 +18,19 @@
 | 发布版本 | `0.7.4`，`versionCode 23` |
 | 最低系统 | Android 10（API 29） |
 | 发布 ABI | `arm64-v8a` |
-| 主分支 | `main`，0.7.4 修复提交待本轮发布；0.7.3 发布提交 `180e59e` |
-| 发布标签 | `v0.7.4` → 待本轮签名构建；`v0.7.3` → `180e59e` |
-| 当前工作区 | 0.7.4 可用性修复已完成，待签名发布 |
+| 主分支 | `main`，0.7.4 发布提交 `4c4e7e4`；发布资料提交 `3db60ee`；0.7.3 发布提交 `180e59e` |
+| 发布标签 | `v0.7.4` → `4c4e7e4`；`v0.7.3` → `180e59e` |
+| 当前工作区 | 0.7.4 已发布；发布说明 `docs/RELEASE_0.7.4.md` |
 | 构建环境 | JDK 17 / Android SDK 35 / Gradle 9.5 / Chaquopy 3.13 |
 | 签名 | 本地无 release keystore；正式包由 GitHub Actions + release secrets 签名 |
 
-0.7.4 发布入口（本轮流水线创建后生效）：
+0.7.4 发布入口（已生效）：
 
 - GitHub `badhope`：<https://github.com/badhope/mashang/releases/tag/v0.7.4>
 - GitHub `X33834`：<https://github.com/X33834/mashang/releases/tag/v0.7.4>
 - GitHub `Morningstar202604`：<https://github.com/Morningstar202604/mashang/releases/tag/v0.7.4>
 - Gitee：<https://gitee.com/badhope/mashang/releases/tag/v0.7.4>
-- GitCode：<https://gitcode.com/badhope/mashang/releases/tag/v0.7.4>
+- GitCode：<https://gitcode.com/badhope/mashang/releases>
 
 远端入口：
 
@@ -64,7 +64,7 @@
 | 内容校验 | 245 讲、22 挑战、267 判题项、1,097 用例，结构问题 0，判题失败 0 |
 | 链接检查 | 5 个页面通过 |
 | 官网结构 | HTML 标签无错误、无未闭合 |
-| 发布 APK | 待本轮签名构建；0.7.3 为 26,307,798 字节，SHA-256 `34f13c73...508e` |
+| 发布 APK | 26,324,182 字节，SHA-256 `bf4e36c5f915007c5dd7f0aff0e7fdd536e3c16316f4005477f5bc185e35007d`；证书 `9721440a...610e` 与 0.7.3 相同 |
 | APK 探针 | `ci_apk_probe.py --require-release` 全部通过 |
 
 ### 1.4 已知边界与风险
@@ -121,7 +121,7 @@
 | T04 | P0 | 实时语法提示 | 括号、引号、中文标点、Python 冒号能在输入时提示且不误报 | `SyntaxCheck` | 已完成 |
 | T05 | P0 | 离线压力验证 | 120 次练习写入、126 次正常提交、12 次异常，0 崩溃 0 丢失 | 测试脚本 | 已完成 |
 | T06 | P0 | 0.7.3 发布 | 五端 Release、签名校验、APK 探针、质量报告同步 | CI secrets | 已完成 |
-| T07 | P0 | 0.7.4 可用性修复发布 | 草稿恢复、SQL 转义、助教上下文与性能、错题去重；五端 Release 与软著同步 | CI secrets | 待发布 |
+| T07 | P0 | 0.7.4 可用性修复发布 | 草稿恢复、SQL 转义、助教上下文与性能、错题去重；五端 Release 与软著同步 | CI secrets | 已完成 |
 
 ### 3.2 后续候选
 
@@ -147,7 +147,7 @@
 | --- | --- | --- | --- |
 | 0.7.2 | 发布收口 | 定位、质量报告、课程样例、软著材料、五端发布 | 已完成 |
 | 0.7.3 | 基线、离线助教与压力收口 | 四模块基线、竞品矩阵、离线助教、语法提示、压力验证 | 已发布 |
-| 0.7.4 | 可用性与数据安全修补 | 草稿落盘、SQL 转义、助教总结与异步检索、错题去重、XP 记账 | 待发布 |
+| 0.7.4 | 可用性与数据安全修补 | 草稿落盘、SQL 转义、助教总结与异步检索、错题去重、XP 记账 | 已发布 |
 | 0.8.0 | 个性化学习 | 学习路径推荐、弱项复习、挑战页助教、可选模型包调研 | 不破坏离线核心，包体可控 |
 | 0.9.0 | 内容与项目 | Python 综合项目、SQL 实战、多文件只读项目演示 | 课程完成率和稳定性达标 |
 | 1.0.0 | 商店正式版 | 商店素材、隐私合规、长期稳定性、内容审计 | 可上架，连续使用 30 天无阻断问题 |
