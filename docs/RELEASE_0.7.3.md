@@ -30,4 +30,14 @@
 - 截图仍是开发期界面，版本角标不代表当前构建。
 - 只支持 Android 10+ / arm64-v8a。
 
+## 下载
+
+- GitHub（主仓）：<https://github.com/badhope/mashang/releases/tag/v0.7.3>
+- GitHub（X33834）：<https://github.com/X33834/mashang/releases/tag/v0.7.3>
+- GitHub（Morningstar202604）：<https://github.com/Morningstar202604/mashang/releases/tag/v0.7.3>
+- Gitee：<https://gitee.com/badhope/mashang/releases/tag/v0.7.3>
+- GitCode：<https://gitcode.com/badhope/mashang/releases/tag/v0.7.3>
+
+APK：`mashang-v0.7.3.apk`，26,307,798 字节，SHA-256 `34f13c73c48bf2f2dfbfc4a1da29b9e615b83f1c45d29cbdf5b86c4ff47b508e`。
+
 完整说明见仓库 `docs/QUALITY_REPORT.md`、`docs/PROJECT_BASELINE.md` 和 `CHANGELOG.md`。
