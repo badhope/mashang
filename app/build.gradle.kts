@@ -175,7 +175,7 @@ dependencies {
 
     // F3: 代码编辑器替换自研 BasicTextField —— 复用开源成熟实现（sora-editor, LGPL-2.1）
     // 提供 Python 增量语法高亮、自动缩进、行号、撤销/重做；不再自研编辑器。
-    implementation(platform("io.github.rosemoe:editor-bom:0.24.6"))
+    implementation(platform("io.github.rosemoe:editor-bom:0.24.7"))
     implementation("io.github.rosemoe:editor")
     implementation("io.github.rosemoe:language-textmate")
 
